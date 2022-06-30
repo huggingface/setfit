@@ -1,2 +1,3 @@
-# setfit
+# SetFit
+
 Official repository for SetFit
