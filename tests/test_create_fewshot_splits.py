@@ -1,5 +1,5 @@
 import pandas as pd
-from baselines.data import SAMPLE_SIZES, SEEDS, create_fewshot_splits
+from setfit.data import SAMPLE_SIZES, SEEDS, create_fewshot_splits
 from datasets import Dataset
 
 

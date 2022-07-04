@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from baselines.data import create_samples
+from setfit.data import create_samples
 
 
 @pytest.mark.parametrize("sample_size", [8, 16, 32])
