@@ -1,6 +1,7 @@
 import pandas as pd
-from setfit.data import SAMPLE_SIZES, SEEDS, create_fewshot_splits
 from datasets import Dataset
+
+from setfit.data import SAMPLE_SIZES, SEEDS, create_fewshot_splits
 
 
 def test_expected_number_of_splits():

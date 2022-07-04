@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+
 from setfit.data import create_samples
 
 
