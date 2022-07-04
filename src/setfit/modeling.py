@@ -1,29 +1,148 @@
-import pandas as pd
-from datasets import Dataset, DatasetDict
+import numpy as np
+import torch
+import torch.nn as nn
+from sentence_transformers import InputExample, losses
 
 
-SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
+class SupConLoss(nn.Module):
+    """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
+    It also supports the unsupervised contrastive loss in SimCLR"""
 
+    def __init__(self, model, temperature=0.07, contrast_mode="all", base_temperature=0.07):
+        super(SupConLoss, self).__init__()
+        self.model = model
+        self.temperature = temperature
+        self.contrast_mode = contrast_mode
+        self.base_temperature = base_temperature
 
-def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
-    """Samples a DataFrame to create an equal number of samples per class (when possible)."""
-    examples = []
-    for label in df["label"].unique():
-        subset = df.query(f"label == {label}")
-        if len(subset) > sample_size:
-            examples.append(subset.sample(sample_size, random_state=seed, replace=False))
+    def forward(self, sentence_features, labels=None, mask=None):
+        """Compute loss for model. If both `labels` and `mask` are None,
+        it degenerates to SimCLR unsupervised loss:
+        https://arxiv.org/pdf/2002.05709.pdf
+        Args:
+            features: hidden vector of shape [bsz, n_views, ...].
+            labels: ground truth of shape [bsz].
+            mask: contrastive mask of shape [bsz, bsz], mask_{i,j}=1 if sample j
+                has the same class as sample i. Can be asymmetric.
+        Returns:
+            A loss scalar.
+        """
+        features = self.model(sentence_features[0])["sentence_embedding"]
+
+        # Nils: Normalize embeddings
+        features = torch.nn.functional.normalize(features, p=2, dim=1)
+
+        # Nils: Add n_views dimension
+        features = torch.unsqueeze(features, 1)
+
+        device = features.device
+
+        if len(features.shape) < 3:
+            raise ValueError("`features` needs to be [bsz, n_views, ...]," "at least 3 dimensions are required")
+        if len(features.shape) > 3:
+            features = features.view(features.shape[0], features.shape[1], -1)
+
+        batch_size = features.shape[0]
+        if labels is not None and mask is not None:
+            raise ValueError("Cannot define both `labels` and `mask`")
+        elif labels is None and mask is None:
+            mask = torch.eye(batch_size, dtype=torch.float32).to(device)
+        elif labels is not None:
+            labels = labels.contiguous().view(-1, 1)
+            if labels.shape[0] != batch_size:
+                raise ValueError("Num of labels does not match num of features")
+            mask = torch.eq(labels, labels.T).float().to(device)
         else:
-            examples.append(subset)
-    return pd.concat(examples)
+            mask = mask.float().to(device)
+
+        contrast_count = features.shape[1]
+        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
+        if self.contrast_mode == "one":
+            anchor_feature = features[:, 0]
+            anchor_count = 1
+        elif self.contrast_mode == "all":
+            anchor_feature = contrast_feature
+            anchor_count = contrast_count
+        else:
+            raise ValueError("Unknown mode: {}".format(self.contrast_mode))
+
+        # compute logits
+        anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
+        # for numerical stability
+        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
+        logits = anchor_dot_contrast - logits_max.detach()
+
+        # tile mask
+        mask = mask.repeat(anchor_count, contrast_count)
+        # mask-out self-contrast cases
+        logits_mask = torch.scatter(
+            torch.ones_like(mask), 1, torch.arange(batch_size * anchor_count).view(-1, 1).to(device), 0
+        )
+        mask = mask * logits_mask
+
+        # compute log_prob
+        exp_logits = torch.exp(logits) * logits_mask
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+
+        # compute mean of log-likelihood over positive
+        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
+
+        # loss
+        loss = -(self.temperature / self.base_temperature) * mean_log_prob_pos
+        loss = loss.view(anchor_count, batch_size).mean()
+
+        return loss
 
 
-def create_fewshot_splits(dataset: Dataset) -> DatasetDict:
-    """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
-    splits_ds = DatasetDict()
-    df = dataset.to_pandas()
-    for sample_size in SAMPLE_SIZES:
-        for idx, seed in enumerate(SEEDS):
-            split_df = create_samples(df, sample_size, seed)
-            splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
-    return splits_ds
+LOSS_NAME_TO_CLASS = {
+    "CosineSimilarityLoss": losses.CosineSimilarityLoss,
+    "ContrastiveLoss": losses.ContrastiveLoss,
+    "OnlineContrastiveLoss": losses.OnlineContrastiveLoss,
+    "BatchSemiHardTripletLoss": losses.BatchSemiHardTripletLoss,
+    "BatchAllTripletLoss": losses.BatchAllTripletLoss,
+    "BatchHardTripletLoss": losses.BatchHardTripletLoss,
+    "BatchHardSoftMarginTripletLoss": losses.BatchHardSoftMarginTripletLoss,
+    "SupConLoss": SupConLoss,
+}
+
+
+def sentence_pairs_generation(sentences, labels, pairs):
+    # initialize two empty lists to hold the (sentence, sentence) pairs and
+    # labels to indicate if a pair is positive or negative
+
+    num_classes = np.unique(labels)
+    idx = [np.where(labels == i)[0] for i in num_classes]
+
+    for first_idx in range(len(sentences)):
+        current_sentence = sentences[first_idx]
+        label = labels[first_idx]
+        second_idx = np.random.choice(idx[np.where(num_classes == label)[0][0]])
+        positive_sentence = sentences[second_idx]
+        # prepare a positive pair and update the sentences and labels
+        # lists, respectively
+        pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
+
+        negative_idx = np.where(labels != label)[0]
+        negative_sentence = sentences[np.random.choice(negative_idx)]
+        # prepare a negative pair of images and update our lists
+        pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
+    # return a 2-tuple of our image pairs and labels
+    return pairs
+
+
+class SKLearnWrapper:
+    def __init__(self, sbert_model, clf):
+        self.sbert_model = sbert_model
+        self.clf = clf
+
+    def fit(self, x_train, y_train):
+        embeddings = self.sbert_model.encode(x_train)
+        self.clf.fit(embeddings, y_train)
+
+    def predict(self, x_test):
+        embeddings = self.sbert_model.encode(x_test)
+        return self.clf.predict(embeddings)
+
+    def predict_proba(self, x_test):
+        embeddings = self.sbert_model.encode(x_test)
+        return self.clf.predict_proba(embeddings)

@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 DOCLINES = __doc__.split("\n")
 
-REQUIRED_PKGS = ["datasets==1.18.2"]
+REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2"]
 
 QUALITY_REQUIRE = ["black", "flake8", "isort"]
 
@@ -48,6 +48,6 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    keywords="machine learning",
+    keywords="nlp, machine learning, fewshot learning, transformers",
     zip_safe=False,  # Required for mypy to find the py.typed file
 )
