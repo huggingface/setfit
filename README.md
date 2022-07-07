@@ -4,6 +4,37 @@ Official repository for SetFit.
 
 ## Getting started
 
+## Developer installation
+
+To run the code in this project, first create a Python virtual environment using e.g. Conda:
+
+```bash
+conda create -n baselines python=3.9 && conda activate baselines
+```
+
+Then install the base requirements with:
+
+```bash
+python -m pip install '.[dev]'
+```
+
+This will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting. Next, go to one of the dedicated baseline directories and install the extra dependencies, e.g.
+
+```bash
+cd scripts/setfit
+python -m pip install -r requirements.txt
+```
+
+### Formatting your code
+
+We use `black` and `isort` to ensure consistent code formatting. After following the installation steps, you can check your code locally by running:
+
+```
+make style && make quality
+```
+
+
+
 ## Project structure
 
 ```
