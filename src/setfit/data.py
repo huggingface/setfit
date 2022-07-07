@@ -1,9 +1,9 @@
 import pandas as pd
+from typing import List
 from datasets import Dataset, DatasetDict
 
 
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
 
 def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
@@ -18,11 +18,11 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
     return pd.concat(examples)
 
 
-def create_fewshot_splits(dataset: Dataset) -> DatasetDict:
+def create_fewshot_splits(dataset: Dataset, sample_sizes: List[int]) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
     df = dataset.to_pandas()
-    for sample_size in SAMPLE_SIZES:
+    for sample_size in sample_sizes:
         for idx, seed in enumerate(SEEDS):
             split_df = create_samples(df, sample_size, seed)
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)

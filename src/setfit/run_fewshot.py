@@ -15,27 +15,29 @@ import json
 from data import create_fewshot_splits
 import sys
 from shutil import copyfile
-from modeling import LOSS_NAME_TO_CLASS, SupConLoss, SKLearnWrapper
+from modeling import LOSS_NAME_TO_CLASS, SupConLoss, SKLearnWrapper, sentence_pairs_generation
 
 # ignore all future warnings
 simplefilter(action='ignore', category=FutureWarning)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="paraphrase-mpnet-base-v2")
-parser.add_argument("--datasets", nargs="+", default=["sst2", "sst5",  "subj", "ag_news","bbc-news","enron_spam","student-question-categories","TREC-QC","toxic_conversations","amazon_counterfactual_en", "imdb"])
+parser.add_argument("--datasets", nargs="+", default=["sst2", "sst5",  "subj", "ag_news","bbc-news",
+    "enron_spam","student-question-categories","TREC-QC","toxic_conversations","amazon_counterfactual_en", "imdb"])
+parser.add_argument("--sample_sizes", type=int, nargs="+", default=None)
 parser.add_argument("--num_epochs", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--max_seq_length", type=int, default=256)
-parser.add_argument("--classifier", default="lr", choices=["lr", "svc-rbf", "svc-rbf-norm", "knn", "pytorch", "pytorch_complex"])
-parser.add_argument("--loss", default="None")
-parser.add_argument("--name", default="")
-parser.add_argument("--norm", default=False, action='store_true')
-parser.add_argument("--sample_sizes", type=int, nargs="+", default=None)
-parser.add_argument("--optimizer_name", default="AdamW")
-parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--classifier", default="logistic_regression", choices=["logistic_regression", "svc-rbf", "svc-rbf-norm", "knn",
+    "pytorch", "pytorch_complex"])
+parser.add_argument("--loss", default="CosineSimilarityLoss")
+parser.add_argument("--exp_name", default="")
+parser.add_argument("--add_normalization_layer", default=False, action='store_true')
+# parser.add_argument("--optimizer_name", default="AdamW")
+# parser.add_argument("--lr", type=float, default=0.001)
 args = parser.parse_args()
 
-output_path = f"results/{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-epochs_{args.num_epochs}-batch_{args.batch_size}-{args.name}".rstrip("-")
+output_path = f"results/stefit/{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-epochs_{args.num_epochs}-batch_{args.batch_size}-{args.exp_name}".rstrip("-")
 os.makedirs(output_path, exist_ok=True)
 
 train_script_path = os.path.join(output_path, 'train_script.py')
@@ -44,54 +46,29 @@ with open(train_script_path, 'a') as f_out:
     f_out.write("\n\n# Script was called via:\n#python " + " ".join(sys.argv))
 
 
-def sentence_pairs_generation(sentences, labels, pairs):
-    # initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    numClassesList = np.unique(labels)
-    idx = [np.where(labels == i)[0] for i in numClassesList]
-
-    for idxA in range(len(sentences)):
-        currentSentence = sentences[idxA]
-        label = labels[idxA]
-        idxB = np.random.choice(idx[np.where(numClassesList == label)[0][0]])
-        posSentence = sentences[idxB]
-        # prepare a positive pair and update the sentences and labels
-        # lists, respectively
-        pairs.append(InputExample(texts=[currentSentence, posSentence], label=1.0))
-
-        negIdx = np.where(labels != label)[0]
-        negSentence = sentences[np.random.choice(negIdx)]
-        # prepare a negative pair of images and update our lists
-        pairs.append(InputExample(texts=[currentSentence, negSentence], label=0.0))
-
-    # return a 2-tuple of our image pairs and labels
-    return (pairs)
-
-
 def test_classifier(x_train, y_train, x_test, y_test):
-    """Computes the ACC/AP for a given classifier."""
+    """Computes the Accuracy/Average Precision for a given classifier."""
 
     clf = get_classifier(model)
     clf.fit(x_train, y_train)
    
-    if perf_measure == "ap":
+    if perf_measure == "average_precision":
         y_pred = clf.predict_proba(x_test)
         if len(y_pred.shape) == 2:
             y_pred = y_pred[:, 1]
 
         ap = average_precision_score(y_test, y_pred) * 100
-        print(f'AP: {ap:.2f}')
+        print(f'Average Precision: {ap:.2f}')
         return ap
     else:
         y_pred = clf.predict(x_test)
         acc = accuracy_score(y_test, y_pred) * 100
-        print(f'Acc: {acc:.2f}')
+        print(f'Accuracy: {acc:.2f}')
         return acc
 
 
 def get_classifier(sbert_model):
-    if args.classifier == "lr":
+    if args.classifier == "logistic_regression":
         return SKLearnWrapper(sbert_model, LogisticRegression())
 
 
@@ -165,7 +142,7 @@ model = SentenceTransformer(args.model)
 model_original_state = copy.deepcopy(model.state_dict())
 model.max_seq_length = args.max_seq_length
 
-if args.norm:
+if args.add_normalization_layer:
     ##Add normalization layer
     model._modules['2'] = models.Normalize()
 
@@ -175,14 +152,14 @@ for dataset in args.datasets:
     dataset = dataset
 
     if dataset in ["amazon_counterfactual_en", "toxic_conversations"]:
-        perf_measure = "ap"
+        perf_measure = "average_precision"
     else:
-        perf_measure = "acc"
+        perf_measure = "accuracy"
 
     # Load one of the SetFit training sets from the Hugging Face Hub
-    train_ds = load_dataset("SetFit/"+dataset, split="train")
-    fewshot_ds = create_fewshot_splits(train_ds)
-    test_dataset = load_dataset("SetFit/"+dataset, split='test')
+    train_ds = load_dataset("SetFit/" + dataset, split="train")
+    fewshot_ds = create_fewshot_splits(train_ds, args.sample_sizes)
+    test_dataset = load_dataset("SetFit/" + dataset, split='test')
 
     print(f"Test set: {len(test_dataset)}")
 
