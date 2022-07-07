@@ -6,6 +6,7 @@ from datasets import Dataset, DatasetDict
 
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
+
 def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
     """Samples a DataFrame to create an equal number of samples per class (when possible)."""
     examples = []
