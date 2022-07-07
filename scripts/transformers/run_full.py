@@ -72,7 +72,7 @@ def train_single_dataset(
 
     # Define hyperparameters
     training_args = TrainingArguments(
-        output_dir="finetuning/checkpoints/all/",
+        output_dir="checkpoints/all/",
         overwrite_output_dir=True,
         num_train_epochs=20,
         learning_rate=learning_rate,
