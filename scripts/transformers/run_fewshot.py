@@ -133,7 +133,7 @@ def train_single_dataset(
         # Compute final metrics on full test set
         metrics = trainer.evaluate(tokenized_dataset["test"])
         eval_metrics = {}
-        eval_metrics["score"] = metrics[f"eval_{metric}"]
+        eval_metrics["score"] = metrics[f"eval_{metric}"] * 100.0
         eval_metrics["measure"] = metric
 
         # Save metrics
