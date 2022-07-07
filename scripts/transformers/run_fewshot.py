@@ -1,78 +1,42 @@
-import json
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import typer
-from datasets import Dataset, load_dataset
+from datasets import load_dataset
 from evaluate import load
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
+from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, get_label_mappings, save_metrics
 
 from setfit.data import create_fewshot_splits
 
 
 app = typer.Typer()
 
-DEV_DATASET_TO_METRIC = {
-    "sst2": "accuracy",
-    "imdb": "accuracy",
-    "subj": "accuracy",
-    "ag_news": "accuracy",
-    "bbc-news": "accuracy",
-    "enron_spam": "accuracy",
-    "student-question-categories": "accuracy",
-    "TREC-QC": "accuracy",
-    "toxic_conversations": "matthews_correlation",
-}
-
-TEST_DATASET_TO_METRIC = {
-    "emotion": "accuracy",
-    "SentEval-CR": "accuracy",
-    "sst5": "accuracy",
-    "amazon_counterfactual_en": "matthews_correlation",
-}
-
 RESULTS_PATH = Path("results")
 RESULTS_PATH.mkdir(parents=True, exist_ok=True)
 
 
-def get_label_mappings(dataset: Dataset) -> Tuple[int, dict, dict]:
-    """Returns the label mappings of the dataset."""
-    label_ids = dataset.unique("label")
-    label_names = dataset.unique("label_text")
-    label2id = {label: idx for label, idx in zip(label_names, label_ids)}
-    id2label = {idx: label for label, idx in label2id.items()}
-    num_labels = len(label_ids)
-    return num_labels, label2id, id2label
-
-
-def save_metrics(metrics: dict, metrics_filepath):
-    with open(metrics_filepath, "w") as f:
-        json.dump(metrics, f)
-
-
 @app.command()
 def train_single_dataset(
-    dataset_name: str,
-    metric_name: str,
-    model_ckpt: str = "distilbert-base-uncased",
+    model_id: str = "distilbert-base-uncased",
+    dataset_id: str = "sst2",
+    metric: str = "accuracy",
     learning_rate: float = 2e-5,
     batch_size: int = 4,
     num_train_epochs_min: int = 25,
     num_train_epochs_max: int = 75,
     push_to_hub: bool = False,
     debug: bool = False,
-) -> List[Dict[str, float]]:
+):
     """Fine-tunes a pretrained checkpoint on the fewshot training sets"""
     # Load dataset
-    dataset_id = "SetFit/" + dataset_name
-    dataset = load_dataset(dataset_id)
-    model_name = model_ckpt.split("/")[-1]
+    dataset = load_dataset(f"SetFit/{dataset_id}")
+    model_name = model_id.split("/")[-1]
 
     # Create metrics directory
-    metrics_dir = RESULTS_PATH / Path(f"{model_name}-lr-{learning_rate}/{dataset_name}")
+    metrics_dir = RESULTS_PATH / Path(f"{model_name}-lr-{learning_rate}/{dataset_id}")
     metrics_dir.mkdir(parents=True, exist_ok=True)
     # Load tokenizer and preprocess
-    tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
 
     def tokenize_dataset(example):
         return tokenizer(example["text"], truncation=True, max_length=512)
@@ -85,11 +49,11 @@ def train_single_dataset(
 
     def model_init():
         return AutoModelForSequenceClassification.from_pretrained(
-            model_ckpt, num_labels=num_labels, id2label=id2label, label2id=label2id
+            model_id, num_labels=num_labels, id2label=id2label, label2id=label2id
         )
 
     # Define metrics
-    metric_fn = load(metric_name)
+    metric_fn = load(metric)
 
     def compute_metrics(pred):
         labels = pred.label_ids
@@ -97,7 +61,7 @@ def train_single_dataset(
         return metric_fn.compute(predictions=preds, references=labels)
 
     for idx, (split, dset) in enumerate(fewshot_dset.items()):
-        typer.echo(f"🍌🍌🍌 Fine-tuning on {dataset_name} with split: {split} 🍌🍌🍌")
+        typer.echo(f"🍌🍌🍌 Fine-tuning on {dataset_id} with split: {split} 🍌🍌🍌")
         # Create split directory
         metrics_split_dir = metrics_dir / split
         metrics_split_dir.mkdir(parents=True, exist_ok=True)
@@ -112,11 +76,12 @@ def train_single_dataset(
                 break
             if idx > 0:
                 break
+
         # Create training and validation splits
         dset = dset.train_test_split(seed=42, test_size=0.2)
 
         # Define hyperparameters
-        ckpt_name = f"{model_name}__{dataset_name}__{split}"
+        ckpt_name = f"{model_name}-finetuned-{dataset_id}-{split}"
         training_args = TrainingArguments(
             output_dir="checkpoints/fewshot/",
             overwrite_output_dir=True,
@@ -168,9 +133,8 @@ def train_single_dataset(
         # Compute final metrics on full test set
         metrics = trainer.evaluate(tokenized_dataset["test"])
         eval_metrics = {}
-        eval_metrics["score"] = metrics[f"eval_{metric_name}"]
-        eval_metrics["measure"] = metric_name
-        print(metrics)
+        eval_metrics["score"] = metrics[f"eval_{metric}"] * 100.0
+        eval_metrics["measure"] = metric
 
         # Save metrics
         save_metrics(eval_metrics, metrics_filepath)
@@ -181,26 +145,26 @@ def train_single_dataset(
 
 @app.command()
 def train_all_datasets(
-    model_ckpt: str = "distilbert-base-uncased",
+    model_id: str = "distilbert-base-uncased",
     learning_rate: float = 2e-5,
     batch_size: int = 4,
     push_to_hub: bool = False,
     num_train_epochs_min: int = 25,
     num_train_epochs_max: int = 75,
-    train_mode: str = "dev",
+    is_dev_set: bool = False,
 ):
     """Fine-tunes a pretrained checkpoint on all of the SetFit development/test datasets."""
-    if train_mode == "dev":
+    if is_dev_set:
         DATASET_TO_METRIC = DEV_DATASET_TO_METRIC
     else:
         DATASET_TO_METRIC = TEST_DATASET_TO_METRIC
 
-    for dataset_name, metric_name in DATASET_TO_METRIC.items():
-        typer.echo(f"🏋️🏋️🏋️  Fine-tuning on dataset {dataset_name} 🏋️🏋️🏋️")
+    for dataset_id, metric in DATASET_TO_METRIC.items():
+        typer.echo(f"🏋️🏋️🏋️  Fine-tuning on dataset {dataset_id} 🏋️🏋️🏋️")
         train_single_dataset(
-            dataset_name=dataset_name,
-            metric_name=metric_name,
-            model_ckpt=model_ckpt,
+            model_id=model_id,
+            dataset_id=dataset_id,
+            metric=metric,
             learning_rate=learning_rate,
             batch_size=batch_size,
             num_train_epochs_min=num_train_epochs_min,
