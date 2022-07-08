@@ -6,7 +6,7 @@ from sentence_transformers import InputExample, losses
 
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
-    
+
     It also supports the unsupervised contrastive loss in SimCLR.
     """
 
@@ -19,7 +19,7 @@ class SupConLoss(nn.Module):
 
     def forward(self, sentence_features, labels=None, mask=None):
         """Computes loss for model.
-        
+
         If both `labels` and `mask` are None, it degenerates to SimCLR unsupervised loss:
         https://arxiv.org/pdf/2002.05709.pdf
 
