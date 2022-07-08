@@ -17,7 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
-from setfit.data import create_fewshot_splits
+from setfit.data import create_fewshot_splits, SAMPLE_SIZES
 from setfit.modeling import LOSS_NAME_TO_CLASS, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
 
@@ -31,7 +31,7 @@ parser.add_argument(
     nargs="+",
     default=["sst2"],
 )
-parser.add_argument("--sample_sizes", type=int, nargs="+", default=None)
+parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
 parser.add_argument("--num_epochs", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--max_seq_length", type=int, default=256)

@@ -133,3 +133,4 @@ dmypy.json
 
 # Temporary results files
 scripts/**/results.json
+scripts/**/checkpoints
