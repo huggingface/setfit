@@ -37,7 +37,7 @@ def train_single_dataset(
     metrics_dir = RESULTS_PATH / Path(f"{model_name}-lr-{learning_rate}/{dataset_id}")
     metrics_dir.mkdir(parents=True, exist_ok=True)
     # Create split directory
-    metrics_split_dir = metrics_dir / "train-all"
+    metrics_split_dir = metrics_dir / "train-full"
     metrics_split_dir.mkdir(parents=True, exist_ok=True)
     metrics_filepath = metrics_split_dir / "results.json"
     # Skip previously evaluated model
@@ -72,7 +72,7 @@ def train_single_dataset(
 
     # Define hyperparameters
     training_args = TrainingArguments(
-        output_dir="finetuning/checkpoints/all/",
+        output_dir="checkpoints/all/",
         overwrite_output_dir=True,
         num_train_epochs=20,
         learning_rate=learning_rate,
@@ -90,7 +90,7 @@ def train_single_dataset(
     )
 
     if push_to_hub:
-        ckpt_name = f"{model_name}-finetuned-{dataset_id}-train-all"
+        ckpt_name = f"{model_name}-finetuned-{dataset_id}-train-full"
         training_args.push_to_hub = True
         training_args.hub_strategy = ("end",)
         training_args.hub_model_id = f"SetFit/{ckpt_name}"

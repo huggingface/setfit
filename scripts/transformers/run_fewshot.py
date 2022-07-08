@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 
 import typer
 from datasets import load_dataset
@@ -6,7 +7,7 @@ from evaluate import load
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
 from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, get_label_mappings, save_metrics
 
-from setfit.data import create_fewshot_splits
+from setfit.data import SAMPLE_SIZES, create_fewshot_splits
 
 
 app = typer.Typer()
@@ -20,6 +21,7 @@ def train_single_dataset(
     model_id: str = "distilbert-base-uncased",
     dataset_id: str = "sst2",
     metric: str = "accuracy",
+    sample_sizes: List[int] = SAMPLE_SIZES,
     learning_rate: float = 2e-5,
     batch_size: int = 4,
     num_train_epochs_min: int = 25,
@@ -43,7 +45,7 @@ def train_single_dataset(
 
     tokenized_dataset = dataset.map(tokenize_dataset, batched=True)
     # Create fewshot samples
-    fewshot_dset = create_fewshot_splits(tokenized_dataset["train"])
+    fewshot_dset = create_fewshot_splits(tokenized_dataset["train"], sample_sizes)
     # Load model - we use a `model_init()` function here to load a fresh model with each fewshot training run
     num_labels, label2id, id2label = get_label_mappings(dataset["train"])
 
@@ -146,6 +148,7 @@ def train_single_dataset(
 @app.command()
 def train_all_datasets(
     model_id: str = "distilbert-base-uncased",
+    sample_sizes: List[int] = SAMPLE_SIZES,
     learning_rate: float = 2e-5,
     batch_size: int = 4,
     push_to_hub: bool = False,
@@ -165,6 +168,7 @@ def train_all_datasets(
             model_id=model_id,
             dataset_id=dataset_id,
             metric=metric,
+            sample_sizes=sample_sizes,
             learning_rate=learning_rate,
             batch_size=batch_size,
             num_train_epochs_min=num_train_epochs_min,
