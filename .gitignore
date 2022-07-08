@@ -130,3 +130,6 @@ dmypy.json
 
 # VS Code
 .history
+
+# Temporary results files
+scripts/**/results.json
