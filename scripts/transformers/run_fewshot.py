@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List
 
+import torch
 import typer
 from datasets import load_dataset
 from evaluate import load
@@ -120,16 +121,7 @@ def train_single_dataset(
         best_run = trainer.hyperparameter_search(n_trials=10, direction="maximize", hp_space=hp_space)
 
         for k, v in best_run.hyperparameters.items():
-            setattr(training_args, k, v)
-
-        trainer = Trainer(
-            model_init=model_init,
-            args=training_args,
-            compute_metrics=compute_metrics,
-            train_dataset=dset["train"],
-            eval_dataset=dset["test"],
-            tokenizer=tokenizer,
-        )
+            setattr(trainer.args, k, v)
 
         trainer.train()
         # Compute final metrics on full test set
@@ -143,6 +135,9 @@ def train_single_dataset(
 
         if push_to_hub:
             trainer.push_to_hub("Checkpoint upload", blocking=False)
+
+        # Flush CUDA cache
+        torch.cuda.empty_cache()
 
 
 @app.command()
