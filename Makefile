@@ -10,7 +10,7 @@ style:
 quality:
 	python -m black --check --line-length 119 --target-version py39 $(check_dirs)
 	python -m isort --check-only $(check_dirs)
-	python -m flake8 --max-line-length 119 $(check_dirs)
+	python -m flake8 --max-line-length 119 --exclude=results $(check_dirs)
 
 test:
 	python -m pytest -sv tests/
