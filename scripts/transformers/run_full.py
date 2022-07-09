@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import torch
 import typer
 from datasets import load_dataset, load_metric
 from transformers import (
@@ -119,6 +120,9 @@ def train_single_dataset(
 
     if push_to_hub:
         trainer.push_to_hub("Checkpoint upload", blocking=False)
+
+    # Flush CUDA cache
+    torch.cuda.empty_cache()
 
 
 @app.command()
