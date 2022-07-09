@@ -53,3 +53,29 @@ python run_fewshot.py \
     --exp_name "" \
     --add_normalization_layer \
 ```
+
+### Multilingual experiments
+
+We provide three different ways to run SetFit in multilingual settings:
+
+* `each`: train on data in target language
+* `en`: train on English data only
+* `all`: train on data in all languages
+
+To train SetFit in one of these setting, run:
+
+```
+python run_fewshot_multilingual.py \
+    --model sentence-transformers/paraphrase-multilingual-mpnet-base-v2 \
+    --datasets amazon_reviews_multi_de amazon_reviews_multi_es \
+    --sample_sizes 8 \
+    --multilinguality=each
+```
+
+To train SetFit on all the multilingual test sets in the paper, run:
+
+```
+python run_fewshot_multilingual.py \
+    --model=sentence-transformers/paraphrase-multilingual-mpnet-base-v2 \
+    --multilinguality=each
+```
