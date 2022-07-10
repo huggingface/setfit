@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 
 import torch
@@ -122,6 +123,8 @@ def train_single_dataset(
         trainer.push_to_hub("Checkpoint upload", blocking=False)
 
     # Flush CUDA cache
+    del trainer
+    gc.collect()
     torch.cuda.empty_cache()
 
 

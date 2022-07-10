@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 from typing import List
 
@@ -124,6 +125,7 @@ def train_single_dataset(
             setattr(trainer.args, k, v)
 
         trainer.train()
+
         # Compute final metrics on full test set
         metrics = trainer.evaluate(tokenized_dataset["test"])
         eval_metrics = {}
@@ -137,6 +139,8 @@ def train_single_dataset(
             trainer.push_to_hub("Checkpoint upload", blocking=False)
 
         # Flush CUDA cache
+        del trainer
+        gc.collect()
         torch.cuda.empty_cache()
 
 
