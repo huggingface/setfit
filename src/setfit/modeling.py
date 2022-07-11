@@ -1,7 +1,9 @@
+import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
-from sentence_transformers import InputExample, losses
+from sentence_transformers import InputExample, losses, models, SentenceTransformer
 
 
 class SupConLoss(nn.Module):
@@ -109,6 +111,16 @@ LOSS_NAME_TO_CLASS = {
     "BatchHardSoftMarginTripletLoss": losses.BatchHardSoftMarginTripletLoss,
     "SupConLoss": SupConLoss,
 }
+
+
+class SetFit:
+    def __init__(self, max_seq_length: int, add_normalization_layer: bool) -> None:
+        self.model = SentenceTransformer(self.args.model)
+        self.model_original_state = copy.deepcopy(self.model.state_dict())
+        self.model.max_seq_length = max_seq_length
+
+        if add_normalization_layer:
+            self.model._modules["2"] = models.Normalize()
 
 
 def sentence_pairs_generation(sentences, labels, pairs):
