@@ -16,3 +16,7 @@ TEST_DATASET_TO_METRIC = {
     "ag_news": "accuracy",
     "amazon_counterfactual_en": "matthews_correlation",
 }
+
+MULTILINGUAL_DATASET_TO_METRIC = {
+    f"amazon_reviews_multi_{lang}": "mae" for lang in ["en", "de", "es", "fr", "ja", "zh"]
+}
