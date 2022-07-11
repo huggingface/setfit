@@ -19,7 +19,7 @@ RESULTS_PATH.mkdir(parents=True, exist_ok=True)
 
 
 @app.command()
-def train(
+def train_single_dataset(
     model_id: str = "xlm-roberta-base",
     dataset_id: str = "amazon_reviews_multi_de",
     metric: str = "mae",
@@ -183,7 +183,7 @@ def train_all_datasets(
     """Fine-tunes a pretrained checkpoint on all of the SetFit development/test datasets."""
     for dataset_id, metric in MULTILINGUAL_DATASET_TO_METRIC.items():
         typer.echo(f"🏋️🏋️🏋️  Fine-tuning on dataset {dataset_id} 🏋️🏋️🏋️")
-        train(
+        train_single_dataset(
             model_id=model_id,
             dataset_id=dataset_id,
             metric=metric,
