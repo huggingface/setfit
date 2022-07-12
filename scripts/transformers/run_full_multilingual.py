@@ -66,7 +66,7 @@ def train_single_dataset(
     model_name = model_id.split("/")[-1]
 
     # Create metrics directory
-    metrics_dir = RESULTS_PATH / Path(f"{model_name}-lr-{learning_rate}/{dataset_id}")
+    metrics_dir = RESULTS_PATH / Path(f"{model_name}-lr-{learning_rate}/{dataset_id}/{multilinguality}")
     metrics_dir.mkdir(parents=True, exist_ok=True)
     # Create split directory
     metrics_split_dir = metrics_dir / "train-full"

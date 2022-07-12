@@ -41,27 +41,27 @@ def train_single_dataset(
 
     # Load dataset
     if multilinguality == "each":
-        dataset = load_dataset(f"SetFit/{dataset_id}")
-        tokenized_dataset = dataset.map(tokenize_dataset, batched=True)
+        train_dataset = load_dataset(f"SetFit/{dataset_id}", split="train")
+        tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
         # Create fewshot samples
-        fewshot_dset = create_fewshot_splits(tokenized_dataset["train"], sample_sizes)
+        fewshot_dset = create_fewshot_splits(tokenized_dataset, sample_sizes)
     elif multilinguality == "en":
         # Load English dataset
         english_dataset = [dset for dset in MULTILINGUAL_DATASET_TO_METRIC.keys() if dset.endswith("_en")][0]
-        train_dataset = load_dataset(f"SetFit/{english_dataset}")
+        train_dataset = load_dataset(f"SetFit/{english_dataset}", split="train")
         tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
         # Create fewshot samples
-        fewshot_dset = create_fewshot_splits(tokenized_dataset["train"], sample_sizes)
+        fewshot_dset = create_fewshot_splits(tokenized_dataset, sample_sizes)
     elif multilinguality == "all":
         # Concatenate all languages
         dsets = []
-        for dataset in MULTILINGUAL_DATASET_TO_METRIC.keys():
-            ds = load_dataset(f"SetFit/{dataset}", split="train")
+        for dset in MULTILINGUAL_DATASET_TO_METRIC.keys():
+            ds = load_dataset(f"SetFit/{dset}", split="train")
             dsets.append(ds)
         # Create training set and sample for fewshot splits
         train_dataset = concatenate_datasets(dsets).shuffle(seed=42)
         tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
-        fewshot_dset = create_fewshot_splits(train_dataset, sample_sizes)
+        fewshot_dset = create_fewshot_splits(tokenized_dataset, sample_sizes)
 
     # Load test dataset
     test_dataset = load_dataset(f"SetFit/{dataset_id}", split="test")
@@ -74,7 +74,7 @@ def train_single_dataset(
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
     # Load model - we use a `model_init()` function here to load a fresh model with each fewshot training run
-    num_labels, label2id, id2label = get_label_mappings(dataset["train"])
+    num_labels, label2id, id2label = get_label_mappings(train_dataset)
 
     def model_init():
         return AutoModelForSequenceClassification.from_pretrained(
