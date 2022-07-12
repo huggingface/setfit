@@ -57,6 +57,36 @@ To finetune a pretrained model on all the test datasets used in SetFit, run:
 python run_full.py train-all-datasets --model-id=distilbert-base-uncased --batch-size=4
 ```
 
+### Multilingual finetuning
+
+We provide three different ways to run SetFit in multilingual settings:
+
+* `each`: train on data in target language
+* `en`: train on English data only
+* `all`: train on data in all languages
+
+To finetune a baseline in one of these setting, run:
+
+```
+python run_fewshot_multilingual.py train-single-dataset \
+--model-id=xlm-roberta-base \
+--dataset-id=amazon_reviews_multi_en \
+--metric=mae \
+--learning-rate=2e-5 \
+--batch-size=4 \
+--multilinguality=each
+```
+
+To finetune a baseline on all the multilingual test sets in the paper, run:
+
+```
+python run_fewshot_multilingual.py train-all-datasets \
+    --model=xlm-roberta-base \
+    --learning-rate=2e-5 \
+    --batch-size=4 \
+    --multilinguality=each
+```
+
 ### Inference benchmark
 
 To run the inference benchmark, run:
