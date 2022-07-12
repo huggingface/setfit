@@ -20,6 +20,7 @@ from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 from setfit.data import SAMPLE_SIZES, create_fewshot_splits
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFit, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
+
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
 
@@ -54,7 +55,6 @@ def parse_args():
 
 
 class RunFewShot:
-
     def __init__(self, args) -> None:
         # Prepare directory for results
         self.args = args
@@ -70,7 +70,6 @@ class RunFewShot:
         with open(train_script_path, "a") as f_out:
             f_out.write("\n\n# Script was called via:\n#python " + " ".join(sys.argv))
 
-
         # Configure dataset <> metric mapping. Defaults to accuracy
         if args.is_dev_set:
             self.dataset_to_metric = DEV_DATASET_TO_METRIC
@@ -83,8 +82,9 @@ class RunFewShot:
         self.loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
         # Load SetFit Model
-        self.model_wrapper = SetFit(max_seq_length=args.max_seq_length,
-                            add_normalization_layer=args.add_normalization_layer)
+        self.model_wrapper = SetFit(
+            max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
+        )
         self.model = self.model_wrapper.model
 
     def compute_metrics(self, x_train, y_train, x_test, y_test, metric):
@@ -105,7 +105,6 @@ class RunFewShot:
         if self.args.classifier == "logistic_regression":
             return SKLearnWrapper(sbert_model, LogisticRegression())
 
-
     def train(self):
         for dataset, metric in self.dataset_to_metric.items():
             print(f"\n\n\n============== {dataset} ============")
@@ -124,7 +123,9 @@ class RunFewShot:
                     continue
 
                 self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
-                metrics = self.eval_setfit(fewshot_ds[name], test_dataset, self.loss_class, self.args.num_epochs, metric)
+                metrics = self.eval_setfit(
+                    fewshot_ds[name], test_dataset, self.loss_class, self.args.num_epochs, metric
+                )
 
                 with open(results_path, "w") as f_out:
                     json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
@@ -156,7 +157,9 @@ class RunFewShot:
             train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
             if loss_class is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = loss_class(model=self.model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance)
+                train_loss = loss_class(
+                    model=self.model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance
+                )
             elif loss_class is SupConLoss:
                 train_loss = loss_class(model=self.model)
             else:
@@ -185,7 +188,8 @@ class RunFewShot:
             show_progress_bar=False,
         )
 
-        return self.compute_metrics(x_train, y_train, x_test, y_test, metric)       
+        return self.compute_metrics(x_train, y_train, x_test, y_test, metric)
+
 
 def main():
     args = parse_args()
@@ -193,5 +197,3 @@ def main():
     run_fewshot = RunFewShot(args)
 
     run_fewshot.train()
-
-

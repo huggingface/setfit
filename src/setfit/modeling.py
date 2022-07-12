@@ -3,7 +3,7 @@ import copy
 import numpy as np
 import torch
 import torch.nn as nn
-from sentence_transformers import InputExample, losses, models, SentenceTransformer
+from sentence_transformers import InputExample, SentenceTransformer, losses, models
 
 
 class SupConLoss(nn.Module):
