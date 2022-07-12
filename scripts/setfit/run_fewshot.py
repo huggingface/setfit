@@ -3,6 +3,7 @@ import copy
 import json
 import math
 import os
+import pathlib
 import sys
 from shutil import copyfile
 from warnings import simplefilter
@@ -13,12 +14,13 @@ from evaluate import load
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from setfit_wrapper import SetFit
 from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 from setfit.data import SAMPLE_SIZES, create_fewshot_splits
-from setfit.modeling import LOSS_NAME_TO_CLASS, SetFit, SKLearnWrapper, SupConLoss, sentence_pairs_generation
+from setfit.modeling import LOSS_NAME_TO_CLASS, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
 
 # ignore all future warnings
@@ -59,13 +61,18 @@ class RunFewShot:
         # Prepare directory for results
         self.args = args
 
-        output_path = f"results/{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-epochs_{args.num_epochs}-batch_{args.batch_size}-{args.exp_name}".rstrip(
-            "-"
+        parent_directory = pathlib.Path(__file__).parent.absolute()
+        self.output_path = (
+            parent_directory
+            / "results"
+            / f"{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-epochs_{args.num_epochs}-batch_{args.batch_size}-{args.exp_name}".rstrip(
+                "-"
+            )
         )
-        os.makedirs(output_path, exist_ok=True)
+        os.makedirs(self.output_path, exist_ok=True)
 
         # Save a copy of this training script and the run command in results directory
-        train_script_path = os.path.join(output_path, "train_script.py")
+        train_script_path = os.path.join(self.output_path, "train_script.py")
         copyfile(__file__, train_script_path)
         with open(train_script_path, "a") as f_out:
             f_out.write("\n\n# Script was called via:\n#python " + " ".join(sys.argv))
@@ -83,7 +90,7 @@ class RunFewShot:
 
         # Load SetFit Model
         self.model_wrapper = SetFit(
-            max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
+            self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
         )
         self.model = self.model_wrapper.model
 
@@ -193,7 +200,10 @@ class RunFewShot:
 
 def main():
     args = parse_args()
-
     run_fewshot = RunFewShot(args)
 
     run_fewshot.train()
+
+
+if __name__ == "__main__":
+    main()
