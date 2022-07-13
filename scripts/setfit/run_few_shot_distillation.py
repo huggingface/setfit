@@ -15,11 +15,10 @@ import pandas as pd
 import numpy as np
 from datasets import load_dataset,Dataset, DatasetDict
 from evaluate import load
-from sentence_transformers import InputExample, losses
-from sentence_transformers.datasets import SentenceLabelDataset
-from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from sentence_transformers import InputExample
 from setfit_wrapper import SetFit
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
 from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
@@ -32,6 +31,36 @@ STUDENT=1
 STUDENT_SEEDS= [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--teacher_model", default="paraphrase-mpnet-base-v2")
+    parser.add_argument("--student_model", default="paraphrase-MiniLM-L3-v2")
+    parser.add_argument(
+        "--datasets",
+        nargs="+",
+        default=["sst2"],
+    )
+    parser.add_argument("--teacher_sample_sizes", type=int, nargs="+", default=16)
+    parser.add_argument("--student_sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
+    parser.add_argument("--num_epochs", type=int, default=20)
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--max_seq_length", type=int, default=256)
+    parser.add_argument(
+        "--classifier",
+        default="logistic_regression",
+        choices=["logistic_regression", "svc-rbf", "svc-rbf-norm", "knn", "pytorch", "pytorch_complex"],
+    )
+    parser.add_argument("--loss", default="CosineSimilarityLoss")
+    parser.add_argument("--exp_name", default="")
+    parser.add_argument("--add_normalization_layer", default=False, action="store_true")
+    parser.add_argument("--optimizer_name", default="AdamW")
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--is_dev_set", type=bool, default=False)
+    parser.add_argument("--is_test_set", type=bool, default=False)
+    args = parser.parse_args()
+
+    return args
 
 def create_samples(df: pd.DataFrame, sample_size: int, seed: int, mode) -> pd.DataFrame:
     """Samples a DataFrame to create an equal number of samples per class (when possible)."""
@@ -62,48 +91,43 @@ def create_fewshot_splits(dataset: Dataset, sample_sizes: List[int], seeds, mode
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
     return splits_ds
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--teacher_model", default="paraphrase-mpnet-base-v2")
-    parser.add_argument("--student_model", default="paraphrase-MiniLM-L3-v2")
-    parser.add_argument(
-        "--datasets",
-        nargs="+",
-        default=["sst2"],
-    )
-    parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
-    parser.add_argument("--num_epochs", type=int, default=20)
-    parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--max_seq_length", type=int, default=256)
-    parser.add_argument(
-        "--classifier",
-        default="logistic_regression",
-        choices=["logistic_regression", "svc-rbf", "svc-rbf-norm", "knn", "pytorch", "pytorch_complex"],
-    )
-    parser.add_argument("--loss", default="CosineSimilarityLoss")
-    parser.add_argument("--exp_name", default="")
-    parser.add_argument("--add_normalization_layer", default=False, action="store_true")
-    parser.add_argument("--optimizer_name", default="AdamW")
-    parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--is_dev_set", type=bool, default=False)
-    parser.add_argument("--is_test_set", type=bool, default=False)
-    args = parser.parse_args()
+def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
+	# initialize two empty lists to hold the (sentence, sentence) pairs and
+	# labels to indicate if a pair is positive or negative
 
-    return args
+  idx = list(range(len(sentences)))
 
+  for idxA in range(len(sentences)):      
+    currentSentence = sentences[idxA]
+    idxB = int(np.random.choice([x for x in idx if x!=idxA]))
+
+    cos_sim=float(cos_sim_matrix[idxA][idxB])
+    pairedSentence = sentences[idxB]
+    pairs.append(InputExample(texts=[currentSentence, pairedSentence], label=cos_sim))
+
+    idxC = np.random.choice([x for x in idx if x!=idxA])
+    cos_sim=float(cos_sim_matrix[idxA][idxC])
+    pairedSentence = sentences[idxC]
+    pairs.append(InputExample(texts=[currentSentence, pairedSentence], label=cos_sim))
+    
+  return (pairs) 
 
 class RunFewShot:
-    def __init__(self, args, mode) -> None:
+    def __init__(self, args, mode, trained_teacher_model, x_train_teacher) -> None:
         # Prepare directory for results
         self.args = args
 
         if mode==TEACHER:
             model = args.teacher_model
             path_prefix = f"distil_teacher_{args.teacher_model.replace('/', '-')}"
+            self.mode = TEACHER
          
         if mode==STUDENT:
             model = args.student_model
             path_prefix = f"distil_student_{args.student_model.replace('/', '-')}"
+            self.trained_teacher_model = trained_teacher_model
+            self.x_train_teacher = x_train_teacher
+            self.mode = STUDENT
                 
         parent_directory = pathlib.Path(__file__).parent.absolute()
         self.output_path = (
@@ -139,14 +163,14 @@ class RunFewShot:
         )
         self.model = self.model_wrapper.model
 
-    def compute_metrics(self, x_train, y_train, x_test, y_test, metric):
+    def compute_metrics(self, x_train, y_train, x_test, y_test, y_pred, metric):
         """Computes the metrics for a given classifier."""
         # Define metrics
         metric_fn = load(metric)
 
-        clf = self.get_classifier(self.model)
-        clf.fit(x_train, y_train)
-        y_pred = clf.predict(x_test)
+        # clf = self.get_classifier(self.model)
+        # clf.fit(x_train, y_train)
+        # y_pred = clf.predict(x_test)
 
         metrics = metric_fn.compute(predictions=y_pred, references=y_test)
         print(f"{metric} -- {metrics[metric]:.4f}")
@@ -157,8 +181,12 @@ class RunFewShot:
         if self.args.classifier == "logistic_regression":
             return SKLearnWrapper(sbert_model, LogisticRegression())
 
-    def train(self, mode):
+    def train(self):
         for dataset, metric in self.dataset_to_metric.items():
+            if self.mode == TEACHER:
+                print(f"\n\n\n=========== Training Teacher =========")
+            else:
+                print(f"\n\n\n======== Training SetFit Student ======")
             print(f"\n\n\n============== {dataset} ============")
             # Load one of the SetFit training sets from the Hugging Face Hub
             train_ds = load_dataset(f"SetFit/{dataset}", split="train")
@@ -166,11 +194,11 @@ class RunFewShot:
             print(f"Test set: {len(test_dataset)}")
             
             # if teacher training use only 1 split (send only 1 seed. seed= 0)
-            if mode==TEACHER:
-                fewshot_ds = create_fewshot_splits(train_ds, self.args.sample_sizes, seeds=TEACHER_SEED, mode=TEACHER)
+            if self.mode==TEACHER:
+                fewshot_ds = create_fewshot_splits(train_ds, self.args.teacher_sample_sizes, seeds=TEACHER_SEED, mode=TEACHER)
             
-            if mode==STUDENT: 
-                fewshot_ds = create_fewshot_splits(train_ds, self.args.sample_sizes, seeds=STUDENT_SEEDS, mode=STUDENT)
+            if self.mode==STUDENT: 
+                fewshot_ds = create_fewshot_splits(train_ds, self.args.student_sample_sizes, seeds=STUDENT_SEEDS, mode=STUDENT)   
                               
             for name in fewshot_ds:
                 results_path = os.path.join(self.output_path, dataset, name, "results.json")
@@ -178,9 +206,9 @@ class RunFewShot:
                 os.makedirs(os.path.dirname(results_path), exist_ok=True)
                 # if os.path.exists(results_path):
                 #     continue
-
+              
                 self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
-                metrics = self.eval_setfit(
+                metrics = self.train_eval_setfit(
                     fewshot_ds[name], test_dataset, self.loss_class, self.args.num_epochs, metric
                 )
 
@@ -188,7 +216,7 @@ class RunFewShot:
                     json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
                     
 
-    def eval_setfit(self, train_data, test_data, loss_class, num_epochs, metric):
+    def train_eval_setfit(self, train_data, test_data, loss_class, num_epochs, metric):
         x_train = train_data["text"]
         y_train = train_data["label"]
 
@@ -200,44 +228,39 @@ class RunFewShot:
 
         # sentence-transformers adaptation
         batch_size = self.args.batch_size
-        if loss_class in [
-            losses.BatchAllTripletLoss,
-            losses.BatchHardTripletLoss,
-            losses.BatchSemiHardTripletLoss,
-            losses.BatchHardSoftMarginTripletLoss,
-            SupConLoss,
-        ]:
-
-            train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-            train_data_sampler = SentenceLabelDataset(train_examples)
-
-            batch_size = min(self.args.batch_size, len(train_data_sampler))
-            train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
-
-            if loss_class is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = loss_class(
-                    model=self.model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance
-                )
-            elif loss_class is SupConLoss:
-                train_loss = loss_class(model=self.model)
-            else:
-                train_loss = loss_class(
-                    model=self.model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance, margin=0.25
-                )
-
-            train_steps = len(train_dataloader) * num_epochs
-        else:
+    
+        if self.mode==TEACHER:
+            # save teacher train data for student training
+            self.x_train_teacher = x_train            
             train_examples = []
             for _ in range(num_epochs):
                 train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
-            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-            train_loss = loss_class(self.model)
-            train_steps = len(train_dataloader)
+        if self.mode==STUDENT:
+            # generate student data
+            # student train data = teacher train data + unlabeled data
+            x_train = self.x_train_teacher+x_train
+            x_train_embd_student = self.trained_teacher_model.sbert_model.encode(x_train)
+            y_train                   = self.trained_teacher_model.clf.predict(x_train_embd_student)
+            y_train_pred_student_prob = self.trained_teacher_model.clf.predict_proba(x_train_embd_student)
+           
+            cos_sim_matrix = [[0 for j in range(len(x_train))] for i in range(len(x_train))]
+            for idxA in range(len(x_train)):
+                for idxB in range(len(x_train)):
+                    cos_sim_matrix[idxA][idxB] = float(cosine_similarity(x_train_embd_student[idxA].reshape(1, -1),x_train_embd_student[idxB].reshape(1, -1)))                           
+
+            train_examples = [] 
+            for x in range(num_epochs):
+                train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
+                    
+        train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+        train_loss = loss_class(self.model)
+        train_steps = len(train_dataloader)
 
         print(f"{len(x_train)} train samples in total, {train_steps} train steps with batch size {batch_size}")
 
         warmup_steps = math.ceil(train_steps * 0.1)
+        # train sentence transformer
         self.model.fit(
             train_objectives=[(train_dataloader, train_loss)],
             epochs=1,
@@ -245,24 +268,28 @@ class RunFewShot:
             warmup_steps=warmup_steps,
             show_progress_bar=False,
         )
-
-        return self.compute_metrics(x_train, y_train, x_test, y_test, metric)
+        # train classification head
+        clf = self.get_classifier(self.model)
+        clf.fit(x_train, y_train)
+        y_pred = clf.predict(x_test)
+        
+        if self.mode == TEACHER:
+            self.full_setfit_model = clf
+        
+        return self.compute_metrics(x_train, y_train, x_test, y_test, y_pred, metric)
 
 
 def main():
     args = parse_args()
     
     # Train few-shot teacher 
-    fewshot_teacher = RunFewShot(args,mode=TEACHER)
-    fewshot_teacher.train(mode=TEACHER)
+    fewshot_teacher = RunFewShot(args,mode=TEACHER, trained_teacher_model=None, x_train_teacher=None)
+    fewshot_teacher.train()
     
     # Train few-shot student 
-    fewshot_teacher = RunFewShot(args,mode=STUDENT)
-    fewshot_teacher.train(mode=STUDENT)
+    fewshot_student = RunFewShot(args,mode=STUDENT, trained_teacher_model=fewshot_teacher.full_setfit_model, x_train_teacher=fewshot_teacher.x_train_teacher)
+    fewshot_student.train()
     
-    # generate student data
-    
-    X_train_embd_student = fewshot_teacher.model.encode(x_train_student)
 
 if __name__ == "__main__":
     main()
