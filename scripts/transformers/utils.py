@@ -23,6 +23,10 @@ TEST_DATASET_TO_METRIC = {
     "amazon_counterfactual_en": "matthews_correlation",
 }
 
+MULTILINGUAL_DATASET_TO_METRIC = {
+    f"amazon_reviews_multi_{lang}": "mae" for lang in ["en", "de", "es", "fr", "ja", "zh"]
+}
+
 
 def get_label_mappings(dataset: Dataset) -> Tuple[int, dict, dict]:
     """Returns the label mappings of the dataset."""
