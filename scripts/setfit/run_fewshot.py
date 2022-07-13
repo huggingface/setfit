@@ -209,7 +209,7 @@ class RunFewShot:
                 classifier = self.train(train_data)
 
                 # Evaluate the model on the test data
-                metrics = self.eval(classifier, test_data, metric)
+                metrics = self.evaluate(classifier, test_data, metric)
 
                 with open(results_path, "w") as f_out:
                     json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
