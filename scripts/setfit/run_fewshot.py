@@ -173,7 +173,7 @@ class RunFewShot:
         classifier.fit(x_train, y_train)
         return classifier
 
-    def eval(self, classifier: SKLearnWrapper, data: Dict[str, str], metric: str) -> dict:
+    def evaluate(self, classifier: SKLearnWrapper, data: Dict[str, str], metric: str) -> dict:
         """Computes the metrics for a given classifier."""
         # Define metrics
         metric_fn = load(metric)
