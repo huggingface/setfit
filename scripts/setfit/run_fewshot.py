@@ -7,17 +7,17 @@ import pathlib
 import sys
 from shutil import copyfile
 from typing import Dict, Tuple
-from typing_extensions import LiteralString
 from warnings import simplefilter
 
 import numpy as np
 from datasets import Dataset, DatasetDict, load_dataset
 from evaluate import load
-from sentence_transformers import SentenceTransformer, InputExample, losses
+from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
+from typing_extensions import LiteralString
 from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 from setfit.data import SAMPLE_SIZES, create_fewshot_splits
@@ -173,8 +173,7 @@ class RunFewShot:
         classifier.fit(x_train, y_train)
         return classifier
 
-
-    def eval(self, classifier: SKLearnWrapper, data: Dict[str,str], metric: str) -> dict:
+    def eval(self, classifier: SKLearnWrapper, data: Dict[str, str], metric: str) -> dict:
         """Computes the metrics for a given classifier."""
         # Define metrics
         metric_fn = load(metric)
@@ -204,8 +203,8 @@ class RunFewShot:
                 results_path = self.create_results_path(dataset, split_name)
                 if os.path.exists(results_path) and not self.args.override_results:
                     print(f"Skipping finished experiment: {results_path}")
-                    continue                
-                
+                    continue
+
                 # Train the model on the current train split
                 classifier = self.train(train_data)
 
