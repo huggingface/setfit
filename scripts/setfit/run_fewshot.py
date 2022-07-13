@@ -94,7 +94,7 @@ class RunFewShot:
         )
         self.model = self.model_wrapper.model
 
-    def compute_metrics(self, x_train, y_train, x_test, y_test, metric):
+    def eval(self, x_train, y_train, x_test, y_test, metric):
         """Computes the metrics for a given classifier."""
         # Define metrics
         metric_fn = load(metric)
@@ -112,40 +112,46 @@ class RunFewShot:
         if self.args.classifier == "logistic_regression":
             return SKLearnWrapper(sbert_model, LogisticRegression())
 
-    def train(self):
+    def load_data_splits(self, dataset):
+        """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
+        print(f"\n\n\n============== {dataset} ============")
+        # Load one of the SetFit training sets from the Hugging Face Hub
+        train_split = load_dataset(f"SetFit/{dataset}", split="train")
+        few_shot_train_splits = create_fewshot_splits(train_split, self.args.sample_sizes)
+        test_split = load_dataset(f"SetFit/{dataset}", split="test")
+        print(f"Test set: {len(test_split)}")
+        return few_shot_train_splits, test_split
+
+    def train_eval_all_datasets(self):
         for dataset, metric in self.dataset_to_metric.items():
-            print(f"\n\n\n============== {dataset} ============")
-            # Load one of the SetFit training sets from the Hugging Face Hub
-            train_ds = load_dataset(f"SetFit/{dataset}", split="train")
-            fewshot_ds = create_fewshot_splits(train_ds, self.args.sample_sizes)
-            test_dataset = load_dataset(f"SetFit/{dataset}", split="test")
+            few_shot_train_splits, test_split = self.load_data_splits(dataset)
 
-            print(f"Test set: {len(test_dataset)}")
-
-            for name in fewshot_ds:
-                results_path = os.path.join(self.output_path, dataset, name, "results.json")
+            for split_name, split_data in few_shot_train_splits.items():
+                results_path = os.path.join(self.output_path, dataset, split_name, "results.json")
                 print(f"\n\n======== {os.path.dirname(results_path)} =======")
                 os.makedirs(os.path.dirname(results_path), exist_ok=True)
                 if os.path.exists(results_path):
+                    print(f"Skipping finished experiment: {results_path}")
                     continue
+                
+                x_train = split_data["text"]
+                y_train = split_data["label"]
 
-                self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
-                metrics = self.eval_setfit(
-                    fewshot_ds[name], test_dataset, self.loss_class, self.args.num_epochs, metric
-                )
+                self.train(x_train, y_train, self.loss_class, self.args.num_epochs)
+
+                x_test = test_split["text"]
+                y_test = test_split["label"]
+
+                metrics = self.eval(x_train, y_train, x_test, y_test, metric)
 
                 with open(results_path, "w") as f_out:
                     json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
 
-    def eval_setfit(self, train_data, test_data, loss_class, num_epochs, metric):
-        x_train = train_data["text"]
-        y_train = train_data["label"]
-
-        x_test = test_data["text"]
-        y_test = test_data["label"]
+    def train(self, x_train, y_train, loss_class, num_epochs):
+        self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
 
         if loss_class is None:
-            return self.compute_metrics(x_train, y_train, x_test, y_test, metric)
+            return
 
         # sentence-transformers adaptation
         batch_size = self.args.batch_size
@@ -195,14 +201,12 @@ class RunFewShot:
             show_progress_bar=False,
         )
 
-        return self.compute_metrics(x_train, y_train, x_test, y_test, metric)
-
 
 def main():
     args = parse_args()
-    run_fewshot = RunFewShot(args)
 
-    run_fewshot.train()
+    run_fewshot = RunFewShot(args)
+    run_fewshot.train_eval_all_datasets()
 
 
 if __name__ == "__main__":
