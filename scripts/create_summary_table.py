@@ -1,9 +1,9 @@
 import argparse
 import json
 import os
-from os.path import splitext
 import tarfile
 from glob import glob
+from os.path import splitext
 from typing import List, Tuple
 
 from numpy import mean, std
