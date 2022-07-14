@@ -135,3 +135,4 @@ dmypy.json
 scripts/**/results.json
 scripts/**/checkpoints
 scripts/**/train_script.py
+scripts/**/summary_table.csv

@@ -173,7 +173,7 @@ class RunFewShot:
         classifier.fit(x_train, y_train)
         return classifier
 
-    def evaluate(self, classifier: SKLearnWrapper, data: Dict[str, str], metric: str) -> dict:
+    def eval(self, classifier: SKLearnWrapper, data: Dict[str, str], metric: str) -> dict:
         """Computes the metrics for a given classifier."""
         # Define metrics
         metric_fn = load(metric)
@@ -209,7 +209,7 @@ class RunFewShot:
                 classifier = self.train(train_data)
 
                 # Evaluate the model on the test data
-                metrics = self.evaluate(classifier, test_data, metric)
+                metrics = self.eval(classifier, test_data, metric)
 
                 with open(results_path, "w") as f_out:
                     json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
