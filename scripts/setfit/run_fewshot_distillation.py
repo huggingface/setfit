@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
 from evaluate import load
-from sentence_transformers import InputExample
 from setfit_wrapper import SetFit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics.pairwise import cosine_similarity
@@ -22,12 +21,17 @@ from torch.utils.data import DataLoader
 from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import LOSS_NAME_TO_CLASS, SKLearnWrapper, sentence_pairs_generation
+from setfit.modeling import (
+    LOSS_NAME_TO_CLASS,
+    SKLearnWrapper,
+    sentence_pairs_generation,
+    sentence_pairs_generation_cos_sim,
+)
 
 
-TEACHER = 0
+# TEACHER = 0
 TEACHER_SEED = [0]
-STUDENT = 1
+# STUDENT = 1
 STUDENT_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
@@ -64,74 +68,26 @@ def parse_args():
     return args
 
 
-def create_samples(df: pd.DataFrame, sample_size: int, seed: int, mode) -> pd.DataFrame:
-    """Samples a DataFrame to create an equal number of samples per class (when possible)."""
-    examples = []
-    if mode == TEACHER:
-        for label in df["label"].unique():
-            subset = df.query(f"label == {label}")
-            if len(subset) > sample_size:
-                examples.append(subset.sample(sample_size, random_state=seed, replace=False))
-            else:
-                examples.append(subset)
-
-        examples = pd.concat(examples)
-
-    if mode == STUDENT:
-        examples = df.sample(sample_size, random_state=seed, replace=False)
-
-    return examples
-
-
-def create_fewshot_splits(dataset: Dataset, sample_sizes: List[int], seeds, mode: Boolean) -> DatasetDict:
-    """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
-    splits_ds = DatasetDict()
-    df = dataset.to_pandas()
-    for sample_size in sample_sizes:
-        for idx, seed in enumerate(seeds):
-            split_df = create_samples(df, sample_size, seed, mode)
-            splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
-    return splits_ds
-
-
-def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
-    # initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    idx = list(range(len(sentences)))
-
-    for idxA in range(len(sentences)):
-        currentSentence = sentences[idxA]
-        idxB = int(np.random.choice([x for x in idx if x != idxA]))
-
-        cos_sim = float(cos_sim_matrix[idxA][idxB])
-        pairedSentence = sentences[idxB]
-        pairs.append(InputExample(texts=[currentSentence, pairedSentence], label=cos_sim))
-
-        idxC = np.random.choice([x for x in idx if x != idxA])
-        cos_sim = float(cos_sim_matrix[idxA][idxC])
-        pairedSentence = sentences[idxC]
-        pairs.append(InputExample(texts=[currentSentence, pairedSentence], label=cos_sim))
-
-    return pairs
-
-
-class RunFewShot:
+class RunFewShotDistill:
     def __init__(self, args, mode, trained_teacher_model, x_train_teacher) -> None:
         # Prepare directory for results
         self.args = args
 
-        if mode == TEACHER:
+        self.TEACHER = 0
+        self.STUDENT = 1
+        self.BASELINE_STUDENT = 1
+
+        if mode == self.TEACHER:
             model = args.teacher_model
             path_prefix = f"distil_teacher_{args.teacher_model.replace('/', '-')}"
-            self.mode = TEACHER
+            self.mode = self.TEACHER
 
-        if mode == STUDENT:
+        if mode == self.STUDENT:
             model = args.student_model
             path_prefix = f"distil_student_{args.student_model.replace('/', '-')}"
             self.trained_teacher_model = trained_teacher_model
             self.x_train_teacher = x_train_teacher
-            self.mode = STUDENT
+            self.mode = self.STUDENT
 
         parent_directory = pathlib.Path(__file__).parent.absolute()
         self.output_path = (
@@ -169,6 +125,34 @@ class RunFewShot:
         )
         self.model = self.model_wrapper.model
 
+    def create_samples(self, df: pd.DataFrame, sample_size: int, seed: int, mode) -> pd.DataFrame:
+        """Samples a DataFrame to create an equal number of samples per class (when possible)."""
+        examples = []
+        if mode == self.TEACHER:
+            for label in df["label"].unique():
+                subset = df.query(f"label == {label}")
+                if len(subset) > sample_size:
+                    examples.append(subset.sample(sample_size, random_state=seed, replace=False))
+                else:
+                    examples.append(subset)
+
+            examples = pd.concat(examples)
+
+        if mode == self.STUDENT:
+            examples = df.sample(sample_size, random_state=seed, replace=False)
+
+        return examples
+
+    def create_fewshot_splits(self, dataset: Dataset, sample_sizes: List[int], seeds, mode: Boolean) -> DatasetDict:
+        """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
+        splits_ds = DatasetDict()
+        df = dataset.to_pandas()
+        for sample_size in sample_sizes:
+            for idx, seed in enumerate(seeds):
+                split_df = self.create_samples(df, sample_size, seed, mode)
+                splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
+        return splits_ds
+
     def compute_metrics(self, x_train, y_train, x_test, y_test, y_pred, metric):
         """Computes the metrics for a given classifier."""
         # Define metrics
@@ -189,7 +173,7 @@ class RunFewShot:
 
     def train(self):
         for dataset, metric in self.dataset_to_metric.items():
-            if self.mode == TEACHER:
+            if self.mode == self.TEACHER:
                 print("\n\n\n=========== Training Teacher =========")
             else:
                 print("\n\n\n======== Training SetFit Student ======")
@@ -200,14 +184,14 @@ class RunFewShot:
             print(f"Test set: {len(test_dataset)}")
 
             # if teacher training use only 1 split (send only 1 seed. seed= 0)
-            if self.mode == TEACHER:
-                fewshot_ds = create_fewshot_splits(
-                    train_ds, self.args.teacher_sample_sizes, seeds=TEACHER_SEED, mode=TEACHER
+            if self.mode == self.TEACHER:
+                fewshot_ds = self.create_fewshot_splits(
+                    train_ds, self.args.teacher_sample_sizes, seeds=TEACHER_SEED, mode=self.TEACHER
                 )
 
-            if self.mode == STUDENT:
-                fewshot_ds = create_fewshot_splits(
-                    train_ds, self.args.student_sample_sizes, seeds=STUDENT_SEEDS, mode=STUDENT
+            if self.mode == self.STUDENT:
+                fewshot_ds = self.create_fewshot_splits(
+                    train_ds, self.args.student_sample_sizes, seeds=STUDENT_SEEDS, mode=self.STUDENT
                 )
 
             for name in fewshot_ds:
@@ -238,14 +222,14 @@ class RunFewShot:
         # sentence-transformers adaptation
         batch_size = self.args.batch_size
 
-        if self.mode == TEACHER:
+        if self.mode == self.TEACHER:
             # save teacher train data for student training
             self.x_train_teacher = x_train
             train_examples = []
             for _ in range(num_epochs):
                 train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
-        if self.mode == STUDENT:
+        if self.mode == self.STUDENT:
             # generate student data
             # student train data = teacher train data + unlabeled data
             x_train = self.x_train_teacher + x_train
@@ -254,11 +238,12 @@ class RunFewShot:
             # y_train_pred_student_prob = self.trained_teacher_model.clf.predict_proba(x_train_embd_student)
 
             cos_sim_matrix = [[0 for j in range(len(x_train))] for i in range(len(x_train))]
-            for idxA in range(len(x_train)):
-                for idxB in range(len(x_train)):
-                    cos_sim_matrix[idxA][idxB] = float(
+            for first_idx in range(len(x_train)):
+                for second_idx in range(len(x_train)):
+                    cos_sim_matrix[first_idx][second_idx] = float(
                         cosine_similarity(
-                            x_train_embd_student[idxA].reshape(1, -1), x_train_embd_student[idxB].reshape(1, -1)
+                            x_train_embd_student[first_idx].reshape(1, -1),
+                            x_train_embd_student[second_idx].reshape(1, -1),
                         )
                     )
 
@@ -286,7 +271,7 @@ class RunFewShot:
         clf.fit(x_train, y_train)
         y_pred = clf.predict(x_test)
 
-        if self.mode == TEACHER:
+        if self.mode == self.TEACHER:
             self.full_setfit_model = clf
 
         return self.compute_metrics(x_train, y_train, x_test, y_test, y_pred, metric)
@@ -294,13 +279,14 @@ class RunFewShot:
 
 def main():
     args = parse_args()
-
+    TEACHER = 0
+    STUDENT = 1
     # Train few-shot teacher
-    fewshot_teacher = RunFewShot(args, mode=TEACHER, trained_teacher_model=None, x_train_teacher=None)
+    fewshot_teacher = RunFewShotDistill(args, mode=TEACHER, trained_teacher_model=None, x_train_teacher=None)
     fewshot_teacher.train()
 
     # Train few-shot student
-    fewshot_student = RunFewShot(
+    fewshot_student = RunFewShotDistill(
         args,
         mode=STUDENT,
         trained_teacher_model=fewshot_teacher.full_setfit_model,

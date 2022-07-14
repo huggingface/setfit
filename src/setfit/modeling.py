@@ -4,6 +4,10 @@ import torch.nn as nn
 from sentence_transformers import InputExample, losses
 
 
+class A:
+    pass
+
+
 class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
 
@@ -132,6 +136,28 @@ def sentence_pairs_generation(sentences, labels, pairs):
         # Prepare a negative pair of images and update our lists
         pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
     # Return a 2-tuple of our image pairs and labels
+    return pairs
+
+
+def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
+    # initialize two empty lists to hold the (sentence, sentence) pairs and
+    # labels to indicate if a pair is positive or negative
+
+    idx = list(range(len(sentences)))
+
+    for first_idx in range(len(sentences)):
+        current_sentence = sentences[first_idx]
+        second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
+
+        cos_sim = float(cos_sim_matrix[first_idx][second_idx])
+        paired_sentence = sentences[second_idx]
+        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
+
+        third_idx = np.random.choice([x for x in idx if x != first_idx])
+        cos_sim = float(cos_sim_matrix[first_idx][third_idx])
+        paired_sentence = sentences[third_idx]
+        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
+
     return pairs
 
 
