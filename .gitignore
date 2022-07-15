@@ -130,6 +130,7 @@ dmypy.json
 
 # VS Code
 .history
+.vscode/launch.json
 
 # Temporary results files
 scripts/**/results.json
