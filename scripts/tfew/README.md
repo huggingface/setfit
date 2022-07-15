@@ -15,9 +15,10 @@ Next, clone our `T-Few` fork, and install the required dependencies:
 ```
 cd scripts/tfew
 git clone https://github.com/SetFit/t-few.git
+mv t-few/.git t-few/git
 pip install -r requirements.txt -f https://download.pytorch.org/whl/cu113/torch_stable.html
 ```
-The steps above only needs to be done once. In addition, every time you start a new session, you will need to run:
+The steps above only need to be done once. In addition, every time you start a new session, you will need to run:
 ```
 . t-few/bin/start.sh
 ```
