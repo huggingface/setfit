@@ -32,11 +32,11 @@ export SEEDS=(0 1 2 3 4)
 python run_tfew.sh -e experiment_name
 ```
 
-Results will be saved to `scripts/tfew/results_orig`. 
+Results will be saved to `tfew/results_orig/experiment_name`. 
 
 To create the summary table of results:
 ```
 python create_tfew_sumary_table.py results_orig/experiment_name
 ```
 
-The summary table will be saved to the experiment directory in `tfew/results`.
+The summary table will be saved in `tfew/results/experiment_name`.
