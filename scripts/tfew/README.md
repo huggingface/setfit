@@ -25,15 +25,18 @@ The steps above only need to be done once. In addition, every time you start a n
 
 ## Usage
 
-To train and evaluate `T-Few` on the `sst2` dataset (using random seed=0), run:
-
+To train and evaluate `T-Few` on selected datasets and seeds:
 ```
-cd t-few
-python -m src.pl_train -c t03b.json+ia3.json+$sst2.json -k load_weight="pretrained_checkpoints/t03b_ia3_finish.pt" exp_name=t03b_$sst2_seed0_ia3_pretrained100k few_shot_random_seed=0 seed=0
-```
+export DATASETS=(sst2 rte ag-news)
+export SEEDS=(0 1 2 3 4)
+python run_tfew.sh -e experiment_name
+``
 
 Results will be saved to `scripts/tfew/results_orig`. 
-You can then run the following script to convert the results to the format used in our library:
+
+To create the summary table of results:
 ```
-python results_to_setfit_format.py results_orig/t03b_$sst2_seed0_ia3_pretrained100k
+python create_tfew_sumary_table.py results_orig/experiment_name
 ```
+
+The summary table will be saved to the experiment directory in `tfew/results`.
