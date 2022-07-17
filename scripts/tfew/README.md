@@ -25,12 +25,13 @@ The steps above only need to be done once. In addition, every time you start a n
 
 ## Usage
 
+
 To train and evaluate `T-Few` on selected datasets and seeds:
 ```
-export DATASETS=(sst2 rte ag-news)
+export DATASETS=$DEV_DATASETS # or $TEST_DATASETS
 export SEEDS=(0 1 2 3 4)
 export EXPERIMENT_NAME=experiment_name
-python run_tfew.sh
+./run_tfew.sh
 ```
 
 Results will be saved to `tfew/results_orig/experiment_name`. 
