@@ -1,7 +1,23 @@
+import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
-from sentence_transformers import InputExample, losses
+from sentence_transformers import InputExample, SentenceTransformer, losses, models
+
+
+class SetFitModel:
+    def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
+        self.model = SentenceTransformer(model)
+        self.model_original_state = copy.deepcopy(self.model.state_dict())
+        self.model.max_seq_length = max_seq_length
+
+        if add_normalization_layer:
+            self.model._modules["2"] = models.Normalize()
+
+
+class A:
+    pass
 
 
 class SupConLoss(nn.Module):
@@ -132,6 +148,28 @@ def sentence_pairs_generation(sentences, labels, pairs):
         # Prepare a negative pair of images and update our lists
         pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
     # Return a 2-tuple of our image pairs and labels
+    return pairs
+
+
+def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
+    # initialize two empty lists to hold the (sentence, sentence) pairs and
+    # labels to indicate if a pair is positive or negative
+
+    idx = list(range(len(sentences)))
+
+    for first_idx in range(len(sentences)):
+        current_sentence = sentences[first_idx]
+        second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
+
+        cos_sim = float(cos_sim_matrix[first_idx][second_idx])
+        paired_sentence = sentences[second_idx]
+        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
+
+        third_idx = np.random.choice([x for x in idx if x != first_idx])
+        cos_sim = float(cos_sim_matrix[first_idx][third_idx])
+        paired_sentence = sentences[third_idx]
+        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
+
     return pairs
 
 
