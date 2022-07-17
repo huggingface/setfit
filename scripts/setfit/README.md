@@ -20,7 +20,7 @@ python -m pip install -r requirements.txt
 To train and evaluate `SetFit` on 8 examples (per class) on the `sst2` dataset, run:
 
 ```
-python run_fewshot.py --sample_sizes=8 --dataset=sst2
+python run_fewshot.py --sample_sizes=8 --datasets=sst2
 ```
 
 This will use the default settings used in the paper, including `paraphrase-mpnet-base-v2` as the backbone model. Results will be saved in the `results` directory. To run `SetFit` across all the development datasets used in the paper, run:

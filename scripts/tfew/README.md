@@ -25,20 +25,27 @@ The steps above only need to be done once. In addition, every time you start a n
 
 ## Usage
 
+To train and evaluate `T-Few` on 8 and 16 examples (per class) on the `sst2` and `ag-news` datasets, run:
 
-To train and evaluate `T-Few` on selected datasets and seeds:
 ```
-export DATASETS=$DEV_DATASETS # or $TEST_DATASETS
-export SEEDS=(0 1 2 3 4)
-export EXPERIMENT_NAME=experiment_name
-./run_tfew.sh
+python run_tfew.py --sample_sizes=8 16 --datasets=sst2 ag-news
 ```
 
-Results will be saved to `tfew/results_orig/experiment_name`. 
+This will fine-tune 3 billion pre-trained (IA)^3 on all specified datasets. Results will be saved in the `results` directory. To run `T-Few` across all the development datasets used in the paper, run:
+
+```
+python run_tfew.py --sample_sizes=8 16 32 --is_dev_set=true
+```
+
+Similarly, you can run `SetFit` over all the test datasets in the paper by running:
+
+```
+python run_tfew.py --sample_sizes=8 16 32 --is_test_set=true
+```
 
 To create the summary table of results:
 ```
-python create_tfew_sumary_table.py results_orig/experiment_name
+python create_summary_table.py results/experiment_name
 ```
 
-The summary table will be saved in `tfew/results/experiment_name`.
+The summary table will be saved in `results/experiment_name`.
