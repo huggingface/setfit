@@ -29,7 +29,8 @@ To train and evaluate `T-Few` on selected datasets and seeds:
 ```
 export DATASETS=(sst2 rte ag-news)
 export SEEDS=(0 1 2 3 4)
-python run_tfew.sh -e experiment_name
+export EXPERIMENT_NAME=experiment_name
+python run_tfew.sh
 ``
 
 Results will be saved to `scripts/tfew/results_orig`. 
