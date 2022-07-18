@@ -36,7 +36,7 @@ python -m t-few.src.pl_train \
         allow_skip_exp=0 \
 ```
 
-This will fine-tune 3 billion pre-trained (IA)^3 with default settings from the paper, and then run the evaluation.
+This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper.
 Results will be saved to `results`. 
 
 To run `T-Few` across all the development datasets used in the paper:
