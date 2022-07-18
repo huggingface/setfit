@@ -14,38 +14,44 @@ Next, clone our `T-Few` fork, and install the required dependencies:
 
 ```
 cd scripts/tfew
-git clone https://github.com/SetFit/t-few.git
-mv t-few/.git t-few/git
-pip install -r requirements.txt -f https://download.pytorch.org/whl/cu113/torch_stable.html
+git clone https://github.com/SetFit/t-few.git && mv t-few/.git t-few/git
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu113
 ```
 The steps above only need to be done once. In addition, every time you start a new session, you will need to run:
 ```
 . t-few/bin/start.sh
 ```
 
-## Usage
+## Usage Example
 
-To train and evaluate `T-Few` on 8 and 16 examples (per class) on the `sst2` and `ag-news` datasets, run:
-
-```
-python run_tfew.py --sample_sizes=8 16 --datasets=sst2 ag-news
-```
-
-This will fine-tune 3 billion pre-trained (IA)^3 on all specified datasets. Results will be saved in the `results` directory. To run `T-Few` across all the development datasets used in the paper, run:
+To train and evaluate `T-Few` on 8 examples (per class) on the `sst2` dataset:
 
 ```
-python run_tfew.py --sample_sizes=8 16 32 --is_dev_set=true
+python t-few/src/pl_train.py \
+        -c t03b.json+ia3.json+sst2.json \
+        -k load_weight="pretrained_checkpoints/t011b_ia3_finish.pt" \
+        exp_name=tfew_11b_pretrained/sst2/train-8 \
+        num_shot=8 \
 ```
 
-Similarly, you can run `SetFit` over all the test datasets in the paper by running:
+This will fine-tune 3 billion pre-trained (IA)^3 with default settings from the paper, and then run the evaluation.
+Results will be saved to `results`. 
+
+To run `T-Few` across all the development datasets used in the paper:
 
 ```
-python run_tfew.py --sample_sizes=8 16 32 --is_test_set=true
+./run_tfew_dev.sh
 ```
 
-To create the summary table of results:
+Similarly, you can run `T-Few` over all the test datasets in the paper by running:
+
 ```
-python create_summary_table.py results/experiment_name
+./run_tfew_test.sh
+```
+
+To create the summary table of results with average metrics per dataset:
+```
+python scripts/create_summary_table.py scripts/tfew/results/experiment_name
 ```
 
 The summary table will be saved in `results/experiment_name`.

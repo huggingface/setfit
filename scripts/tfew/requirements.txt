@@ -1,4 +1,4 @@
-torch==1.10.1+cu113
+torch==1.12.0+cu113
 datasets==2.0.0
 transformers==4.15.0
 pytorch-lightning==1.5.8

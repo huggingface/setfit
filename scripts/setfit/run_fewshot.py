@@ -18,8 +18,8 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
-from scripts.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
+from scripts.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 from setfit.data import SAMPLE_SIZES, create_fewshot_splits
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
