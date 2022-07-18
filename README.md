@@ -17,7 +17,7 @@ conda create -n setfit python=3.9 && conda activate setfit
 Then install the base requirements with:
 
 ```bash
-python -m pip install '.[dev]'
+python -m pip install -e '.[dev]'
 ```
 
 This will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting. Next, go to one of the dedicated baseline directories and install the extra dependencies, e.g.

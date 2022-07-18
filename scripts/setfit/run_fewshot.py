@@ -6,11 +6,11 @@ import os
 import pathlib
 import sys
 from shutil import copyfile
-from typing import Dict, Tuple
+from typing import Dict
 from warnings import simplefilter
 
 import numpy as np
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset
 from evaluate import load
 from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
@@ -18,9 +18,9 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
-from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
-from setfit.data import SAMPLE_SIZES, create_fewshot_splits
+from scripts.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits
+from setfit.data import SAMPLE_SIZES
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
 
@@ -99,16 +99,6 @@ class RunFewShot:
     def get_classifier(self, sbert_model: SentenceTransformer) -> SKLearnWrapper:
         if self.args.classifier == "logistic_regression":
             return SKLearnWrapper(sbert_model, LogisticRegression())
-
-    def load_data_splits(self, dataset: str) -> Tuple[DatasetDict, Dataset]:
-        """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
-        print(f"\n\n\n============== {dataset} ============")
-        # Load one of the SetFit training sets from the Hugging Face Hub
-        train_split = load_dataset(f"SetFit/{dataset}", split="train")
-        train_splits = create_fewshot_splits(train_split, self.args.sample_sizes)
-        test_split = load_dataset(f"SetFit/{dataset}", split="test")
-        print(f"Test set: {len(test_split)}")
-        return train_splits, test_split
 
     def train(self, data: Dataset) -> SKLearnWrapper:
         "Trains a SetFit model on the given few-shot training data."
@@ -197,7 +187,7 @@ class RunFewShot:
     def train_eval_all_datasets(self) -> None:
         """Trains and evaluates the model on each split for every dataset."""
         for dataset, metric in self.dataset_to_metric.items():
-            few_shot_train_splits, test_data = self.load_data_splits(dataset)
+            few_shot_train_splits, test_data = load_data_splits(dataset, self.args.sample_sizes)
 
             for split_name, train_data in few_shot_train_splits.items():
                 results_path = self.create_results_path(dataset, split_name)

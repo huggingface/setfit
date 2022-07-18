@@ -17,19 +17,19 @@ python -m pip install -r requirements.txt
 
 ## Usage
 
-To train and evaluate SetFit on 8 examples (per class) on the `sst2` dataset, run:
+To train and evaluate `SetFit` on 8 examples (per class) on the `sst2` dataset, run:
 
 ```
-python run_fewshot.py --sample_sizes=8 --dataset=sst2
+python run_fewshot.py --sample_sizes=8 --datasets=sst2
 ```
 
-This will use the default settings used in the paper, including `paraphrase-mpnet-base-v2` as the backbone model. Results will be saved in the `results` directory. To run SetFit across all the development datasets used in the paper, run:
+This will use the default settings used in the paper, including `paraphrase-mpnet-base-v2` as the backbone model. Results will be saved in the `results` directory. To run `SetFit` across all the development datasets used in the paper, run:
 
 ```
 python run_fewshot.py --sample_sizes=8 --is_dev_set=true
 ```
 
-Similarly, you can run SetFit over all the test datasets in the paper by running:
+Similarly, you can run `SetFit` over all the test datasets in the paper by running:
 
 ```
 python run_fewshot.py --sample_sizes=8 --is_test_set=true
@@ -56,13 +56,13 @@ python run_fewshot.py \
 
 ### Multilingual experiments
 
-We provide three different ways to run SetFit in multilingual settings:
+We provide three different ways to run `SetFit` in multilingual settings:
 
 * `each`: train on data in target language
 * `en`: train on English data only
 * `all`: train on data in all languages
 
-To train SetFit in one of these setting, run:
+To train `SetFit` in one of these setting, run:
 
 ```
 python run_fewshot_multilingual.py \
@@ -72,7 +72,7 @@ python run_fewshot_multilingual.py \
     --multilinguality=each
 ```
 
-To train SetFit on all the multilingual test sets in the paper, run:
+To train `SetFit` on all the multilingual test sets in the paper, run:
 
 ```
 python run_fewshot_multilingual.py \
