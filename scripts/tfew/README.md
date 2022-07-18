@@ -45,7 +45,7 @@ To run `T-Few` across all the development datasets used in the `SetFit` paper:
 ./run_tfew_dev.sh
 ```
 
-Similarly, you can run `T-Few` over all the test datasets in the paper by running:
+Similarly, you can run `T-Few` over all the test datasets in the `SetFit` paper by running:
 
 ```
 ./run_tfew_test.sh
