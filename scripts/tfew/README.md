@@ -24,7 +24,7 @@ The steps above only need to be done once. In addition, every time you start a n
 
 ## Usage example
 
-To train and evaluate `T-Few` on 8 examples (per class) on the `sst2` dataset:
+To train and evaluate `T-Few` on 8 examples (per class) on the `sst2` dataset, run:
 
 ```
 export CUDA_VISIBLE_DEVICES=0
