@@ -37,7 +37,7 @@ python -m t-few.src.pl_train \
 ```
 
 This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper.
-Results will be saved to `results`. 
+Results will be saved to the `results` directory. 
 
 To run `T-Few` across all the development datasets used in the `SetFit` paper:
 
