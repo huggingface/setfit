@@ -32,7 +32,7 @@ python -m t-few.src.pl_train \
         -c t03b.json+ia3.json+sst2.json \
         -k load_weight="t-few/pretrained_checkpoints/t03b_ia3_finish.pt" \
         exp_name=tfew_03b_pretrained/sst2/train-8 \
-        num_shot=8 \
+        num_shot=8
         allow_skip_exp=0 \
 ```
 
