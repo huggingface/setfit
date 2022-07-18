@@ -6,11 +6,11 @@ import os
 import pathlib
 import sys
 from shutil import copyfile
-from typing import Dict, Tuple
+from typing import Dict
 from warnings import simplefilter
 
 import numpy as np
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset
 from evaluate import load
 from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
 
 from scripts.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits
-from setfit.data import SAMPLE_SIZES, create_fewshot_splits
+from setfit.data import SAMPLE_SIZES
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
 
