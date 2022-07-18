@@ -21,6 +21,7 @@ The steps above only need to be done once. In addition, every time you start a n
 ```
 . t-few/bin/start.sh
 ```
+This sets up some required environment variables, including `PYTHONPATH`, `OUTPUT_PATH` (where results will be saved) and `CONFIG_PATH` (where the config `.json` files are stored)
 
 ## Usage example
 
