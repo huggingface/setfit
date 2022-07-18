@@ -138,3 +138,4 @@ scripts/**/checkpoints
 scripts/**/train_script.py
 scripts/**/summary_table.csv
 scripts/tfew/t-few
+scripts/tfew/results

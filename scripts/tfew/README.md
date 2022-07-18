@@ -27,11 +27,13 @@ The steps above only need to be done once. In addition, every time you start a n
 To train and evaluate `T-Few` on 8 examples (per class) on the `sst2` dataset:
 
 ```
-python t-few/src/pl_train.py \
+export CUDA_VISIBLE_DEVICES=0
+python -m t-few.src.pl_train \
         -c t03b.json+ia3.json+sst2.json \
-        -k load_weight="pretrained_checkpoints/t011b_ia3_finish.pt" \
-        exp_name=tfew_11b_pretrained/sst2/train-8 \
+        -k load_weight="t-few/pretrained_checkpoints/t03b_ia3_finish.pt" \
+        exp_name=tfew_03b_pretrained/sst2/train-8 \
         num_shot=8 \
+        allow_skip_exp=0 \
 ```
 
 This will fine-tune 3 billion pre-trained (IA)^3 with default settings from the paper, and then run the evaluation.
