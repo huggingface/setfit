@@ -22,7 +22,7 @@ The steps above only need to be done once. In addition, every time you start a n
 . t-few/bin/start.sh
 ```
 
-## Usage Example
+## Usage example
 
 To train and evaluate `T-Few` on 8 examples (per class) on the `sst2` dataset:
 
