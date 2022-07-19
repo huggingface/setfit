@@ -27,9 +27,7 @@ simplefilter(action="ignore", category=FutureWarning)
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
 parser.add_argument(
-    "--datasets",
-    nargs="+",
-    default=None,
+    "--datasets", nargs="+", default=None,
 )
 parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
 parser.add_argument("--num_epochs", type=int, default=20)

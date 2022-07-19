@@ -1,16 +1,20 @@
-from datasets import Dataset
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
-from transformers import TrainingArguments, Trainer
-from datasets import load_metric
+from datasets import Dataset, load_metric
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    DataCollatorWithPadding,
+    Trainer,
+    TrainingArguments,
+)
 
 
 class RegressionTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.pop("labels")
-        outputs = model(**inputs)  
+        outputs = model(**inputs)
         logits = outputs.logits
         loss = F.mse_loss(logits, labels)
         return (loss, outputs) if return_outputs else loss
@@ -18,7 +22,7 @@ class RegressionTrainer(Trainer):
 
 class baseline_distill:
     def __init__(self, student_model_name, num_epochs, batch_size, metric) -> None:
-        self.student_model_name = student_model_name        
+        self.student_model_name = student_model_name
         self.num_epochs = num_epochs
         self.batch_size = batch_size
         self.metric = load_metric(metric)
@@ -39,39 +43,34 @@ class baseline_distill:
         hot_labels = np.argmax(labels, axis=-1)
         return self.metric.compute(predictions=predictions, references=hot_labels)
 
-    #----------------------------------------------------------------#
-    #------------------------ Student training ----------------------#
-    #----------------------------------------------------------------#
-    def standard_model_distillation(self,                                     
-                                    train_raw_student,
-                                    x_test,
-                                    y_test,                                                   
-                                    num_classes
-                                    ):
+    # ----------------------------------------------------------------#
+    # ------------------------ Student training ----------------------#
+    # ----------------------------------------------------------------#
+    def standard_model_distillation(self, train_raw_student, x_test, y_test, num_classes):
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        
+
         # text_col=test_df.columns.values[0]
         # category_col=test_df.columns.values[1]
 
         # x_test = test_df[text_col].values.tolist()
         # y_test = test_df[category_col].values.tolist()
-        
-        value2hot ={}
-        for i in range(num_classes):
-            a=[0]*num_classes
-            a[i]=1
-            value2hot.update({i:a})
 
-        #raw_train_ds = train_raw_student.rename_column('label','score')
-        
-        test_dict = {"text":x_test,"score":[value2hot[l] for l in y_test]}
+        value2hot = {}
+        for i in range(num_classes):
+            a = [0] * num_classes
+            a[i] = 1
+            value2hot.update({i: a})
+
+        # raw_train_ds = train_raw_student.rename_column('label','score')
+
+        test_dict = {"text": x_test, "score": [value2hot[i] for i in y_test]}
         raw_test_ds = Dataset.from_dict(test_dict)
 
         # validation and test sets are the same
         ds = {"train": train_raw_student, "validation": raw_test_ds, "test": raw_test_ds}
         for split in ds:
-            ds[split] = ds[split].map(self.bl_student_preprocess, remove_columns=["text","score"])
+            ds[split] = ds[split].map(self.bl_student_preprocess, remove_columns=["text", "score"])
 
         training_args = TrainingArguments(
             output_dir="baseline_distil_model",
@@ -91,8 +90,7 @@ class baseline_distill:
 
         # define student model
         student_model = AutoModelForSequenceClassification.from_pretrained(
-            self.student_model_name, 
-            num_labels=num_classes
+            self.student_model_name, num_labels=num_classes
         ).to(device)
 
         trainer = RegressionTrainer(
@@ -107,6 +105,6 @@ class baseline_distill:
 
         trainer.train()
 
-        trainer.eval_dataset=ds["test"]
-        acc=round(trainer.evaluate()['eval_accuracy'],3)
-        return {'accuracy': acc}
+        trainer.eval_dataset = ds["test"]
+        acc = round(trainer.evaluate()["eval_accuracy"], 3)
+        return {"accuracy": acc}
