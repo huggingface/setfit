@@ -32,7 +32,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="paraphrase-mpnet-base-v2")
     parser.add_argument(
-        "--datasets", nargs="+", default=["sst2"],
+        "--datasets",
+        nargs="+",
+        default=["sst2"],
     )
     parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
     parser.add_argument("--num_epochs", type=int, default=20)

@@ -42,7 +42,9 @@ def parse_args():
     parser.add_argument("--student_model", default="paraphrase-MiniLM-L3-v2")
     parser.add_argument("--baseline_student_model", default="nreimers/MiniLM-L3-H384-uncased")
     parser.add_argument(
-        "--datasets", nargs="+", default=["sst2"],
+        "--datasets",
+        nargs="+",
+        default=["sst2"],
     )
     parser.add_argument("--teacher_sample_sizes", type=int, nargs="+", default=16)
     parser.add_argument("--student_sample_sizes", type=int, nargs="+", default=[8, 16, 32, 64, 100, 200, 1000])
