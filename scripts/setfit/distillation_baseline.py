@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from datasets import Dataset, load_metric
+from datasets import Dataset
+from evaluate import load
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -20,15 +21,18 @@ class RegressionTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-class baseline_distill:
-    def __init__(self, student_model_name, num_epochs, batch_size, metric) -> None:
+class BaselineDistillation:
+    def __init__(self, student_model_name, num_epochs, batch_size) -> None:
         self.student_model_name = student_model_name
         self.num_epochs = num_epochs
         self.batch_size = batch_size
-        self.metric = load_metric(metric)
         self.tokenizer = AutoTokenizer.from_pretrained(student_model_name)
         self.seq_len = 64
         self.learning_rate = 6e-5
+
+    def update_metric(self, metric):
+        self.metric = load(metric)
+        self.metric_name = metric
 
     def bl_student_preprocess(self, examples):
         label = examples["score"]
@@ -50,19 +54,11 @@ class baseline_distill:
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        # text_col=test_df.columns.values[0]
-        # category_col=test_df.columns.values[1]
-
-        # x_test = test_df[text_col].values.tolist()
-        # y_test = test_df[category_col].values.tolist()
-
         value2hot = {}
         for i in range(num_classes):
             a = [0] * num_classes
             a[i] = 1
             value2hot.update({i: a})
-
-        # raw_train_ds = train_raw_student.rename_column('label','score')
 
         test_dict = {"text": x_test, "score": [value2hot[i] for i in y_test]}
         raw_test_ds = Dataset.from_dict(test_dict)
@@ -106,5 +102,7 @@ class baseline_distill:
         trainer.train()
 
         trainer.eval_dataset = ds["test"]
-        acc = round(trainer.evaluate()["eval_accuracy"], 3)
-        return {"accuracy": acc}
+        # acc = round(trainer.evaluate()["eval_accuracy"], 3)
+
+        score = trainer.evaluate()[f"eval_{self.metric_name}"]
+        return {self.metric_name: score}

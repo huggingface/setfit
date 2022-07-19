@@ -13,7 +13,7 @@ from xmlrpc.client import Boolean
 import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
-from distillation_baseline import baseline_distill
+from distillation_baseline import BaselineDistillation
 from evaluate import load
 from setfit_wrapper import SetFit
 from sklearn.linear_model import LogisticRegression
@@ -31,7 +31,7 @@ from setfit.modeling import (
 
 TEACHER_SEED = [0]
 STUDENT_SEEDS = [1]
-STUDENT_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+# STUDENT_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
 
@@ -76,6 +76,7 @@ class RunFewShotDistill:
         # Prepare directory for results
         self.args = args
 
+        # these attributes refer to the different modes to run the training
         self.TEACHER = 0
         self.SETFIT_STUDENT = 1
         self.BASELINE_STUDENT = 2
@@ -99,11 +100,8 @@ class RunFewShotDistill:
             self.x_train_teacher = x_train_teacher
             self.student_train_ds = student_train_ds
             self.mode = self.BASELINE_STUDENT
-            self.bl_stdnt_distill = baseline_distill(
-                args.baseline_student_model,
-                args.baseline_model_epochs,
-                args.baseline_model_batch_size,
-                metric="accuracy",
+            self.bl_stdnt_distill = BaselineDistillation(
+                args.baseline_student_model, args.baseline_model_epochs, args.baseline_model_batch_size
             )
 
         parent_directory = pathlib.Path(__file__).parent.absolute()
@@ -217,8 +215,8 @@ class RunFewShotDistill:
                 # for training baseline student use the same data that was used for training setfit student
             if self.mode == self.BASELINE_STUDENT:
                 fewshot_ds = self.student_train_ds
-                df = train_ds.to_pandas()
-                num_classes = len(np.unique(df["label"]))
+                num_classes = len(train_ds.unique("label"))
+                self.bl_stdnt_distill.update_metric(metric)
 
             for name in fewshot_ds:
                 results_path = os.path.join(self.output_path, dataset, name, "results.json")
@@ -242,7 +240,6 @@ class RunFewShotDistill:
 
     def train_baseline_student(self, train_data, test_data, num_classes):
         x_train = train_data["text"]
-
         x_test = test_data["text"]
         y_test = test_data["label"]
 
@@ -250,10 +247,7 @@ class RunFewShotDistill:
         x_train_embd_student = self.trained_teacher_model.sbert_model.encode(x_train)
         # baseline student uses teacher probabilities (converted to logits) for training
         y_train_teacher_pred_prob = self.trained_teacher_model.clf.predict_proba(x_train_embd_student)
-
-        train_df_student_prob = pd.DataFrame({"text": x_train, "score": list(y_train_teacher_pred_prob)})
-
-        train_raw_student_prob = Dataset.from_pandas(train_df_student_prob)
+        train_raw_student_prob = Dataset.from_dict({"text": x_train, "score": list(y_train_teacher_pred_prob)})
 
         metric = self.bl_stdnt_distill.standard_model_distillation(train_raw_student_prob, x_test, y_test, num_classes)
 
