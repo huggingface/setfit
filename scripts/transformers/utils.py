@@ -3,6 +3,10 @@ from typing import Tuple
 
 from datasets import Dataset
 
+MULTILINGUAL_DATASET_TO_METRIC = {
+    f"amazon_reviews_multi_{lang}": "mae" for lang in ["en", "de", "es", "fr", "ja", "zh"]
+}
+
 
 def get_label_mappings(dataset: Dataset) -> Tuple[int, dict, dict]:
     """Returns the label mappings of the dataset."""

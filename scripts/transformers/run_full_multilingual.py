@@ -12,7 +12,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
-from utils import MULTILINGUAL_DATASET_TO_METRIC, get_label_mappings, save_metrics
+from utils import get_label_mappings, save_metrics, MULTILINGUAL_DATASET_TO_METRIC
 
 
 app = typer.Typer()
@@ -78,7 +78,7 @@ def train_single_dataset(
         return
 
     # Load model - we use a `model_init()` function here to load a fresh model with each fewshot training run
-    num_labels, label2id, id2label = get_label_mappings(dataset["train"])
+    num_labels, label2id, id2label = get_label_mappings(tokenized_dataset["train"])
 
     def model_init():
         return AutoModelForSequenceClassification.from_pretrained(
