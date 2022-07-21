@@ -41,22 +41,26 @@ def train_single_dataset(
 
     # Load dataset
     if multilinguality == "each":
-        dataset = load_dataset(f"SetFit/{dataset_id}")
-        tokenized_dataset = dataset.map(tokenize_dataset, batched=True)
+        train_dataset = load_dataset(f"SetFit/{dataset_id}", split="train")
+        tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
     elif multilinguality == "en":
         # Load English dataset
         english_dataset = [dset for dset in MULTILINGUAL_DATASET_TO_METRIC.keys() if dset.endswith("_en")][0]
-        train_dataset = load_dataset(f"SetFit/{english_dataset}")
+        train_dataset = load_dataset(f"SetFit/{english_dataset}", split="train")
         tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
     elif multilinguality == "all":
         # Concatenate all languages
         dsets = []
-        for dataset in MULTILINGUAL_DATASET_TO_METRIC.keys():
-            ds = load_dataset(f"SetFit/{dataset}", split="train")
+        for dset in MULTILINGUAL_DATASET_TO_METRIC.keys():
+            ds = load_dataset(f"SetFit/{dset}", split="train")
             dsets.append(ds)
         # Create training set and sample for fewshot splits
         train_dataset = concatenate_datasets(dsets).shuffle(seed=42)
         tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
+
+    # Load test dataset
+    test_dataset = load_dataset(f"SetFit/{dataset_id}", split="test")
+    tokenized_test_dataset = test_dataset.map(tokenize_dataset, batched=True)
 
     # Create training and validation splits
     train_eval_dataset = tokenized_dataset["train"].train_test_split(seed=42, test_size=0.2)
@@ -78,7 +82,7 @@ def train_single_dataset(
         return
 
     # Load model - we use a `model_init()` function here to load a fresh model with each fewshot training run
-    num_labels, label2id, id2label = get_label_mappings(tokenized_dataset["train"])
+    num_labels, label2id, id2label = get_label_mappings(train_dataset)
 
     def model_init():
         return AutoModelForSequenceClassification.from_pretrained(
