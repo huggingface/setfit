@@ -59,7 +59,7 @@ def train_single_dataset(
         tokenized_dataset = train_dataset.map(tokenize_dataset, batched=True)
 
     # Create training and validation splits
-    train_eval_dataset = tokenized_dataset["train"].train_test_split(seed=42, test_size=0.2)
+    train_eval_dataset = tokenized_dataset.train_test_split(seed=42, test_size=0.2)
     test_dataset = load_dataset(f"SetFit/{dataset_id}", split="test")
     tokenized_test_dataset = test_dataset.map(tokenize_dataset, batched=True)
 
