@@ -51,8 +51,8 @@ def train_single_dataset(
     elif multilinguality == "all":
         # Concatenate all languages
         dsets = []
-        for dset in MULTILINGUAL_DATASET_TO_METRIC.keys():
-            ds = load_dataset(f"SetFit/{dset}", split="train")
+        for dataset in MULTILINGUAL_DATASET_TO_METRIC.keys():
+            ds = load_dataset(f"SetFit/{dataset}", split="train")
             dsets.append(ds)
         # Create training set and sample for fewshot splits
         train_dataset = concatenate_datasets(dsets).shuffle(seed=42)
