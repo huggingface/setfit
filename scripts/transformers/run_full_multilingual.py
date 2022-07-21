@@ -12,7 +12,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
-from utils import get_label_mappings, save_metrics, MULTILINGUAL_DATASET_TO_METRIC
+from utils import MULTILINGUAL_DATASET_TO_METRIC, get_label_mappings, save_metrics
 
 
 app = typer.Typer()
