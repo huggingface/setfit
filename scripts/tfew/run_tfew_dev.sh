@@ -17,5 +17,7 @@ do
                 batch_size=1 \
                 eval_batch_size=2 \
                 grad_accum_factor=8
+            done
+        done
     done
 done
