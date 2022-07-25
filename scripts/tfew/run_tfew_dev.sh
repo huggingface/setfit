@@ -1,4 +1,4 @@
-for dataset in emotion ag_news sst2 imdb
+for dataset in emotion ag_news
 do
     for train_split in 0 1 2 3 4 5 6 7 8 9
     do
@@ -17,5 +17,7 @@ do
                 batch_size=1 \
                 eval_batch_size=2 \
                 grad_accum_factor=8
+            done
+        done
     done
 done

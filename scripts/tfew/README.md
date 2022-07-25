@@ -34,7 +34,6 @@ python -m t-few.src.pl_train \
         -k load_weight="t-few/pretrained_checkpoints/t03b_ia3_finish.pt" \
         exp_name=tfew_03b_pretrained/sst2/train-8 \
         num_shot=8
-        allow_skip_exp=0 \
 ```
 
 This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper.
