@@ -14,26 +14,29 @@ Next, clone our `T-Few` fork, and install the required dependencies:
 
 ```
 cd scripts/tfew
-git clone https://github.com/SetFit/t-few.git
+git clone https://github.com/SetFit/t-few.git && mv t-few/.git t-few/git
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu113
 ```
 The steps above only need to be done once. In addition, every time you start a new session, you will need to run:
 ```
 . t-few/bin/start.sh
 ```
-This sets up some required environment variables, including `PYTHONPATH`, `OUTPUT_PATH` (where results will be saved) and `CONFIG_PATH` (where the config `.json` files are stored)
+This sets up some required environment variables, including `PYTHONPATH`, `OUTPUT_PATH` (where results will be saved) and `CONFIG_PATH` (where the config `.json` files are stored).
+It also sets `CUDA_VISIBLE_DEVICES=0`. To use a different GPU, edit the file `t-few/bin/start.sh`.
 
 ## Usage example
 
 To train and evaluate `T-Few` on 8 examples (per class) on the `sst2` dataset, run:
 
 ```
-export CUDA_VISIBLE_DEVICES=0
 python -m t-few.src.pl_train \
-        -c t03b.json+ia3.json+sst2.json \
-        -k load_weight="t-few/pretrained_checkpoints/t03b_ia3_finish.pt" \
-        exp_name=tfew_03b_pretrained/sst2/train-8 \
-        num_shot=8
+        -c t011b.json+ia3.json+emotion.json \
+        -k load_weight="t-few/pretrained_checkpoints/t011b_ia3_finish.pt" \
+        exp_name=tfew_011b_pretrained/emotion/train-8 \
+        num_shot=8 \
+        batch_size=1 \
+        eval_batch_size=2 \
+        grad_accum_factor=8 \
 ```
 
 This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper.
