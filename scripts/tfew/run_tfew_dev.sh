@@ -15,9 +15,9 @@ do
                 num_shot=$sample_size \
                 batch_size=1 \
                 eval_batch_size=2 \
-		eval_epoch_interval=50\
-                grad_accum_factor=8\
-		eval_before_training=0
+		        eval_epoch_interval=50 \
+                grad_accum_factor=8 \
+		        eval_before_training=0
             done
         done
     done
