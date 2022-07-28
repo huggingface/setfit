@@ -8,7 +8,7 @@ do
             do
                 python -m src.pl_train -c t011b.json+ia3.json+${dataset}.json \
                 -k load_weight="t-few/pretrained_checkpoints/t011b_ia3_finish.pt" \
-                exp_name=t011b_pretrained_${dataset}/train-${sample_size}-${split}_seed${seed} \
+                exp_name=t011b_pretrained_${dataset}/train-${sample_size}-${train_split}-seed${seed} \
                 train_split=${train_split} \
                 few_shot_random_seed=${seed} \
                 seed=${seed} \
@@ -16,7 +16,8 @@ do
                 eval_epoch_interval=50 \
                 batch_size=1 \
                 eval_batch_size=2 \
-                grad_accum_factor=8
+                grad_accum_factor=8 \
+                eval_before_training=0
             done
         done
     done
