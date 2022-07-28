@@ -1,8 +1,8 @@
-for dataset in emotion
+for dataset in ag_news
 do
-    for train_split in 0 1 2 3 4 5 6 7 8 9
+    for train_split in 0 1 2 3 4 5 6 7 8 9 
     do
-        for seed in 0 1 2
+        for seed in 0 1 2 3 4 
         do
             for sample_size in 8
             do
@@ -13,11 +13,11 @@ do
                 few_shot_random_seed=${seed} \
                 seed=${seed} \
                 num_shot=$sample_size \
-                eval_epoch_interval=50 \
                 batch_size=1 \
                 eval_batch_size=2 \
+		        eval_epoch_interval=50 \
                 grad_accum_factor=8 \
-                eval_before_training=0
+		        eval_before_training=0
             done
         done
     done
