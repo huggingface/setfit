@@ -1,13 +1,12 @@
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from time import monotonic_ns
 from typing import List, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 
 from setfit.data import create_fewshot_splits
 
-from dataclasses import dataclass, field
-from time import monotonic_ns
-from dataclasses import dataclass, field
-from contextlib import contextmanager
 
 SEC_TO_NS_SCALE = 1000000000
 
@@ -50,7 +49,7 @@ def load_data_splits(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict
 class Benchmark:
     """
     Performs simple benchmarks of code portions (measures elapsed time).
-    
+
         Typical usage example:
 
         bench = Benchmark()
@@ -60,6 +59,7 @@ class Benchmark:
             bar()
         bench.summary()
     """
+
     out_path: str = None
     summary_msg: str = field(default_factory=str)
 
@@ -83,7 +83,7 @@ class Benchmark:
         ns = monotonic_ns() - start
         msg = f"\n{'*' * 70}\n'{step}' took {ns / SEC_TO_NS_SCALE:.3f}s ({ns:,}ns)\n{'*' * 70}\n"
         print(msg)
-        self.summary_msg += msg + '\n'
+        self.summary_msg += msg + "\n"
 
     def summary(self) -> None:
         """
