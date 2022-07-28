@@ -1,0 +1,8 @@
+{"premise": "The vehicles travelled slowly.", "choice1": "It was cloudy.", "choice2": "It was foggy.", "question": "cause", "idx": 248, "label": 1}
+{"premise": "The administrator cleared her throat.", "choice1": "The meeting was postponed.", "choice2": "The meeting commenced.", "question": "effect", "idx": 318, "label": 1}
+{"premise": "The boy climbed the tree.", "choice1": "A cat got stuck in the tree.", "choice2": "A bird built a nest in the tree.", "question": "cause", "idx": 173, "label": 0}
+{"premise": "My daughter suffered an allergy attack.", "choice1": "I encouraged her to take deep breaths.", "choice2": "I took her to the emergency room.", "question": "effect", "idx": 285, "label": 1}
+{"premise": "The woman felt ashamed of scar on her face.", "choice1": "She explained the scar to strangers.", "choice2": "She hid the scar with makeup.", "question": "effect", "idx": 184, "label": 1}
+{"premise": "I wanted to lighten the mood of the conversation.", "choice1": "I remained quiet.", "choice2": "I told a joke.", "question": "effect", "idx": 235, "label": 1}
+{"premise": "The turtle hid in its shell.", "choice1": "It ate a fish.", "choice2": "It detected a predator.", "question": "cause", "idx": 124, "label": 1}
+{"premise": "The boy was afraid to go to bed.", "choice1": "He turned on his nightlight.", "choice2": "He watched a horror movie.", "question": "cause", "idx": 282, "label": 1}
