@@ -150,30 +150,26 @@ def sentence_pairs_generation(sentences, labels, pairs):
     # Return a 2-tuple of our image pairs and labels
     return pairs
 
-def sentence_pairs_generation_multilabel(sentences, labels_array, pairs):
+def sentence_pairs_generation_multilabel(sentences, labels, pairs):
     # Initialize two empty lists to hold the (sentence, sentence) pairs and
     # labels to indicate if a pair is positive or negative
-
     for first_idx in range(len(sentences)):
         current_sentence = sentences[first_idx]
-        # Get the labels one-hot vector for the sentence
-        labels_one_hot = labels_array[first_idx, :]
-        labels_ids = np.where(labels_one_hot ==1)[0]
-
-        # check if we can find negative sample for the current sentence
-        if len(np.where(labels_array.dot(labels_one_hot.T)==0)[0])==0:
+        sample_labels = np.where(labels[first_idx, :]==1)[0]
+        if len(np.where(labels.dot(labels[first_idx, :].T)==0)[0])==0:
             continue
-            
         else:
-            for _label in labels_ids:
-                second_idx = np.random.choice(np.where(labels_array[:, _label]==1)[0])
+        
+            for _label in sample_labels:
+                second_idx = np.random.choice(np.where(labels[:,_label]==1)[0])
                 positive_sentence = sentences[second_idx]
                 # Prepare a positive pair and update the sentences and labels
                 # lists, respectively
                 pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-            # a negative sample should not have a common label 
-            negative_idx = np.where(labels_array.dot(labels_one_hot.T)==0)[0]
+            
+            #Search for sample that don't have a label in common with current 
+            #sentence
+            negative_idx = np.where(labels.dot(labels[first_idx, :].T)==0)[0]
             negative_sentence = sentences[np.random.choice(negative_idx)]
             # Prepare a negative pair of images and update our lists
             pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
