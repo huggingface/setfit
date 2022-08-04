@@ -1,10 +1,10 @@
-for dataset in ag_news
+for dataset in emotion
 do
     for train_split in 0 1 2 3 4 5 6 7 8 9 
     do
         for seed in 0 1 2 3 4 
         do
-            for sample_size in 8
+            for sample_size in 16 
             do
                 python -m src.pl_train -c t011b.json+ia3.json+${dataset}.json \
                 -k load_weight="t-few/pretrained_checkpoints/t011b_ia3_finish.pt" \
