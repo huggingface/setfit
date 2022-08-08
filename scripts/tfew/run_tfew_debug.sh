@@ -1,4 +1,4 @@
-for dataset in ag_news
+for dataset in sst2
 do
     for train_split in 0 
     do
@@ -16,7 +16,9 @@ do
                 batch_size=8 \
                 eval_batch_size=2 \
                 grad_accum_factor=1 \
-                num_steps=1
+                num_steps=1 \
+                eval_before_training=0 \
+                allow_skip_exp=0
             done
         done
     done
