@@ -1,16 +1,18 @@
 import argparse
-from glob import glob
 import json
+from glob import glob
 from os.path import join
 from typing import List
 
 from numpy import median
 from scipy.stats import iqr
 
+
 """
 To run: python median_across_seeds.py --path /setfit/scripts/tfew/results/t011b_pretrained/{dataset}
 Files are outputted to the directory of the split results.
 """
+
 
 def get_sample_sizes(path: str) -> List[str]:
     return sorted(list({int(name.split("-")[-2]) for name in glob(f"{path}/train-*-0/seed0")}))
@@ -30,14 +32,14 @@ def get_medians_over_seeds(results_path: str) -> None:
         split_dirs = sorted(glob(join(results_path, f"train-{sample_size}-*")))
 
         for split_dir in split_dirs:
-            seed_results_json =  sorted(glob(join(split_dir, f"seed*/dev_scores.json")))
+            seed_results_json = sorted(glob(join(split_dir, "seed*/dev_scores.json")))
             seed_metrics = []
             for seed_result_json in seed_results_json:
                 with open(seed_result_json) as f:
                     result_dict = json.loads(f.readlines()[-1])
                 seed_metrics.append(result_dict["accuracy"])
 
-            with open(join(split_dir, 'results.json'), 'w') as f:
+            with open(join(split_dir, "results.json"), "w") as f:
                 json.dump({"score": median(seed_metrics), "iqr": iqr(seed_metrics)}, f)
 
 
