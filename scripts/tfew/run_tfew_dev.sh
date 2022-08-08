@@ -16,7 +16,7 @@ do
                 batch_size=1 \
                 eval_batch_size=2 \
                 grad_accum_factor=8 \
-		eval_before_training=0
+		        eval_before_training=0
             done
         done
     done
