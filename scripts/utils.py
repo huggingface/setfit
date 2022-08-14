@@ -35,7 +35,7 @@ MULTILINGUAL_DATASET_TO_METRIC = {
 
 
 def load_data_splits(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
-    """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
+    """Loads a dataset from the SetFit org in Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
     train_split = load_dataset(f"SetFit/{dataset}", split="train")

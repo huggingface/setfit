@@ -1,4 +1,4 @@
-for dataset in sst2
+for dataset in senteval_cr
 do
     for train_split in 0 
     do
@@ -8,7 +8,7 @@ do
             do
                 python -m src.pl_train -c t03b.json+ia3.json+${dataset}.json \
                 -k load_weight="t-few/pretrained_checkpoints/t03b_ia3_finish.pt" \
-                exp_name=t03b_pretrained/${dataset}/train-${sample_size}-${train_split}-seed${seed} \
+                exp_name=t03b_pretrained/${dataset}/train-${sample_size}-${train_split}/seed${seed} \
                 train_split=${train_split} \
                 few_shot_random_seed=${seed} \
                 seed=${seed} \
