@@ -28,8 +28,4 @@ def create_fewshot_splits(dataset: Dataset, sample_sizes: List[int]) -> DatasetD
         for idx, seed in enumerate(SEEDS):
             split_df = create_samples(df, sample_size, seed)
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
-
-    split_ex = list(splits_ds.values())[0]
-    print("Few shot train split example:")
-    print(f"{list(zip(split_ex['text'], split_ex['label']))}")
     return splits_ds
