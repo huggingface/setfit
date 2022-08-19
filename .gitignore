@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # C extensions
 *.so
@@ -140,3 +141,4 @@ scripts/**/train_script.py
 scripts/**/summary_table.csv
 scripts/tfew/t-few
 scripts/tfew/results
+scripts/tfew/run_tmux.sh

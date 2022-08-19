@@ -10,9 +10,9 @@ from numpy import mean, std
 
 
 """
-To run: python create_summary_table.py scripts/{method_name}/{results}/{model_name}
-or: python create_summary_table.py scripts/{method_name}/{model_name}.tar.gz
-Files are outputted to the directory of the results
+To run: python create_summary_table.py --path scripts/{method_name}/{results}/{model_name}
+or: python create_summary_table.py --path scripts/{method_name}/{model_name}.tar.gz
+Files are outputted to the directory of the results.
 """
 
 
@@ -39,7 +39,7 @@ def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -
             with open(result_json) as f:
                 result_dict = json.load(f)
 
-            metric_name = result_dict["measure"]
+            metric_name = result_dict.get("measure", "N/A")
             split_metrics.append(result_dict["score"])
         formatted_row.extend([f"{mean(split_metrics):.2f}", f"{std(split_metrics):.2f}"])
 
@@ -84,7 +84,7 @@ def create_summary_table(results_path: str) -> None:
     print(f"Saved summary table to {output_path}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--path", type=str)
