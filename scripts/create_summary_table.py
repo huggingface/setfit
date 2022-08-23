@@ -69,7 +69,6 @@ def create_summary_table(results_path: str) -> None:
         header_row.append(f"{sample_size}_std")
 
     csv_lines = [header_row]
-    print(unzipped_path)
     for dataset in os.listdir(unzipped_path):
         metric_name, formatted_metrics = get_formatted_ds_metrics(unzipped_path, dataset, sample_sizes)
         dataset_row = [dataset, metric_name, *formatted_metrics]
