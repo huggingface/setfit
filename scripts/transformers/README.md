@@ -48,13 +48,13 @@ python run_full.py train-single-dataset \
 --dataset-id=sst2 \
 --metric=accuracy \
 --learning-rate=2e-5 \
---batch-size=4
+--batch-size=24
 ```
 
 To finetune a pretrained model on all the test datasets used in SetFit, run:
 
 ```
-python run_full.py train-all-datasets --model-id=distilbert-base-uncased --batch-size=4
+python run_full.py train-all-datasets --model-id=distilbert-base-uncased --batch-size=24
 ```
 
 ### Multilingual finetuning
