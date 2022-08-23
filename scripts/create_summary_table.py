@@ -40,7 +40,7 @@ def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -
                 result_dict = json.load(f)
 
             metric_name = result_dict.get("measure", "N/A")
-            split_metrics.append(result_dict["score"])
+            split_metrics.append(result_dict["score"] * 100)
         formatted_row.extend([f"{mean(split_metrics):.2f}", f"{std(split_metrics):.2f}"])
 
     return metric_name, formatted_row

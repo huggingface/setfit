@@ -1,4 +1,4 @@
-for dataset in sst5 senteval_cr
+for dataset in sst5 senteval_cr emotion
 do
     for sample_size in 8 16 32
     do

@@ -1,10 +1,10 @@
-for dataset in senteval_cr
+for dataset in sst5
 do
     for train_split in 0 
     do
         for seed in 0
         do
-            for sample_size in 4
+            for sample_size in 8
             do
                 python -m src.pl_train -c t03b.json+ia3.json+${dataset}.json \
                 -k load_weight="t-few/pretrained_checkpoints/t03b_ia3_finish.pt" \
