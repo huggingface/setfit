@@ -10,7 +10,8 @@ from numpy import mean, std
 
 
 """
-To run: python create_summary_table.py --path scripts/{method_name}/{results}/{model_name}
+To run: python create_summary_table.py --path ~/setfit/scripts/{method_name}/{results}/{model_name}
+e.g. python create_summary_table.py --path ~/setfit/scripts/tfew/results/t03b_pretrained
 or: python create_summary_table.py --path scripts/{method_name}/{model_name}.tar.gz
 Files are outputted to the directory of the results.
 """
@@ -30,15 +31,18 @@ def get_sample_sizes(path: str) -> List[str]:
 
 def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -> Tuple[str, List[str]]:
     formatted_row = []
-
+    print("path", path)
+    print("dataset", dataset)
     for sample_size in sample_sizes:
         result_jsons = sorted(glob(os.path.join(path, dataset, f"train-{sample_size}-*", "results.json")))
         split_metrics = []
 
+        print("jsons: ", result_jsons)
         for result_json in result_jsons:
             with open(result_json) as f:
                 result_dict = json.load(f)
 
+            
             metric_name = result_dict.get("measure", "N/A")
             split_metrics.append(result_dict["score"] * 100)
         formatted_row.extend([f"{mean(split_metrics):.2f}", f"{std(split_metrics):.2f}"])
@@ -67,8 +71,8 @@ def create_summary_table(results_path: str) -> None:
         header_row.append(f"{sample_size}_std")
 
     csv_lines = [header_row]
-
-    for dataset in next(os.walk(unzipped_path))[1]:
+    print(unzipped_path)
+    for dataset in os.listdir(unzipped_path):
         metric_name, formatted_metrics = get_formatted_ds_metrics(unzipped_path, dataset, sample_sizes)
         dataset_row = [dataset, metric_name, *formatted_metrics]
         csv_lines.append(dataset_row)
