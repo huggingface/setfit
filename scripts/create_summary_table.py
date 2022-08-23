@@ -35,7 +35,7 @@ def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -
     for sample_size in sample_sizes:
         result_jsons = sorted(glob(os.path.join(path, dataset, f"train-{sample_size}-*", "results.json")))
         split_metrics = []
-
+        assert len(split_metrics) > 0 
         for result_json in result_jsons:
             with open(result_json) as f:
                 result_dict = json.load(f)
