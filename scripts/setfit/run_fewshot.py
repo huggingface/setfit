@@ -18,8 +18,8 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
+from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits
 
-from scripts.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits
 from setfit.data import SAMPLE_SIZES
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, SupConLoss, sentence_pairs_generation
 
@@ -43,7 +43,14 @@ def parse_args():
     parser.add_argument(
         "--classifier",
         default="logistic_regression",
-        choices=["logistic_regression", "svc-rbf", "svc-rbf-norm", "knn", "pytorch", "pytorch_complex"],
+        choices=[
+            "logistic_regression",
+            "svc-rbf",
+            "svc-rbf-norm",
+            "knn",
+            "pytorch",
+            "pytorch_complex",
+        ],
     )
     parser.add_argument("--loss", default="CosineSimilarityLoss")
     parser.add_argument("--exp_name", default="")
@@ -53,6 +60,8 @@ def parse_args():
     parser.add_argument("--is_dev_set", type=bool, default=False)
     parser.add_argument("--is_test_set", type=bool, default=False)
     parser.add_argument("--override_results", default=False, action="store_true")
+    parser.add_argument("--add_data_augmentation", default=False)
+
     args = parser.parse_args()
 
     return args
@@ -92,7 +101,9 @@ class RunFewShot:
 
         # Load SetFit Model
         self.model_wrapper = SetFitModel(
-            self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
+            self.args.model,
+            max_seq_length=args.max_seq_length,
+            add_normalization_layer=args.add_normalization_layer,
         )
         self.model = self.model_wrapper.model
 
@@ -128,13 +139,16 @@ class RunFewShot:
 
             if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
                 train_loss = self.loss_class(
-                    model=self.model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance
+                    model=self.model,
+                    distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
                 )
             elif self.loss_class is SupConLoss:
                 train_loss = self.loss_class(model=self.model)
             else:
                 train_loss = self.loss_class(
-                    model=self.model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance, margin=0.25
+                    model=self.model,
+                    distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+                    margin=0.25,
                 )
 
             train_steps = len(train_dataloader) * self.args.num_epochs
@@ -187,7 +201,9 @@ class RunFewShot:
     def train_eval_all_datasets(self) -> None:
         """Trains and evaluates the model on each split for every dataset."""
         for dataset, metric in self.dataset_to_metric.items():
-            few_shot_train_splits, test_data = load_data_splits(dataset, self.args.sample_sizes)
+            few_shot_train_splits, test_data = load_data_splits(
+                dataset, self.args.sample_sizes, self.args.add_data_augmentation
+            )
 
             for split_name, train_data in few_shot_train_splits.items():
                 results_path = self.create_results_path(dataset, split_name)
@@ -202,7 +218,11 @@ class RunFewShot:
                 metrics = self.eval(classifier, test_data, metric)
 
                 with open(results_path, "w") as f_out:
-                    json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
+                    json.dump(
+                        {"score": metrics[metric] * 100, "measure": metric},
+                        f_out,
+                        sort_keys=True,
+                    )
 
 
 def main():
