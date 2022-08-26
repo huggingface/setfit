@@ -78,7 +78,7 @@ def create_fewshot_splits(
 
     for sample_size in sample_sizes:
         for idx, seed in enumerate(SEEDS):
-            if add_data_augmentation:
+            if add_data_augmentation and dataset_name is not None:
                 augmented_samples = get_augmented_samples(dataset_name, sample_size)
                 augmented_df = pd.DataFrame(augmented_samples)
                 samples_df = create_samples(df, sample_size, seed)
