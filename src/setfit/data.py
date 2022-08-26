@@ -54,7 +54,7 @@ def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]
         }
     else:
         print(f"Dataset {dataset} not supported for data augmentation!")
-        return None
+        return {}
 
 
 def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
