@@ -29,12 +29,14 @@ MULTILINGUAL_DATASET_TO_METRIC = {
 }
 
 
-def load_data_splits(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
+def load_data_splits(
+    dataset: str, sample_sizes: List[int], add_data_augmentation: bool = False
+) -> Tuple[DatasetDict, Dataset]:
     """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
     train_split = load_dataset(f"SetFit/{dataset}", split="train")
-    train_splits = create_fewshot_splits(train_split, sample_sizes)
+    train_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, dataset)
     test_split = load_dataset(f"SetFit/{dataset}", split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split

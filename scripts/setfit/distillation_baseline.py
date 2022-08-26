@@ -36,7 +36,12 @@ class BaselineDistillation:
 
     def bl_student_preprocess(self, examples):
         label = examples["score"]
-        examples = self.tokenizer(examples["text"], truncation=True, padding="max_length", max_length=self.seq_len)
+        examples = self.tokenizer(
+            examples["text"],
+            truncation=True,
+            padding="max_length",
+            max_length=self.seq_len,
+        )
         # Change this to real number
         examples["label"] = [float(i) for i in label]
         return examples
@@ -64,7 +69,11 @@ class BaselineDistillation:
         raw_test_ds = Dataset.from_dict(test_dict)
 
         # validation and test sets are the same
-        ds = {"train": train_raw_student, "validation": raw_test_ds, "test": raw_test_ds}
+        ds = {
+            "train": train_raw_student,
+            "validation": raw_test_ds,
+            "test": raw_test_ds,
+        }
         for split in ds:
             ds[split] = ds[split].map(self.bl_student_preprocess, remove_columns=["text", "score"])
 
