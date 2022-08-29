@@ -10,8 +10,7 @@ from numpy import mean, std
 
 
 """
-To run: python create_summary_table.py --path ~/setfit/scripts/{method_name}/{results}/{model_name}
-e.g. python create_summary_table.py --path ~/setfit/scripts/tfew/results/t03b_pretrained
+To run: python create_summary_table.py --path scripts/{method_name}/{results}/{model_name}
 or: python create_summary_table.py --path scripts/{method_name}/{model_name}.tar.gz
 Files are outputted to the directory of the results.
 """
@@ -26,31 +25,23 @@ def extract_results(path: str) -> None:
 
 
 def get_sample_sizes(path: str) -> List[str]:
-    return sorted(
-        list({int(name.split("-")[-2]) for name in glob(f"{path}/*/train-*-0")})
-    )
+    return sorted(list({int(name.split("-")[-2]) for name in glob(f"{path}/*/train-*-0")}))
 
 
-def get_formatted_ds_metrics(
-    path: str, dataset: str, sample_sizes: List[str]
-) -> Tuple[str, List[str]]:
+def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -> Tuple[str, List[str]]:
     formatted_row = []
 
     for sample_size in sample_sizes:
-        result_jsons = sorted(
-            glob(os.path.join(path, dataset, f"train-{sample_size}-*", "results.json"))
-        )
+        result_jsons = sorted(glob(os.path.join(path, dataset, f"train-{sample_size}-*", "results.json")))
         split_metrics = []
-        assert len(split_metrics) > 0
+
         for result_json in result_jsons:
             with open(result_json) as f:
                 result_dict = json.load(f)
 
             metric_name = result_dict.get("measure", "N/A")
-            split_metrics.append(result_dict["score"] * 100)
-        formatted_row.extend(
-            [f"{mean(split_metrics):.2f}", f"{std(split_metrics):.2f}"]
-        )
+            split_metrics.append(result_dict["score"])
+        formatted_row.extend([f"{mean(split_metrics):.2f}", f"{std(split_metrics):.2f}"])
 
     return metric_name, formatted_row
 
@@ -76,10 +67,9 @@ def create_summary_table(results_path: str) -> None:
         header_row.append(f"{sample_size}_std")
 
     csv_lines = [header_row]
-    for dataset in os.listdir(unzipped_path):
-        metric_name, formatted_metrics = get_formatted_ds_metrics(
-            unzipped_path, dataset, sample_sizes
-        )
+
+    for dataset in next(os.walk(unzipped_path))[1]:
+        metric_name, formatted_metrics = get_formatted_ds_metrics(unzipped_path, dataset, sample_sizes)
         dataset_row = [dataset, metric_name, *formatted_metrics]
         csv_lines.append(dataset_row)
 
