@@ -38,7 +38,14 @@ parser.add_argument("--max_seq_length", type=int, default=256)
 parser.add_argument(
     "--classifier",
     default="logistic_regression",
-    choices=["logistic_regression", "svc-rbf", "svc-rbf-norm", "knn", "pytorch", "pytorch_complex"],
+    choices=[
+        "logistic_regression",
+        "svc-rbf",
+        "svc-rbf-norm",
+        "knn",
+        "pytorch",
+        "pytorch_complex",
+    ],
 )
 parser.add_argument("--loss", default="CosineSimilarityLoss")
 parser.add_argument("--exp_name", default="")
@@ -109,12 +116,17 @@ def eval_setfit(train_data, test_data, model, loss_class, num_epochs, metric):
         train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
         if loss_class is losses.BatchHardSoftMarginTripletLoss:
-            train_loss = loss_class(model=model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance)
+            train_loss = loss_class(
+                model=model,
+                distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+            )
         elif loss_class is SupConLoss:
             train_loss = loss_class(model=model)
         else:
             train_loss = loss_class(
-                model=model, distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance, margin=0.25
+                model=model,
+                distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+                margin=0.25,
             )
 
         train_steps = len(train_dataloader) * num_epochs
@@ -174,10 +186,21 @@ if args.multilinguality == "each":
                 continue
 
             model.load_state_dict(copy.deepcopy(model_original_state))
-            metrics = eval_setfit(fewshot_ds[name], test_dataset, model, loss_class, args.num_epochs, metric)
+            metrics = eval_setfit(
+                fewshot_ds[name],
+                test_dataset,
+                model,
+                loss_class,
+                args.num_epochs,
+                metric,
+            )
 
             with open(results_path, "w") as f_out:
-                json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
+                json.dump(
+                    {"score": metrics[metric] * 100, "measure": metric},
+                    f_out,
+                    sort_keys=True,
+                )
 
 # Train on English and evaluate on language X
 if args.multilinguality == "en":
@@ -196,10 +219,21 @@ if args.multilinguality == "en":
                 continue
 
             model.load_state_dict(copy.deepcopy(model_original_state))
-            metrics = eval_setfit(fewshot_ds[name], test_dataset, model, loss_class, args.num_epochs, metric)
+            metrics = eval_setfit(
+                fewshot_ds[name],
+                test_dataset,
+                model,
+                loss_class,
+                args.num_epochs,
+                metric,
+            )
 
             with open(results_path, "w") as f_out:
-                json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
+                json.dump(
+                    {"score": metrics[metric] * 100, "measure": metric},
+                    f_out,
+                    sort_keys=True,
+                )
 
 # Train on all languages and evaluate on language X
 if args.multilinguality == "all":
@@ -222,7 +256,18 @@ if args.multilinguality == "all":
                 continue
 
             model.load_state_dict(copy.deepcopy(model_original_state))
-            metrics = eval_setfit(fewshot_ds[name], test_dataset, model, loss_class, args.num_epochs, metric)
+            metrics = eval_setfit(
+                fewshot_ds[name],
+                test_dataset,
+                model,
+                loss_class,
+                args.num_epochs,
+                metric,
+            )
 
             with open(results_path, "w") as f_out:
-                json.dump({"score": metrics[metric] * 100, "measure": metric}, f_out, sort_keys=True)
+                json.dump(
+                    {"score": metrics[metric] * 100, "measure": metric},
+                    f_out,
+                    sort_keys=True,
+                )

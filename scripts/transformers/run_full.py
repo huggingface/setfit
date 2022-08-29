@@ -29,6 +29,7 @@ def train_single_dataset(
     metric: str = "accuracy",
     learning_rate: float = 2e-5,
     batch_size: int = 4,
+    num_train_epochs: int = 20,
     push_to_hub: bool = False,
 ):
     """Fine-tunes a pretrained checkpoint on the fewshot training sets"""
@@ -77,14 +78,14 @@ def train_single_dataset(
     training_args = TrainingArguments(
         output_dir="checkpoints/full/",
         overwrite_output_dir=True,
-        num_train_epochs=20,
+        num_train_epochs=num_train_epochs,
         learning_rate=learning_rate,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        weight_decay=0.01,
+        weight_decay=0.001,
         evaluation_strategy="epoch",
         logging_steps=100,
-        metric_for_best_model="eval_loss",
+        metric_for_best_model=metric,
         load_best_model_at_end=True,
         save_strategy="epoch",
         save_total_limit=1,
@@ -134,6 +135,7 @@ def train_all_datasets(
     model_id: str = "distilbert-base-uncased",
     learning_rate: float = 2e-5,
     batch_size: int = 4,
+    num_train_epochs: int = 20,
     push_to_hub: bool = False,
     is_dev_set: bool = False,
 ):
@@ -151,6 +153,7 @@ def train_all_datasets(
             metric=metric,
             learning_rate=learning_rate,
             batch_size=batch_size,
+            num_train_epochs=num_train_epochs,
             push_to_hub=push_to_hub,
         )
     typer.echo("Training complete!")
