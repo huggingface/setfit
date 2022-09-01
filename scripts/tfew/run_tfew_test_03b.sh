@@ -1,6 +1,6 @@
-for dataset in emotion senteval_cr enron_spam
+for dataset in enron_spam
 do
-    for sample_size in 8 64
+    for sample_size in 8
     do
         for train_split in 0 1 2 3 4 5 6 7 8 9 
         do
