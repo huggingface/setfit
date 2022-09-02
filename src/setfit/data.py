@@ -52,6 +52,11 @@ def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]
             + ["The sentence is very positive"] * sample_size,
             "label": [0] * sample_size + [1] * sample_size + [2] * sample_size + [3] * sample_size + [4] * sample_size,
         }
+    elif dataset == "enron_spam":
+        return {
+            "text": ["The sentence is ham"] * sample_size + ["The sentence is spam"] * sample_size,
+            "label": [0] * sample_size + [1] * sample_size,
+        }
     else:
         print(f"Dataset {dataset} not supported for data augmentation!")
         return {}
