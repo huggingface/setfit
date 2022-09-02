@@ -175,8 +175,8 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
 
 
 class SKLearnWrapper:
-    def __init__(self, sbert_model=None, clf=None):
-        self.st_model = sbert_model
+    def __init__(self, st_model=None, clf=None):
+        self.st_model = st_model
         self.clf = clf
 
     def fit(self, x_train, y_train):
