@@ -16,7 +16,7 @@ from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
-from sklearn.multioutput import MultiOutputClassifier, ClassifierChain
+from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
 
