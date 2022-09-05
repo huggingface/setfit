@@ -21,7 +21,14 @@ from typing_extensions import LiteralString
 
 from scripts.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, SupConLoss, sentence_pairs_generation
+from setfit.modeling import (
+    LOSS_NAME_TO_CLASS,
+    SetFitModel,
+    SKLearnWrapper,
+    SupConLoss,
+    sentence_pairs_generation,
+    sentence_pairs_generation_multilabel,
+)
 
 
 # ignore all future warnings
