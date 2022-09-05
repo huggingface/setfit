@@ -57,9 +57,20 @@ def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]
             "text": ["The sentence is ham"] * sample_size + ["The sentence is spam"] * sample_size,
             "label": [0] * sample_size + [1] * sample_size,
         }
+    elif dataset == "tweet_eval_stance_abortion":
+        return {
+            "text": ["The sentence is none"] * sample_size
+            + ["The sentence is against"] * sample_size
+            + ["The sentence is favor"] * sample_size,
+            "label": [0] * sample_size + [1] * sample_size + [2] * sample_size,
+        }
+    elif dataset == "ade_corpus_v2_classification":
+        return {
+            "text": ["The sentence is not related"] * sample_size + ["The sentence is related"] * sample_size,
+            "label": [0] * sample_size + [1] * sample_size,
+        }
     else:
-        print(f"Dataset {dataset} not supported for data augmentation!")
-        return {}
+        raise ValueError(f"Dataset {dataset} not supported for data augmentation!")
 
 
 def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
