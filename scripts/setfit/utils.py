@@ -39,6 +39,7 @@ def load_data_splits(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
 
+
 def load_data_splits_multilabel(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
     """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")

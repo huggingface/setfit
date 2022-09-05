@@ -32,16 +32,16 @@ def create_fewshot_splits(dataset: Dataset, sample_sizes: List[int]) -> DatasetD
 
 
 def create_samples_multilabel(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
-    """Samples a DataFrame to create an equal number of samples per class (when possible). """
+    """Samples a DataFrame to create an equal number of samples per class (when possible)."""
     examples = []
-    column_labels = [_col for _col in df.columns.tolist() if _col!="text"]
+    column_labels = [_col for _col in df.columns.tolist() if _col != "text"]
     for label in column_labels:
         subset = df.query(f"{label} == 1")
         if len(subset) > sample_size:
             examples.append(subset.sample(sample_size, random_state=seed, replace=False))
         else:
             examples.append(subset)
-    #Dropping duplicates for samples selected multiple times as they have multi labels
+    # Dropping duplicates for samples selected multiple times as they have multi labels
     return pd.concat(examples).drop_duplicates()
 
 
