@@ -27,7 +27,6 @@ from setfit.modeling import (
     SKLearnWrapper,
     SupConLoss,
     sentence_pairs_generation,
-    sentence_pairs_generation_multilabel,
 )
 
 

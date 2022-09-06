@@ -12,7 +12,7 @@ from warnings import simplefilter
 import numpy as np
 from datasets import Dataset
 from evaluate import load
-from sentence_transformers import InputExample, SentenceTransformer, losses
+from sentence_transformers import InputExample, SentenceTransformer
 from sentence_transformers.datasets import SentenceLabelDataset
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier

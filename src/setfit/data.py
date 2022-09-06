@@ -53,4 +53,4 @@ def create_fewshot_splits_multilabel(dataset: Dataset, sample_sizes: List[int]) 
         for idx, seed in enumerate(SEEDS):
             split_df = create_samples_multilabel(df, sample_size, seed)
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
-    return splits
+    return splits_ds
