@@ -44,8 +44,8 @@ def load_data_splits_multilabel(dataset: str, sample_sizes: List[int]) -> Tuple[
     """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
-    train_split = load_dataset(f"SetFit/{dataset}", split="train")
+    train_split = load_dataset(f"SetFit/{dataset}", "multilabel", split="train")
     train_splits = create_fewshot_splits_multilabel(train_split, sample_sizes)
-    test_split = load_dataset(f"SetFit/{dataset}", split="test")
+    test_split = load_dataset(f"SetFit/{dataset}" "multilabel", split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
