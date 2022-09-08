@@ -1,5 +1,6 @@
 import copy
 
+import joblib
 import numpy as np
 import torch
 import torch.nn as nn
@@ -201,18 +202,26 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
 
 
 class SKLearnWrapper:
-    def __init__(self, sbert_model, clf):
-        self.sbert_model = sbert_model
+    def __init__(self, st_model=None, clf=None):
+        self.st_model = st_model
         self.clf = clf
 
     def fit(self, x_train, y_train):
-        embeddings = self.sbert_model.encode(x_train)
+        embeddings = self.st_model.encode(x_train)
         self.clf.fit(embeddings, y_train)
 
     def predict(self, x_test):
-        embeddings = self.sbert_model.encode(x_test)
+        embeddings = self.st_model.encode(x_test)
         return self.clf.predict(embeddings)
 
     def predict_proba(self, x_test):
-        embeddings = self.sbert_model.encode(x_test)
+        embeddings = self.st_model.encode(x_test)
         return self.clf.predict_proba(embeddings)
+
+    def save(self, path):
+        self.st_model.save(path=path)
+        joblib.dump(self.clf, f"{path}/setfit_head.pkl")
+
+    def load(self, path):
+        self.st_model = SentenceTransformer(model_name_or_path=path)
+        self.clf = joblib.load(f"{path}/setfit_head.pkl")
