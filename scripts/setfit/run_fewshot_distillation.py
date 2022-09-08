@@ -47,7 +47,12 @@ def parse_args():
         default=["sst2"],
     )
     parser.add_argument("--teacher_sample_sizes", type=int, nargs="+", default=16)
-    parser.add_argument("--student_sample_sizes", type=int, nargs="+", default=[8, 16, 32, 64, 100, 200, 1000])
+    parser.add_argument(
+        "--student_sample_sizes",
+        type=int,
+        nargs="+",
+        default=[8, 16, 32, 64, 100, 200, 1000],
+    )
     parser.add_argument("--num_epochs", type=int, default=20)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--max_seq_length", type=int, default=256)
@@ -57,7 +62,14 @@ def parse_args():
     parser.add_argument(
         "--classifier",
         default="logistic_regression",
-        choices=["logistic_regression", "svc-rbf", "svc-rbf-norm", "knn", "pytorch", "pytorch_complex"],
+        choices=[
+            "logistic_regression",
+            "svc-rbf",
+            "svc-rbf-norm",
+            "knn",
+            "pytorch",
+            "pytorch_complex",
+        ],
     )
     parser.add_argument("--loss", default="CosineSimilarityLoss")
     parser.add_argument("--exp_name", default="")
@@ -101,7 +113,9 @@ class RunFewShotDistill:
             self.student_train_ds = student_train_ds
             self.mode = self.BASELINE_STUDENT
             self.bl_stdnt_distill = BaselineDistillation(
-                args.baseline_student_model, args.baseline_model_epochs, args.baseline_model_batch_size
+                args.baseline_student_model,
+                args.baseline_model_epochs,
+                args.baseline_model_batch_size,
             )
 
         parent_directory = pathlib.Path(__file__).parent.absolute()
@@ -203,12 +217,18 @@ class RunFewShotDistill:
             # if teacher training use only 1 split (send only 1 seed. seed= 0)
             if self.mode == self.TEACHER:
                 fewshot_ds = self.create_fewshot_splits(
-                    train_ds, self.args.teacher_sample_sizes, seeds=TEACHER_SEED, mode=self.TEACHER
+                    train_ds,
+                    self.args.teacher_sample_sizes,
+                    seeds=TEACHER_SEED,
+                    mode=self.TEACHER,
                 )
 
             if self.mode == self.SETFIT_STUDENT:
                 fewshot_ds = self.create_fewshot_splits(
-                    train_ds, self.args.student_sample_sizes, seeds=STUDENT_SEEDS, mode=self.SETFIT_STUDENT
+                    train_ds,
+                    self.args.student_sample_sizes,
+                    seeds=STUDENT_SEEDS,
+                    mode=self.SETFIT_STUDENT,
                 )
                 self.student_train_ds = fewshot_ds
 
@@ -228,7 +248,11 @@ class RunFewShotDistill:
                 if (self.mode == self.TEACHER) or (self.mode == self.SETFIT_STUDENT):
                     self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
                     metrics = self.train_eval_setfit(
-                        fewshot_ds[name], test_dataset, self.loss_class, self.args.num_epochs, metric
+                        fewshot_ds[name],
+                        test_dataset,
+                        self.loss_class,
+                        self.args.num_epochs,
+                        metric,
                     )
 
                 if self.mode == self.BASELINE_STUDENT:
@@ -236,7 +260,11 @@ class RunFewShotDistill:
                     print("Baseline model score: ", round(metrics[metric] * 100, 3))
 
                 with open(results_path, "w") as f_out:
-                    json.dump({"score": round(metrics[metric] * 100, 3), "measure": metric}, f_out, sort_keys=True)
+                    json.dump(
+                        {"score": round(metrics[metric] * 100, 3), "measure": metric},
+                        f_out,
+                        sort_keys=True,
+                    )
 
     def train_baseline_student(self, train_data, test_data, num_classes):
         x_train = train_data["text"]
@@ -328,7 +356,11 @@ def main():
     BASELINE_STUDENT = 2
     # 1. Train few-shot teacher
     fewshot_teacher = RunFewShotDistill(
-        args, mode=TEACHER, trained_teacher_model=None, x_train_teacher=None, student_train_ds=None
+        args,
+        mode=TEACHER,
+        trained_teacher_model=None,
+        x_train_teacher=None,
+        student_train_ds=None,
     )
     fewshot_teacher.train()
 
