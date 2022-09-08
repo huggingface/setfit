@@ -1,6 +1,6 @@
-for dataset in enron_spam
+for dataset in amazon_counterfactual_en
 do
-    for sample_size in 8
+    for sample_size in 8 64
     do
         for train_split in 0 1 2 3 4 5 6 7 8 9 
         do

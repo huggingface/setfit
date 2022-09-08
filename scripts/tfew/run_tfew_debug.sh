@@ -1,4 +1,4 @@
-for dataset in enron_spam
+for dataset in amazon_counterfactual_en
 do
     for sample_size in 8
     do
@@ -13,7 +13,7 @@ do
                     few_shot_random_seed=${seed} \
                     seed=${seed} \
                     num_shot=$sample_size \
-                    num_steps=100 \
+                    num_steps=10 \
                     batch_size=8 \
                     eval_batch_size=16 \
                     grad_accum_factor=1 \

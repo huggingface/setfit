@@ -9,3 +9,5 @@ sentencepiece==0.1.96
 scipy
 promptsource
 ipdb
+evaluate==0.1.2
+sklearn
