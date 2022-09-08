@@ -1,10 +1,10 @@
-for dataset in sst5 senteval_cr emotion
+for dataset in emotion senteval_cr enron_spam
 do
-    for sample_size in 8 16 32
+    for sample_size in 8 64 
     do
-        for train_split in 0 1 2 3 4 5 6 7 8 9 
+        for train_split in 0 1 2 3 4 5 6 7 8 9
         do
-            for seed in 0 1 2 3 4 5 6 7 8 9 
+            for seed in 0 1 2 3 4
             do
                     python -m src.pl_train -c t011b.json+ia3.json+${dataset}.json \
                     -k load_weight="t-few/pretrained_checkpoints/t011b_ia3_finish.pt" \

@@ -2,7 +2,7 @@ from typing import List, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 
-from setfit.data import create_fewshot_splits, create_fewshot_splits_multilabel
+from setfit.data import create_fewshot_splits
 
 
 DEV_DATASET_TO_METRIC = {
@@ -38,16 +38,5 @@ def load_data_splits(
     train_split = load_dataset(f"SetFit/{dataset}", split="train")
     train_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, dataset)
     test_split = load_dataset(f"SetFit/{dataset}", split="test")
-    print(f"Test set: {len(test_split)}")
-    return train_splits, test_split
-
-
-def load_data_splits_multilabel(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
-    """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
-    print(f"\n\n\n============== {dataset} ============")
-    # Load one of the SetFit training sets from the Hugging Face Hub
-    train_split = load_dataset(f"{dataset}", "multilabel", split="train")
-    train_splits = create_fewshot_splits_multilabel(train_split, sample_sizes)
-    test_split = load_dataset(f"{dataset}", "multilabel", split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split

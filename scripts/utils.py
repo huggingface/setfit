@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic_ns
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from datasets import Dataset, DatasetDict, load_dataset
 
@@ -34,13 +34,18 @@ MULTILINGUAL_DATASET_TO_METRIC = {
 }
 
 
-def load_data_splits(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
+def load_data_splits(dataset: Union[str, Tuple[str, str]], sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
     """Loads a dataset from the SetFit org in Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
-    train_split = load_dataset(f"SetFit/{dataset}", split="train")
+    if isinstance(dataset, tuple):
+        dataset_and_subset = (f"SetFit/{dataset[0]}", dataset[1])
+    else:
+        dataset_and_subset = (f"SetFit/{dataset}",)
+    dataset = f"SetFit/{dataset}"
+    train_split = load_dataset(*dataset_and_subset, split="train")
     train_splits = create_fewshot_splits(train_split, sample_sizes)
-    test_split = load_dataset(f"SetFit/{dataset}", split="test")
+    test_split = load_dataset(*dataset_and_subset, split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
 
