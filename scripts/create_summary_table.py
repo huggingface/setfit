@@ -19,6 +19,7 @@ or: python create_summary_table.py --path scripts/{method_name}/{model_name}.tar
 Files are outputted to the directory of the results.
 """
 
+
 def extract_results(path: str) -> None:
     tar = tarfile.open(path, "r:gz")
     unzip_path = splitext(splitext(path)[-2])[-2]
@@ -63,7 +64,9 @@ def compute_tfew_medians(results_path: str) -> None:
                         seed_metrics.append(result_dict[dataset_metric] * 100)
 
                     with open(join(split_dir, "results.json"), "w") as f:
-                        json.dump({"score": median(seed_metrics), "measure": dataset_metric, "iqr": iqr(seed_metrics)}, f)
+                        json.dump(
+                            {"score": median(seed_metrics), "measure": dataset_metric, "iqr": iqr(seed_metrics)}, f
+                        )
 
 
 def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -> Tuple[str, List[str]]:

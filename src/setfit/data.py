@@ -104,6 +104,7 @@ def create_fewshot_splits(
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
     return splits_ds
 
+
 def create_samples_multilabel(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
     """Samples a DataFrame to create an equal number of samples per class (when possible)."""
     examples = []

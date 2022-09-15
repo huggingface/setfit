@@ -59,6 +59,7 @@ def load_data_splits_multilabel(dataset: str, sample_sizes: List[int]) -> Tuple[
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
 
+
 @dataclass
 class Benchmark:
     """
