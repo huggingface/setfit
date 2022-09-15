@@ -20,7 +20,7 @@ python -m pip install -r requirements.txt --extra-index-url https://download.pyt
 ```
 
 Finally, clone our `promptsource` fork, which contains prompts for our test datasets.
-In your directory of choosing, run the follwoing inside the `baselines-tfew` environment:
+In your directory of choosing, run the following inside the `baselines-tfew` environment:
 
 ```
 git clone https://github.com/SetFit/promptsource.git
