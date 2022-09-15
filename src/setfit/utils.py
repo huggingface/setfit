@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic_ns
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 
