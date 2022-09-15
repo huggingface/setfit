@@ -5,10 +5,11 @@ from typing import List, Tuple, Union
 
 from datasets import Dataset, DatasetDict, load_dataset
 
-from setfit.data import create_fewshot_splits
+from setfit.data import create_fewshot_splits, create_fewshot_splits_multilabel
 
 
 SEC_TO_NS_SCALE = 1000000000
+
 
 DEV_DATASET_TO_METRIC = {
     "sst2": "accuracy",
@@ -26,6 +27,7 @@ TEST_DATASET_TO_METRIC = {
     "SentEval-CR": "accuracy",
     "sst5": "accuracy",
     "ag_news": "accuracy",
+    "enron_spam": "accuracy",
     "amazon_counterfactual_en": "matthews_correlation",
 }
 
@@ -34,18 +36,26 @@ MULTILINGUAL_DATASET_TO_METRIC = {
 }
 
 
-def load_data_splits(dataset: Union[str, Tuple[str, str]], sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
-    """Loads a dataset from the SetFit org in Hugging Face Hub and returns the test split and few-shot training splits."""
+def load_data_splits(
+    dataset: str, sample_sizes: List[int], add_data_augmentation: bool = False
+) -> Tuple[DatasetDict, Dataset]:
+    """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
-    if isinstance(dataset, tuple):
-        dataset_and_subset = (f"SetFit/{dataset[0]}", dataset[1])
-    else:
-        dataset_and_subset = (f"SetFit/{dataset}",)
-    dataset = f"SetFit/{dataset}"
-    train_split = load_dataset(*dataset_and_subset, split="train")
-    train_splits = create_fewshot_splits(train_split, sample_sizes)
-    test_split = load_dataset(*dataset_and_subset, split="test")
+    train_split = load_dataset(f"SetFit/{dataset}", split="train")
+    train_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, dataset)
+    test_split = load_dataset(f"SetFit/{dataset}", split="test")
+    print(f"Test set: {len(test_split)}")
+    return train_splits, test_split
+
+
+def load_data_splits_multilabel(dataset: str, sample_sizes: List[int]) -> Tuple[DatasetDict, Dataset]:
+    """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
+    print(f"\n\n\n============== {dataset} ============")
+    # Load one of the SetFit training sets from the Hugging Face Hub
+    train_split = load_dataset(f"{dataset}", "multilabel", split="train")
+    train_splits = create_fewshot_splits_multilabel(train_split, sample_sizes)
+    test_split = load_dataset(f"{dataset}", "multilabel", split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
 

@@ -10,21 +10,22 @@ To run the scripts, first create a Python virtual environment, e.g. with `conda`
 conda create -n baselines-tfew python=3.7 && conda activate baselines-tfew
 ```
 
-Next, clone our `T-Few` fork, and install the required dependencies:
+Next, install `setfit`, clone our `T-Few` fork, and install the required dependencies:
 
 ```
+python -m pip install setfit
 cd scripts/tfew
 git clone https://github.com/SetFit/t-few.git
-pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu113
+python -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu113
 ```
 
 Finally, clone our `promptsource` fork, which contains prompts for our test datasets.
-In your directory of choosing, run the follwoing inside the `baselines-tfew` environment:
+In your directory of choosing, run the following inside the `baselines-tfew` environment:
 
 ```
 git clone https://github.com/SetFit/promptsource.git
 cd promptsource
-pip install -e .
+python -m pip install -e .
 ```
 
 The steps above only need to be done once. In addition, every time you start a new session, you will need to run:
