@@ -4,30 +4,6 @@ from typing import Tuple
 from datasets import Dataset
 
 
-DEV_DATASET_TO_METRIC = {
-    "sst2": "accuracy",
-    "imdb": "accuracy",
-    "subj": "accuracy",
-    "bbc-news": "accuracy",
-    "enron_spam": "accuracy",
-    "student-question-categories": "accuracy",
-    "TREC-QC": "accuracy",
-    "toxic_conversations": "matthews_correlation",
-}
-
-TEST_DATASET_TO_METRIC = {
-    "emotion": "accuracy",
-    "SentEval-CR": "accuracy",
-    "sst5": "accuracy",
-    "ag_news": "accuracy",
-    "amazon_counterfactual_en": "matthews_correlation",
-}
-
-MULTILINGUAL_DATASET_TO_METRIC = {
-    f"amazon_reviews_multi_{lang}": "mae" for lang in ["en", "de", "es", "fr", "ja", "zh"]
-}
-
-
 def get_label_mappings(dataset: Dataset) -> Tuple[int, dict, dict]:
     """Returns the label mappings of the dataset."""
     label_ids = dataset.unique("label")
