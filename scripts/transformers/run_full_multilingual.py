@@ -16,6 +16,7 @@ from utils import get_label_mappings, save_metrics
 
 from setfit.utils import MULTILINGUAL_DATASET_TO_METRIC
 
+
 app = typer.Typer()
 
 

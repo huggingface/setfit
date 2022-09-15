@@ -9,8 +9,8 @@ from evaluate import load
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
 from utils import get_label_mappings, save_metrics
 
-from setfit.utils import MULTILINGUAL_DATASET_TO_METRIC,
 from setfit.data import SAMPLE_SIZES, create_fewshot_splits
+from setfit.utils import MULTILINGUAL_DATASET_TO_METRIC
 
 
 app = typer.Typer()

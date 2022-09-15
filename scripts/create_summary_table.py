@@ -3,8 +3,8 @@ import json
 import os
 import tarfile
 from glob import glob
-from os.path import splitext, join, isdir
 from os import listdir
+from os.path import isdir, join, splitext
 from typing import List, Tuple
 
 from numpy import mean, median, std
