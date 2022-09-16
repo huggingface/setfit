@@ -1,4 +1,4 @@
-for dataset in sst5 
+for dataset in amazon_counterfactual_en emotion enron_spam SentEval-CR sst5 
 do
     for sample_size in 8 64
     do

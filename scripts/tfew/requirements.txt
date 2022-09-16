@@ -7,7 +7,7 @@ psutil==5.9.0
 deepspeed==0.5.10
 sentencepiece==0.1.96
 scipy
-promptsource
 ipdb
 evaluate==0.1.2
 sklearn
+git+https://github.com/SetFit/promptsource.git
