@@ -19,7 +19,6 @@ from setfit_wrapper import SetFit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
-from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 from setfit.modeling import (
     LOSS_NAME_TO_CLASS,
@@ -27,6 +26,7 @@ from setfit.modeling import (
     sentence_pairs_generation,
     sentence_pairs_generation_cos_sim,
 )
+from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 
 TEACHER_SEED = [0]

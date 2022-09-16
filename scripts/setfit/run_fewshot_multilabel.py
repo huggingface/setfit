@@ -18,10 +18,10 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
-from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
 
 from setfit.data import SAMPLE_SIZES
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, sentence_pairs_generation_multilabel
+from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
 
 
 # ignore all future warnings
