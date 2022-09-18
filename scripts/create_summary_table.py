@@ -1,8 +1,8 @@
 import argparse
-from collections import defaultdict
 import json
 import os
 import tarfile
+from collections import defaultdict
 from glob import glob
 from os import listdir
 from os.path import isdir, join, splitext
@@ -127,7 +127,9 @@ def create_summary_table(results_path: str) -> None:
 
     means, stds = defaultdict(list), defaultdict(list)
     for dataset in next(os.walk(unzipped_path))[1]:
-        metric_name, formatted_metrics, exact_metrics, exact_stds, sample_sizes = get_formatted_ds_metrics(unzipped_path, dataset, sample_sizes)
+        metric_name, formatted_metrics, exact_metrics, exact_stds, sample_sizes = get_formatted_ds_metrics(
+            unzipped_path, dataset, sample_sizes
+        )
         dataset_row = [dataset, metric_name, *formatted_metrics]
         csv_lines.append(dataset_row)
 
@@ -135,7 +137,7 @@ def create_summary_table(results_path: str) -> None:
         for sample_size in sample_sizes:
             means[sample_size].append(exact_metrics[sample_size])
             stds[sample_size].append(exact_stds[sample_size])
-    
+
     # Generate row for overall average
     formatted_average_row = []
     for sample_size in sample_sizes:
