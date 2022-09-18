@@ -1,24 +1,98 @@
 import copy
+import os
+from dataclasses import dataclass
 
 import joblib
 import numpy as np
+import requests
 import torch
 import torch.nn as nn
-from sentence_transformers import InputExample, SentenceTransformer, losses, models
+from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
+from sentence_transformers import InputExample, SentenceTransformer, losses
+from sklearn.linear_model import LogisticRegression
 
 
-class SetFitModel:
-    def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
-        self.model = SentenceTransformer(model)
-        self.model_original_state = copy.deepcopy(self.model.state_dict())
-        self.model.max_seq_length = max_seq_length
+# class SetFitModel:
+#     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
+#         self.model = SentenceTransformer(model)
+#         self.model_original_state = copy.deepcopy(self.model.state_dict())
+#         self.model.max_seq_length = max_seq_length
 
-        if add_normalization_layer:
-            self.model._modules["2"] = models.Normalize()
+#         if add_normalization_layer:
+#             self.model._modules["2"] = models.Normalize()
+
+MODEL_HEAD_NAME = "model_head.pkl"
 
 
-class A:
-    pass
+@dataclass
+class SetFitModel(PyTorchModelHubMixin):
+    def __init__(self, model_body=None, model_head=None):
+        super(SetFitModel, self).__init__()
+        self.model_body = model_body
+        self.model_head = model_head
+        self.model_original_state = copy.deepcopy(self.model_body.state_dict())
+
+    def fit(self, x_train, y_train):
+        embeddings = self.model_body.encode(x_train)
+        self.model_head.fit(embeddings, y_train)
+
+    def predict(self, x_test):
+        embeddings = self.model_body.encode(x_test)
+        return self.model_head.predict(embeddings)
+
+    def predict_proba(self, x_test):
+        embeddings = self.model_body.encode(x_test)
+        return self.model_head.predict_proba(embeddings)
+
+    def __call__(self, inputs):
+        embeddings = self.model_body.encode(inputs)
+        return self.model_head.predict(embeddings)
+
+    def _save_pretrained(self, save_directory):
+        self.model_body.save(path=save_directory)
+        joblib.dump(self.model_head, f"{save_directory}/{MODEL_HEAD_NAME}")
+
+    @classmethod
+    def _from_pretrained(
+        cls,
+        model_id,
+        revision=None,
+        cache_dir=None,
+        force_download=None,
+        proxies=None,
+        resume_download=None,
+        local_files_only=None,
+        use_auth_token=None,
+        **model_kwargs,
+    ):
+        model_body = SentenceTransformer(model_id)
+
+        if os.path.isdir(model_id) and MODEL_HEAD_NAME in os.listdir(model_id):
+            model_head_file = os.path.join(model_id, MODEL_HEAD_NAME)
+        else:
+            try:
+                model_head_file = hf_hub_download(
+                    repo_id=model_id,
+                    filename=MODEL_HEAD_NAME,
+                    revision=revision,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    resume_download=resume_download,
+                    use_auth_token=use_auth_token,
+                    local_files_only=local_files_only,
+                )
+            except requests.exceptions.RequestException:
+                print(
+                    f"{MODEL_HEAD_NAME} not found on HuggingFace Hub, initialising classification head with random weights."
+                )
+                model_head_file = None
+
+        if model_head_file is not None:
+            model_head = joblib.load(model_head_file)
+        else:
+            model_head = LogisticRegression()
+        return SetFitModel(model_body=model_body, model_head=model_head)
 
 
 class SupConLoss(nn.Module):
