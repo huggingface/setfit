@@ -2,7 +2,7 @@ for dataset in amazon_counterfactual_en emotion enron_spam SentEval-CR sst5
 do
     for sample_size in 8 64
     do
-        for train_split in  0 1 2 3 4 5 6 7 8 9 
+        for train_split in 0 1 2 3 4 5 6 7 8 9 
         do
             for seed in 0 1 2 3 4
             do
