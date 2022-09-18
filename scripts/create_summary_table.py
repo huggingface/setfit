@@ -1,4 +1,5 @@
 import argparse
+from collections import defaultdict
 import json
 import os
 import tarfile
@@ -78,6 +79,7 @@ def compute_tfew_medians(results_path: str) -> None:
 
 def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -> Tuple[str, List[str]]:
     formatted_row = []
+    exact_metrics, exact_stds = {}, {}
 
     for sample_size in sample_sizes:
         result_jsons = sorted(glob(os.path.join(path, dataset, f"train-{sample_size}-*", "results.json")))
@@ -89,9 +91,12 @@ def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -
 
             metric_name = result_dict.get("measure", "N/A")
             split_metrics.append(result_dict["score"])
-        formatted_row.extend([f"{mean(split_metrics):.1f}", f"{std(split_metrics):.1f}"])
 
-    return metric_name, formatted_row
+        exact_metrics[sample_size] = mean(split_metrics)
+        exact_stds[sample_size] = std(split_metrics)
+        formatted_row.extend([f"{exact_metrics[sample_size]:.1f}", f"{exact_stds[sample_size]:.1f}"])
+
+    return metric_name, formatted_row, exact_metrics, exact_stds, sample_sizes
 
 
 def create_summary_table(results_path: str) -> None:
@@ -120,10 +125,24 @@ def create_summary_table(results_path: str) -> None:
 
     csv_lines = [header_row]
 
+    means, stds = defaultdict(list), defaultdict(list)
     for dataset in next(os.walk(unzipped_path))[1]:
-        metric_name, formatted_metrics = get_formatted_ds_metrics(unzipped_path, dataset, sample_sizes)
+        metric_name, formatted_metrics, exact_metrics, exact_stds, sample_sizes = get_formatted_ds_metrics(unzipped_path, dataset, sample_sizes)
         dataset_row = [dataset, metric_name, *formatted_metrics]
         csv_lines.append(dataset_row)
+
+        # Collect exact metrics for overall average and std calculation
+        for sample_size in sample_sizes:
+            means[sample_size].append(exact_metrics[sample_size])
+            stds[sample_size].append(exact_stds[sample_size])
+    
+    # Generate row for overall average
+    formatted_average_row = []
+    for sample_size in sample_sizes:
+        overall_average = mean(means[sample_size])
+        overall_std = mean(stds[sample_size])
+        formatted_average_row.extend([f"{overall_average:.1f}", f"{overall_std:.1f}"])
+    csv_lines.append(["Average", "N/A", *formatted_average_row])
 
     output_path = os.path.join(unzipped_path, "summary_table.csv")
     print("=" * 80)
