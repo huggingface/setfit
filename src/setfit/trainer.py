@@ -1,4 +1,5 @@
 import math
+from typing import Optional, Union
 
 import evaluate
 import numpy as np
@@ -109,3 +110,32 @@ class SetFitTrainer:
 
     def predict(self):
         pass
+
+    def push_to_hub(
+        self,
+        repo_path_or_name: Optional[str] = None,
+        repo_url: Optional[str] = None,
+        commit_message: Optional[str] = "Add model",
+        organization: Optional[str] = None,
+        private: Optional[bool] = None,
+        api_endpoint: Optional[str] = None,
+        use_auth_token: Union[bool, str] = None,
+        git_user: Optional[str] = None,
+        git_email: Optional[str] = None,
+        config: Optional[dict] = None,
+        skip_lfs_files: bool = False,
+    ):
+
+        return self.model.push_to_hub(
+            repo_path_or_name,
+            repo_url,
+            commit_message,
+            organization,
+            private,
+            api_endpoint,
+            use_auth_token,
+            git_user,
+            git_email,
+            config,
+            skip_lfs_files,
+        )
