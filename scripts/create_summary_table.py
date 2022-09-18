@@ -10,14 +10,21 @@ from typing import List, Tuple
 from numpy import mean, median, std
 from scipy.stats import iqr
 
-from setfit.utils import TEST_DATASET_TO_METRIC
-
 
 """
 To run: python create_summary_table.py --path scripts/{method_name}/{results}/{model_name}
 or: python create_summary_table.py --path scripts/{method_name}/{model_name}.tar.gz
 Files are outputted to the directory of the results.
 """
+
+TEST_DATASET_TO_METRIC = {
+    "emotion": "accuracy",
+    "SentEval-CR": "accuracy",
+    "sst5": "accuracy",
+    "ag_news": "accuracy",
+    "enron_spam": "accuracy",
+    "amazon_counterfactual_en": "matthews_correlation",
+}
 
 
 def extract_results(path: str) -> None:
@@ -82,7 +89,7 @@ def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -
 
             metric_name = result_dict.get("measure", "N/A")
             split_metrics.append(result_dict["score"])
-        formatted_row.extend([f"{mean(split_metrics):.2f}", f"{std(split_metrics):.2f}"])
+        formatted_row.extend([f"{mean(split_metrics):.1f}", f"{std(split_metrics):.1f}"])
 
     return metric_name, formatted_row
 
