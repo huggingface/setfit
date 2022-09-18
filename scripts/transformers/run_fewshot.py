@@ -7,9 +7,10 @@ import typer
 from datasets import load_dataset
 from evaluate import load
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
-from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, get_label_mappings, save_metrics
+from utils import get_label_mappings, save_metrics
 
 from setfit.data import SAMPLE_SIZES, create_fewshot_splits
+from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 
 app = typer.Typer()
