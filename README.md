@@ -8,8 +8,7 @@ Official repository for SetFit.
 from datasets import load_dataset
 from sentence_transformers.losses import CosineSimilarityLoss
 
-from setfit.modeling import SetFitModel
-from setfit.trainer import SetFitTrainer
+from setfit import SetFitModel, SetFitTrainer
 
 
 # Load a dataset

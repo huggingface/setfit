@@ -8,7 +8,7 @@ import requests
 import torch
 import torch.nn as nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
-from sentence_transformers import InputExample, SentenceTransformer, losses, models
+from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 
 
@@ -29,18 +29,10 @@ MODEL_HEAD_NAME = "model_head.pkl"
 class SetFitModel(PyTorchModelHubMixin):
     """A SetFit model with integration to the Hugging Face Hub."""
 
-    def __init__(
-        self, model_body=None, model_head=None, max_seq_length: int = None, add_normalization_layer: bool = False
-    ):
+    def __init__(self, model_body=None, model_head=None):
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
-
-        if max_seq_length is not None:
-            self.model_body.max_seq_length = max_seq_length
-
-        if add_normalization_layer:
-            self.model_body._modules["2"] = models.Normalize()
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
 
@@ -200,18 +192,6 @@ class SupConLoss(nn.Module):
         loss = loss.view(anchor_count, batch_size).mean()
 
         return loss
-
-
-LOSS_NAME_TO_CLASS = {
-    "CosineSimilarityLoss": losses.CosineSimilarityLoss,
-    "ContrastiveLoss": losses.ContrastiveLoss,
-    "OnlineContrastiveLoss": losses.OnlineContrastiveLoss,
-    "BatchSemiHardTripletLoss": losses.BatchSemiHardTripletLoss,
-    "BatchAllTripletLoss": losses.BatchAllTripletLoss,
-    "BatchHardTripletLoss": losses.BatchHardTripletLoss,
-    "BatchHardSoftMarginTripletLoss": losses.BatchHardSoftMarginTripletLoss,
-    "SupConLoss": SupConLoss,
-}
 
 
 def sentence_pairs_generation(sentences, labels, pairs):

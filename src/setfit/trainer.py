@@ -8,20 +8,21 @@ from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
 
-from setfit.modeling import SupConLoss, sentence_pairs_generation
+from .modeling import SetFitModel, SupConLoss, sentence_pairs_generation
 
 
 class SetFitTrainer:
     def __init__(
         self,
-        model=None,
-        train_dataset=None,
+        model: SetFitModel,
+        train_dataset,
         eval_dataset=None,
-        metric=None,
-        loss_class=None,
-        num_epochs=None,
-        learning_rate=None,
-        batch_size=None,
+        metric: str = "accuracy",
+        loss_class=losses.CosineSimilarityLoss,
+        num_text_iterations: int = 20,
+        num_epochs: int = 1,
+        learning_rate: float = 2e-5,
+        batch_size: int = 16,
     ):
 
         self.model = model
@@ -29,6 +30,7 @@ class SetFitTrainer:
         self.eval_dataset = eval_dataset
         self.metric = metric
         self.loss_class = loss_class
+        self.num_text_iterations = num_text_iterations
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -53,7 +55,7 @@ class SetFitTrainer:
             train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
             train_data_sampler = SentenceLabelDataset(train_examples)
 
-            batch_size = min(self.args.batch_size, len(train_data_sampler))
+            batch_size = min(self.batch_size, len(train_data_sampler))
             train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
             if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
@@ -70,14 +72,14 @@ class SetFitTrainer:
                     margin=0.25,
                 )
 
-            train_steps = len(train_dataloader) * self.args.num_epochs
+            train_steps = len(train_dataloader) * self.num_epochs
         else:
             train_examples = []
 
-            for _ in range(self.num_epochs):
+            for _ in range(self.num_text_generations):
                 train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
-            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)
             train_loss = self.loss_class(self.model.model_body)
             train_steps = len(train_dataloader)
 
@@ -86,8 +88,9 @@ class SetFitTrainer:
         warmup_steps = math.ceil(train_steps * 0.1)
         self.model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
-            epochs=1,
+            epochs=self.num_epochs,
             steps_per_epoch=train_steps,
+            optimizer_params={"lr": self.learning_rate},
             warmup_steps=warmup_steps,
             show_progress_bar=True,
         )
@@ -97,19 +100,11 @@ class SetFitTrainer:
 
     def evaluate(self):
         """Computes the metrics for a given classifier."""
-        # Define metrics
         metric_fn = evaluate.load(self.metric)
-
         x_test = self.eval_dataset["text"]
         y_test = self.eval_dataset["label"]
-
         y_pred = self.model.predict(x_test)
-
-        metrics = metric_fn.compute(predictions=y_pred, references=y_test)
-        return metrics
-
-    def predict(self):
-        pass
+        return metric_fn.compute(predictions=y_pred, references=y_test)
 
     def push_to_hub(
         self,

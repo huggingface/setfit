@@ -4,8 +4,10 @@ from time import monotonic_ns
 from typing import List, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
+from sentence_transformers import losses
 
-from setfit.data import create_fewshot_splits, create_fewshot_splits_multilabel
+from .data import create_fewshot_splits, create_fewshot_splits_multilabel
+from .modeling import SupConLoss
 
 
 SEC_TO_NS_SCALE = 1000000000
@@ -33,6 +35,17 @@ TEST_DATASET_TO_METRIC = {
 
 MULTILINGUAL_DATASET_TO_METRIC = {
     f"amazon_reviews_multi_{lang}": "mae" for lang in ["en", "de", "es", "fr", "ja", "zh"]
+}
+
+LOSS_NAME_TO_CLASS = {
+    "CosineSimilarityLoss": losses.CosineSimilarityLoss,
+    "ContrastiveLoss": losses.ContrastiveLoss,
+    "OnlineContrastiveLoss": losses.OnlineContrastiveLoss,
+    "BatchSemiHardTripletLoss": losses.BatchSemiHardTripletLoss,
+    "BatchAllTripletLoss": losses.BatchAllTripletLoss,
+    "BatchHardTripletLoss": losses.BatchHardTripletLoss,
+    "BatchHardSoftMarginTripletLoss": losses.BatchHardSoftMarginTripletLoss,
+    "SupConLoss": SupConLoss,
 }
 
 

@@ -6,11 +6,12 @@ import sys
 from shutil import copyfile
 from warnings import simplefilter
 
+from sentence_transformers import models
 from typing_extensions import LiteralString
 
+from setfit import SetFitModel, SetFitTrainer
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel
-from setfit.trainer import SetFitTrainer
+from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits
 
 
 # ignore all future warnings
@@ -102,8 +103,13 @@ def main():
                 print(f"Skipping finished experiment: {results_path}")
                 continue
 
-            # Train the model on the current train split
+            # Load model
             model = SetFitModel.from_pretrained(args.model)
+            model.model_body.max_seq_length = args.max_seq_length
+            if args.add_normalization_layer:
+                model.model_body._modules["2"] = models.Normalize()
+
+            # Train on current split
             trainer = SetFitTrainer(
                 model=model,
                 train_dataset=train_data,
