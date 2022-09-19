@@ -7,7 +7,6 @@ from shutil import copyfile
 from warnings import simplefilter
 
 from typing_extensions import LiteralString
-from utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits
 
 from setfit.data import SAMPLE_SIZES
 from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel
