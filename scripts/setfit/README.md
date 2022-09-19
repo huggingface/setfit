@@ -44,8 +44,9 @@ Note that you can run on a series of datasets and sample sizes:
 python run_fewshot.py \
     --model paraphrase-mpnet-base-v2 \
     --datasets sst2 ag_news bbc-news \
-    --sample_sizes 8 16 32 \
-    --num_epochs 20 \
+    --sample_sizes 8 64 \
+    --num_epochs 1 \
+    --num_iterations 20 \
     --batch_size 16 \
     --max_seq_length 256 \
     --classifier logistic_regression \

@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
 
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitModel, SKLearnWrapper, sentence_pairs_generation_multilabel
+from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitBaseModel, SKLearnWrapper, sentence_pairs_generation_multilabel
 from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
 
 
@@ -96,7 +96,7 @@ class RunFewShot:
         self.loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
         # Load SetFit Model
-        self.model_wrapper = SetFitModel(
+        self.model_wrapper = SetFitBaseModel(
             self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
         )
         self.model = self.model_wrapper.model
