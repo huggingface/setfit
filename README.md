@@ -1,4 +1,4 @@
-# SetFit
+# SetFit - Efficient Fewshot Learning with Sentence Transformers
 
 Official repository for SetFit.
 
@@ -11,8 +11,8 @@ from sentence_transformers.losses import CosineSimilarityLoss
 from setfit import SetFitModel, SetFitTrainer
 
 
-# Load a dataset
-dataset = load_dataset("SetFit/SentEval-CR")
+# Load a dataset from the Hugging Face Hub
+dataset = load_dataset("emotion")
 
 # Select N examples per class (8 in this case)
 train_ds = dataset["train"].shuffle(seed=42).select(range(8 * 2))
@@ -28,10 +28,10 @@ trainer = SetFitTrainer(
     eval_dataset=test_ds,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
-    num_epochs=20,
+    num_iterations=20, # The number of text pairs to generate
 )
 
-# Train and evaluate!
+# Train and evaluate
 trainer.train()
 metrics = trainer.evaluate()
 
@@ -74,17 +74,19 @@ make style && make quality
 
 ```
 ├── LICENSE
-├── Makefile    <- Makefile with commands like `make style` or `make tests`
-├── README.md   <- The top-level README for developers using this project.
-├── notebooks   <- Jupyter notebooks.
-├── final_results     <- Model predictions from the paper
-├── scripts     <- Scripts for training and inference
-├── setup.cfg   <- Configuration file to define package metadata
-├── setup.py    <- Make this project pip installable with `pip install -e`
-├── src         <- Source code for SetFit
-└── tests       <- Unit tests
+├── Makefile        <- Makefile with commands like `make style` or `make tests`
+├── README.md       <- The top-level README for developers using this project.
+├── notebooks       <- Jupyter notebooks.
+├── final_results   <- Model predictions from the paper
+├── scripts         <- Scripts for training and inference
+├── setup.cfg       <- Configuration file to define package metadata
+├── setup.py        <- Make this project pip installable with `pip install -e`
+├── src             <- Source code for SetFit
+└── tests           <- Unit tests
 ```
 
 
 ## Citation
+
+[ADD ME!]
 

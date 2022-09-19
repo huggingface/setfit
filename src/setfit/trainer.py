@@ -19,7 +19,7 @@ class SetFitTrainer:
         eval_dataset=None,
         metric: str = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
-        num_text_iterations: int = 20,
+        num_iterations: int = 20,
         num_epochs: int = 1,
         learning_rate: float = 2e-5,
         batch_size: int = 16,
@@ -30,7 +30,7 @@ class SetFitTrainer:
         self.eval_dataset = eval_dataset
         self.metric = metric
         self.loss_class = loss_class
-        self.num_text_iterations = num_text_iterations
+        self.num_iterations = num_iterations
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -76,7 +76,7 @@ class SetFitTrainer:
         else:
             train_examples = []
 
-            for _ in range(self.num_text_generations):
+            for _ in range(self.num_iterations):
                 train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)

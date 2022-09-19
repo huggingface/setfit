@@ -15,13 +15,13 @@ import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
 from distillation_baseline import BaselineDistillation
 from evaluate import load
-from setfit_wrapper import SetFit
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
 
 from setfit.modeling import (
     LOSS_NAME_TO_CLASS,
+    SetFitBaseModel,
     SKLearnWrapper,
     sentence_pairs_generation,
     sentence_pairs_generation_cos_sim,
@@ -146,7 +146,7 @@ class RunFewShotDistill:
         self.loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
         # Load SetFit Model
-        self.model_wrapper = SetFit(
+        self.model_wrapper = SetFitBaseModel(
             # self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
             model,
             max_seq_length=args.max_seq_length,

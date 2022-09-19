@@ -1,6 +1,4 @@
 transformers[sentencepiece,optuna]==4.20.0
-datasets==2.3.2
-evaluate==0.1.2
 torch==1.11
 sklearn
 typer

@@ -27,7 +27,8 @@ def parse_args():
         default=["sst2"],
     )
     parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
-    parser.add_argument("--num_epochs", type=int, default=20)
+    parser.add_argument("--num_iterations", type=int, default=20)
+    parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--max_seq_length", type=int, default=256)
     parser.add_argument(
@@ -71,7 +72,7 @@ def main():
     output_path = (
         parent_directory
         / "results"
-        / f"{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-epochs_{args.num_epochs}-batch_{args.batch_size}-{args.exp_name}".rstrip(
+        / f"{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-iterations_{args.num_iterations}-batch_{args.batch_size}-{args.exp_name}".rstrip(
             "-"
         )
     )
@@ -118,6 +119,7 @@ def main():
                 loss_class=loss_class,
                 batch_size=args.batch_size,
                 num_epochs=args.num_epochs,
+                num_iterations=args.num_iterations,
             )
             trainer.train()
 

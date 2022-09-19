@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 DOCLINES = __doc__.split("\n")
 
-REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2"]
+REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.2.2"]
 
 QUALITY_REQUIRE = ["black", "flake8", "isort"]
 
