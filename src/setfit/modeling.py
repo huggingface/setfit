@@ -8,28 +8,40 @@ import requests
 import torch
 import torch.nn as nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
-from sentence_transformers import InputExample, SentenceTransformer, losses
+from sentence_transformers import InputExample, SentenceTransformer, losses, models
 from sklearn.linear_model import LogisticRegression
 
 
-# class SetFitModel:
-#     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
-#         self.model = SentenceTransformer(model)
-#         self.model_original_state = copy.deepcopy(self.model.state_dict())
-#         self.model.max_seq_length = max_seq_length
+class SetFitBaseModel:
+    def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
+        self.model = SentenceTransformer(model)
+        self.model_original_state = copy.deepcopy(self.model.state_dict())
+        self.model.max_seq_length = max_seq_length
 
-#         if add_normalization_layer:
-#             self.model._modules["2"] = models.Normalize()
+        if add_normalization_layer:
+            self.model._modules["2"] = models.Normalize()
+
 
 MODEL_HEAD_NAME = "model_head.pkl"
 
 
 @dataclass
 class SetFitModel(PyTorchModelHubMixin):
-    def __init__(self, model_body=None, model_head=None):
+    """A SetFit model with integration to the Hugging Face Hub."""
+
+    def __init__(
+        self, model_body=None, model_head=None, max_seq_length: int = None, add_normalization_layer: bool = False
+    ):
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
+
+        if max_seq_length is not None:
+            self.model_body.max_seq_length = max_seq_length
+
+        if add_normalization_layer:
+            self.model_body._modules["2"] = models.Normalize()
+
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
 
     def fit(self, x_train, y_train):
@@ -55,7 +67,7 @@ class SetFitModel(PyTorchModelHubMixin):
     @classmethod
     def _from_pretrained(
         cls,
-        model_id,
+        model_id: str,
         revision=None,
         cache_dir=None,
         force_download=None,

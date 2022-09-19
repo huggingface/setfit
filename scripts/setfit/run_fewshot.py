@@ -109,6 +109,7 @@ def main():
                 model=model,
                 train_dataset=train_data,
                 eval_dataset=test_data,
+                metric=metric,
                 loss_class=loss_class,
                 batch_size=args.batch_size,
                 num_epochs=args.num_epochs,

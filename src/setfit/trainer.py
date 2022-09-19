@@ -17,7 +17,7 @@ class SetFitTrainer:
         model=None,
         train_dataset=None,
         eval_dataset=None,
-        compute_metrics=None,
+        metric=None,
         loss_class=None,
         num_epochs=None,
         learning_rate=None,
@@ -27,7 +27,7 @@ class SetFitTrainer:
         self.model = model
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
-        self.compute_metrics = compute_metrics
+        self.metric = metric
         self.loss_class = loss_class
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
@@ -98,7 +98,7 @@ class SetFitTrainer:
     def evaluate(self):
         """Computes the metrics for a given classifier."""
         # Define metrics
-        metric_fn = evaluate.load("accuracy")
+        metric_fn = evaluate.load(self.metric)
 
         x_test = self.eval_dataset["text"]
         y_test = self.eval_dataset["label"]
