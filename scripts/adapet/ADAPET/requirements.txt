@@ -1,0 +1,11 @@
+crcmod
+pandas==1.1.5
+datasets==1.18.2
+numpy==1.19
+jsonpickle==1.1
+scikit-learn==0.23.1
+torch===1.5.0
+torchvision==0.6.0
+transformers==4.15.0
+tqdm==4.62.1
+sentencepiece==0.1.96
