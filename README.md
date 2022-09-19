@@ -14,8 +14,9 @@ from setfit import SetFitModel, SetFitTrainer
 # Load a dataset from the Hugging Face Hub
 dataset = load_dataset("emotion")
 
-# Select N examples per class (8 in this case)
-train_ds = dataset["train"].shuffle(seed=42).select(range(8 * 2))
+# Simulate fewshot regime by sampling 8 examples per class
+num_classes = 6
+train_ds = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
 test_ds = dataset["test"]
 
 # Load SetFit model from Hub
