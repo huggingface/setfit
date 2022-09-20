@@ -1,0 +1,19 @@
+{
+    "pretrained_weight": "albert-xxlarge-v2",
+    "dataset": "fewglue/ReCoRD",
+    "max_text_length": 512,
+    "batch_size": 1,
+    "eval_batch_size": 1,
+    "num_batches": 1000,
+    "eval_every": 250,
+    "mask_alpha": 0.105,
+    "warmup_ratio": 0.06,
+    "max_num_lbl_tok": 20,
+    "grad_accumulation_factor": 16,
+    "seed": 42,
+    "lr": 1e-5,
+    "dropout_rate": 0.1,
+    "weight_decay": 1e-2,
+    "pattern_idx": 1,
+    "eval_train": true
+}
