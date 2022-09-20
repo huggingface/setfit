@@ -1,5 +1,5 @@
 # ADAPET for SetFit #
-This is a fork of the original ADAPET, which can be found "[here](https://github.com/rrmenon10/ADAPET)"
+This is a fork of the original ADAPET, which can be found [here](https://github.com/rrmenon10/ADAPET).
 
 Our results were created in Python 3.6.8 with a 40 GB NVIDIA A100 Tensor Core GPU
 
