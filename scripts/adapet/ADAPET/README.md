@@ -1,6 +1,6 @@
 # ADAPET for SetFit #
 
-Our results were created in Python 3.6.8 with a 40gb amphere A100 GPU
+Our results were created in Python 3.6.8 with a 40 GB NVIDIA A100 Tensor Core GPU
 
 To setup, please follow the instructions below.
 ````
