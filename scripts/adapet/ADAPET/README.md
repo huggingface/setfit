@@ -32,7 +32,7 @@ python setfit_adapet.py --pretrained_weight="microsoft/mdeberta-v3-base"\
                 --task_name='SetFit/amazon_reviews_multi_ja'\
 ```
 
-This will hopefully run ADAPET and evaluate it on the test set for the 8 and 64 splits.
+This will run ADAPET and evaluate it on the test set for the 8 and 64 splits.
 
 In the multilingual case, ADAPET runs in the "each" scenario as described in the paper by default. You can change this by adding a multilingual argument, such as
 
