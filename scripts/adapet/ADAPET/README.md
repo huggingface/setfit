@@ -16,7 +16,7 @@ To run ADAPET on SetFit datasets, specify the dataset and PLM as argument to pyt
 run on a multilingual dataset, then you can choose to prompt/verbalize in the English or the language in question.
 You can also remove the prompt.
 
-For example, if you wish to run ADAPET on sst2 with a prompt and with albert-xxlarge-v2, simply run the following
+For example, if you wish to run ADAPET on `sst2` with a prompt and with `albert-xxlarge-v2` as the PLM, simply run the following
 ```
 python setfit_adapet.py --pretrained_weight="albert-xxlarge-v2"\
                 --english=True\
