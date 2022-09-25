@@ -1,16 +1,19 @@
 <img src="assets/setfit.png">
 
 <p align="center">
-    🤗 <a href="https://huggingface.co/setfit" target="_blank">Models & Datasets</a> | 📖 <a href="https://huggingface.co/blog/setfit" target="_blank">Blog</a> | 📃 Paper (coming soon!)</a>
+    🤗 <a href="https://huggingface.co/setfit" target="_blank">Models & Datasets</a> | 📖 <a href="https://huggingface.co/blog/setfit" target="_blank">Blog</a> | 📃 <a href="https://arxiv.org/abs/2209.11055" target="_blank">Paper</a>
 </p>
 
 # SetFit - Efficient Few-shot Learning with Sentence Transformers
 
-We introduce SetFit, an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). Compared to other few-shot learning methods, SetFit has several unique features:
+We introduce SetFit, an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). SetFit achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples 🤯!
 
-* 📈 **High accuracy with little labeled data:** SetFit achieves comparable (or better) results than current state-of-the-art methods for text classification. For example, with only 8 labelled examples per class on the CR sentiment dataset, SetFit is competitive with fine-tuning RoBERTa-large on the full training set of 3k examples.
+
+Compared to other few-shot learning methods, SetFit has several unique features:
+
 * 🗣 **No prompts or verbalisers:** Current techniques for few-shot fine-tuning require handcrafted prompts or verbalisers to convert examples into a format that's suitable for the underlying language model. SetFit dispenses with prompts altogether by generating rich embeddings directly from text examples.
 * 🏎 **Fast to train:** SetFit doesn't require large-scale models like T0 or GPT-3 to achieve high accuracy. As a result, it is typically an order of magnitude (or more) faster to train and run inference with.
+* 🌎 **Multilingual support**: SetFit can be used with any [Sentence Transformer](https://huggingface.co/models?library=sentence-transformers&sort=downloads) on the Hub, which means you can classify text in multiple languages by simply fine-tuning a multilingual checkpoint.
 
 ## Getting started
 
