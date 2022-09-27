@@ -1,6 +1,7 @@
 import numpy as np
-from sentence_transformers import InputExample
+
 from setfit.modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
+
 
 def test_sentence_pairs_generation():
     sentences = np.array(["sent 1", "sent 2", "sent 3"])
@@ -15,7 +16,6 @@ def test_sentence_pairs_generation():
     assert len(pairs) == 12
     assert pairs[0].texts == ["sent 1", "sent 1"]
     assert pairs[0].label == 1.0
-
 
 
 def test_sentence_pairs_generation_multilabel():

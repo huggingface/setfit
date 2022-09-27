@@ -82,7 +82,9 @@ class SetFitTrainer:
 
             for _ in range(self.num_iterations):
                 if self.model.multi_target_strategy is not None:
-                    train_examples = sentence_pairs_generation_multilabel(np.array(x_train), np.array(y_train), train_examples)
+                    train_examples = sentence_pairs_generation_multilabel(
+                        np.array(x_train), np.array(y_train), train_examples
+                    )
                 else:
                     train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
