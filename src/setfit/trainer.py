@@ -110,7 +110,11 @@ class SetFitTrainer:
         metric_fn = evaluate.load(self.metric)
 
         x_test = self.eval_dataset["text"]
-        y_test = self.eval_dataset["label"]
+
+        if self.model.multi_target_strategy:
+            y_test = self.train_dataset.remove_columns("text").to_pandas().values
+        else:
+            y_test = self.train_dataset["label"]
 
         y_pred = self.model.predict(x_test)
 
