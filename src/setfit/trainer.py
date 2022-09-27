@@ -38,7 +38,11 @@ class SetFitTrainer:
     def train(self):
         # self.model.model_body.load_state_dict(copy.deepcopy(self.model.model_original_state))
         x_train = self.train_dataset["text"]
-        y_train = self.train_dataset["label"]
+
+        if self.model.multi_target_strategy:
+            y_train = self.train_dataset.remove_columns("text").to_pandas().values
+        else:
+            y_train = self.train_dataset["label"]
 
         if self.loss_class is None:
             return
