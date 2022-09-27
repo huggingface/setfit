@@ -10,6 +10,8 @@ import torch.nn as nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 
 class SetFitBaseModel:
@@ -29,10 +31,11 @@ MODEL_HEAD_NAME = "model_head.pkl"
 class SetFitModel(PyTorchModelHubMixin):
     """A SetFit model with integration to the Hugging Face Hub."""
 
-    def __init__(self, model_body=None, model_head=None):
+    def __init__(self, model_body=None, model_head=None, multi_target_strategy="one-vs-rest"):
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
+        self.multi_target_strategy = multi_target_strategy
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
 
@@ -67,6 +70,7 @@ class SetFitModel(PyTorchModelHubMixin):
         resume_download=None,
         local_files_only=None,
         use_auth_token=None,
+        multi_target_strategy=None,
         **model_kwargs,
     ):
         model_body = SentenceTransformer(model_id)
@@ -95,8 +99,21 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
-            model_head = LogisticRegression()
-        return SetFitModel(model_body=model_body, model_head=model_head)
+            if multi_target_strategy:
+                if multi_target_strategy == "one-vs-rest":
+                    multilabel_classifier = OneVsRestClassifier(LogisticRegression())
+                elif multi_target_strategy == "multi-output":
+                    multilabel_classifier = MultiOutputClassifier(LogisticRegression())
+                elif multi_target_strategy == "classifier-chain":
+                    multilabel_classifier = ClassifierChain(LogisticRegression())
+                else:
+                    raise ValueError(f"multi_target_strategy {multi_target_strategy} is not supported.")
+
+                model_head = multilabel_classifier
+            else:
+                model_head = LogisticRegression()
+
+        return SetFitModel(model_body=model_body, model_head=model_head, multi_target_strategy=multi_target_strategy)
 
 
 class SupConLoss(nn.Module):
@@ -176,7 +193,10 @@ class SupConLoss(nn.Module):
         mask = mask.repeat(anchor_count, contrast_count)
         # Mask-out self-contrast cases
         logits_mask = torch.scatter(
-            torch.ones_like(mask), 1, torch.arange(batch_size * anchor_count).view(-1, 1).to(device), 0
+            torch.ones_like(mask),
+            1,
+            torch.arange(batch_size * anchor_count).view(-1, 1).to(device),
+            0,
         )
         mask = mask * logits_mask
 

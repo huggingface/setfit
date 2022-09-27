@@ -8,7 +8,7 @@ from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
 
-from .modeling import SetFitModel, SupConLoss, sentence_pairs_generation
+from .modeling import SetFitModel, SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
 class SetFitTrainer:
@@ -77,7 +77,10 @@ class SetFitTrainer:
             train_examples = []
 
             for _ in range(self.num_iterations):
-                train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+                if self.model.multi_target_strategy is not None:
+                    train_examples = sentence_pairs_generation_multilabel(np.array(x_train), y_train, train_examples)
+                else:
+                    train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)
             train_loss = self.loss_class(self.model.model_body)
@@ -101,9 +104,12 @@ class SetFitTrainer:
     def evaluate(self):
         """Computes the metrics for a given classifier."""
         metric_fn = evaluate.load(self.metric)
+
         x_test = self.eval_dataset["text"]
         y_test = self.eval_dataset["label"]
+
         y_pred = self.model.predict(x_test)
+
         return metric_fn.compute(predictions=y_pred, references=y_test)
 
     def push_to_hub(
