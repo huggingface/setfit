@@ -126,5 +126,13 @@ make style && make quality
 
 ## Citation
 
-[Coming soon!]
-
+```@misc{https://doi.org/10.48550/arxiv.2209.11055,
+  doi = {10.48550/ARXIV.2209.11055},
+  url = {https://arxiv.org/abs/2209.11055},
+  author = {Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren},
+  keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {Efficient Few-Shot Learning Without Prompts},
+  publisher = {arXiv}, 
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}}
+```
