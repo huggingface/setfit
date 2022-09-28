@@ -80,3 +80,13 @@ python run_fewshot_multilingual.py \
     --model=sentence-transformers/paraphrase-multilingual-mpnet-base-v2 \
     --multilinguality=each
 ```
+
+### Multilabel experiments
+
+To run SetFit on one our our multilingual datasets, run:
+
+```
+python run_fewshot_multilabel.py \
+    --sample_sizes=8 64 \
+    --datasets=go_emotions
+```
