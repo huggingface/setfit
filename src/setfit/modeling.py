@@ -31,7 +31,7 @@ MODEL_HEAD_NAME = "model_head.pkl"
 class SetFitModel(PyTorchModelHubMixin):
     """A SetFit model with integration to the Hugging Face Hub."""
 
-    def __init__(self, model_body=None, model_head=None, multi_target_strategy="one-vs-rest"):
+    def __init__(self, model_body=None, model_head=None, multi_target_strategy=None):
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
@@ -99,7 +99,7 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
-            if multi_target_strategy:
+            if multi_target_strategy is not None:
                 if multi_target_strategy == "one-vs-rest":
                     multilabel_classifier = OneVsRestClassifier(LogisticRegression())
                 elif multi_target_strategy == "multi-output":
