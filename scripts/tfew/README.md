@@ -55,11 +55,6 @@ Each of these directories contains 5 results, one for each randomly selected tra
 To retrieve the median score across all prompts (for each split), run the following on each dataset:
 
 ```
-python median_across_seeds.py --path scripts/tfew/results/t03b_pretrained/{dataset}
-```
-
-Then, to create the summary table of results with average metrics per dataset:
-```
 python scripts/create_summary_table.py scripts/tfew/results/experiment_name
 ```
 
