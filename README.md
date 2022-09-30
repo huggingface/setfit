@@ -50,7 +50,7 @@ num_classes = 6
 train_ds = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
 test_ds = dataset["test"]
 
-# Load SetFit model from Hub
+# Load a SetFit model from Hub
 model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
 
 # Create trainer
