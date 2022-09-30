@@ -72,25 +72,25 @@ class SetFitTrainer:
         self.batch_size = batch_size
         self.column_mapping = column_mapping
 
-    def _validate_column_mapping(self, dataset: "Dataset", column_mapping: Dict[str, str]) -> None:
+    def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
         Validates the provided column mapping against the dataset.
         """
         required_columns = set(["text", "label"])
         column_names = set(dataset.column_names)
-        if column_mapping is None and not column_names.issubset(required_columns):
+        if self.column_mapping is None and not column_names.issubset(required_columns):
             raise ValueError(
                 f"A column mapping must be provided when the dataset does not contain the following columns: {required_columns}"
             )
-        if column_mapping is not None:
-            missing_columns = required_columns.difference(column_mapping.values())
+        if self.column_mapping is not None:
+            missing_columns = required_columns.difference(self.column_mapping.values())
             if missing_columns:
                 raise ValueError(
                     f"The following columns are missing from the column mapping: {missing_columns}. Please provide a mapping for all required columns."
                 )
-            if not set(column_mapping.keys()).issubset(column_names):
+            if not set(self.column_mapping.keys()).issubset(column_names):
                 raise ValueError(
-                    f"The following columns are missing from the dataset: {set(column_mapping.keys()).difference(column_names)}. Please provide a mapping for all required columns."
+                    f"The following columns are missing from the dataset: {set(self.column_mapping.keys()).difference(column_names)}. Please provide a mapping for all required columns."
                 )
 
     def _apply_column_mapping(self, dataset: "Dataset", column_mapping: Dict[str, str]) -> "Dataset":
@@ -114,7 +114,7 @@ class SetFitTrainer:
         return dataset
 
     def train(self):
-        self._validate_column_mapping(self.train_dataset, self.column_mapping)
+        self._validate_column_mapping(self.train_dataset)
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
             self.train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
@@ -185,7 +185,7 @@ class SetFitTrainer:
 
     def evaluate(self):
         """Computes the metrics for a given classifier."""
-        self._validate_column_mapping(self.eval_dataset, self.column_mapping)
+        self._validate_column_mapping(self.eval_dataset)
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
             self.eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
