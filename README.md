@@ -6,7 +6,7 @@
 
 # SetFit - Efficient Few-shot Learning with Sentence Transformers
 
-We introduce SetFit, an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). SetFit achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples 🤯!
+SetFit is an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). It achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples 🤯!
 
 
 Compared to other few-shot learning methods, SetFit has several unique features:
@@ -75,7 +75,7 @@ For more examples, check out the `notebooks/` folder.
 
 ## Reproducing the results from the paper
 
-We provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Checkout the setup and training instructions in the `scripts/` directory.
+We provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Check out the setup and training instructions in the `scripts/` directory.
 
 ## Developer installation
 
@@ -91,12 +91,7 @@ Then install the base requirements with:
 python -m pip install -e '.[dev]'
 ```
 
-This will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting. Next, go to one of the dedicated baseline directories and install the extra dependencies, e.g.
-
-```bash
-cd scripts/setfit
-python -m pip install -r requirements.txt
-```
+This will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting.
 
 ### Formatting your code
 
@@ -132,7 +127,7 @@ make style && make quality
   author = {Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren},
   keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},
   title = {Efficient Few-Shot Learning Without Prompts},
-  publisher = {arXiv}, 
+  publisher = {arXiv},
   year = {2022},
   copyright = {Creative Commons Attribution 4.0 International}}
 ```
