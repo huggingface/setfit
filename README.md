@@ -6,7 +6,7 @@
 
 # SetFit - Efficient Few-shot Learning with Sentence Transformers
 
-We introduce SetFit, an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). SetFit achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples 🤯!
+SetFit is an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). It achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples 🤯!
 
 
 Compared to other few-shot learning methods, SetFit has several unique features:
@@ -43,14 +43,14 @@ from setfit import SetFitModel, SetFitTrainer
 
 
 # Load a dataset from the Hugging Face Hub
-dataset = load_dataset("emotion")
+dataset = load_dataset("sst2")
 
 # Simulate the few-shot regime by sampling 8 examples per class
-num_classes = 6
-train_ds = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
-test_ds = dataset["test"]
+num_classes = 2
+train_dataset = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
+eval_dataset = dataset["validation"]
 
-# Load SetFit model from Hub
+# Load a SetFit model from Hub
 model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
 
 # Create trainer
@@ -60,7 +60,8 @@ trainer = SetFitTrainer(
     eval_dataset=test_ds,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
-    num_iterations=20, # The number of text pairs to generate
+    num_iterations=20, # The number of text pairs to generate for contrastive learning
+    column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
 )
 
 # Train and evaluate
@@ -69,13 +70,18 @@ metrics = trainer.evaluate()
 
 # Push model to the Hub
 trainer.push_to_hub("my-awesome-setfit-model")
+
+# Download from Hub and run inference
+model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
+# Run inference
+preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
 ```
 
 For more examples, check out the `notebooks/` folder.
 
 ## Reproducing the results from the paper
 
-We provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Checkout the setup and training instructions in the `scripts/` directory.
+We provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Check out the setup and training instructions in the `scripts/` directory.
 
 ## Developer installation
 
@@ -91,12 +97,7 @@ Then install the base requirements with:
 python -m pip install -e '.[dev]'
 ```
 
-This will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting. Next, go to one of the dedicated baseline directories and install the extra dependencies, e.g.
-
-```bash
-cd scripts/setfit
-python -m pip install -r requirements.txt
-```
+This will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting.
 
 ### Formatting your code
 
@@ -132,7 +133,7 @@ make style && make quality
   author = {Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren},
   keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},
   title = {Efficient Few-Shot Learning Without Prompts},
-  publisher = {arXiv}, 
+  publisher = {arXiv},
   year = {2022},
   copyright = {Creative Commons Attribution 4.0 International}}
 ```
