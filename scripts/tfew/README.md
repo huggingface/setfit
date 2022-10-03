@@ -43,10 +43,16 @@ python -m t-few.src.pl_train \
 
 This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper.
 
-Similarly, you can run `T-Few` over all the supported test datasets in the `SetFit` paper by running:
+Similarly, you can run `T-Few` (with the 3 billion base model) over all the supported test datasets in the `SetFit` paper by running:
 
 ```
-./run_tfew_test_03b.sh
+./run_tfew_test.sh
+```
+
+To run `T-Few` with the 11 billion base model run:
+
+```
+./run_tfew_11b.sh
 ```
 
 Results will be saved to the `scripts/tfew/results` directory. 
