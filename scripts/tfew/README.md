@@ -61,7 +61,7 @@ Each of these directories contains 5 results, one for each randomly selected tra
 To retrieve the median score across all prompts (for each split), run the following on each dataset:
 
 ```
-python scripts/create_summary_table.py scripts/tfew/results/experiment_name
+python scripts/create_summary_table.py --path scripts/tfew/results/{experiment_name}
 ```
 
-The summary table will be saved in `results/experiment_name`.
+The summary table will be saved in `results/{experiment_name}`.
