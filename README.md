@@ -56,8 +56,8 @@ model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base
 # Create trainer
 trainer = SetFitTrainer(
     model=model,
-    train_dataset=train_ds,
-    eval_dataset=test_ds,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
     num_iterations=20, # The number of text pairs to generate for contrastive learning
