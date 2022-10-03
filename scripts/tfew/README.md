@@ -1,4 +1,4 @@
-# Running T-Few (3 Billion)
+# Running T-Few
 
 These scripts run the baselines based on the `T-Few` paper: [_Few-Shot Parameter-Efficient Fine-Tuning is Better and Cheaper than In-Context Learning_](https://arxiv.org/abs/2205.05638).
 
@@ -41,12 +41,18 @@ python -m t-few.src.pl_train \
         grad_accum_factor=8 \
 ```
 
-This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper.
+This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper. `T-Few` comes in 2 versions: one with a 3 billion (3B) base model, and one with an 11 billion (11B) base model.
 
-Similarly, you can run `T-Few` over all the supported test datasets in the `SetFit` paper by running:
+You can run `T-Few` (3B) over all the supported test datasets in the `SetFit` paper by running:
 
 ```
-./run_tfew_test_03b.sh
+./run_tfew_test.sh
+```
+
+Similarly, to run `T-Few` (11B) over all test datasets, run:
+
+```
+./run_tfew_11b.sh
 ```
 
 Results will be saved to the `scripts/tfew/results` directory. 
@@ -55,12 +61,7 @@ Each of these directories contains 5 results, one for each randomly selected tra
 To retrieve the median score across all prompts (for each split), run the following on each dataset:
 
 ```
-python median_across_seeds.py --path scripts/tfew/results/t03b_pretrained/{dataset}
+python scripts/create_summary_table.py --path scripts/tfew/results/{experiment_name}
 ```
 
-Then, to create the summary table of results with average metrics per dataset:
-```
-python scripts/create_summary_table.py scripts/tfew/results/experiment_name
-```
-
-The summary table will be saved in `results/experiment_name`.
+The summary table will be saved in `results/{experiment_name}`.

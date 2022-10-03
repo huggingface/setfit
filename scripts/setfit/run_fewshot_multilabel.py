@@ -20,8 +20,8 @@ from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
 
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import LOSS_NAME_TO_CLASS, SetFitBaseModel, SKLearnWrapper, sentence_pairs_generation_multilabel
-from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
+from setfit.modeling import SetFitBaseModel, SKLearnWrapper, sentence_pairs_generation_multilabel
+from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
 
 
 # ignore all future warnings
@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument(
         "--datasets",
         nargs="+",
-        default=["sst2"],
+        default=["go_emotions"],
     )
     parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
     parser.add_argument("--num_epochs", type=int, default=20)
@@ -150,7 +150,7 @@ class RunFewShot:
     def eval(self, classifier: SKLearnWrapper, data: Dict[str, str], metric: str) -> dict:
         """Computes the metrics for a given classifier."""
         # Define metrics
-        metric_fn = load(metric)
+        metric_fn = load(metric, config_name="multilabel")
 
         x_test = data["text"]
         y_test = data.remove_columns("text").to_pandas().values
