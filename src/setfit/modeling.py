@@ -11,6 +11,15 @@ from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 
+from . import logging
+
+
+logging.set_verbosity_info()
+logger = logging.get_logger(__name__)
+
+
+MODEL_HEAD_NAME = "model_head.pkl"
+
 
 class SetFitBaseModel:
     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
@@ -20,9 +29,6 @@ class SetFitBaseModel:
 
         if add_normalization_layer:
             self.model._modules["2"] = models.Normalize()
-
-
-MODEL_HEAD_NAME = "model_head.pkl"
 
 
 @dataclass
@@ -87,8 +93,9 @@ class SetFitModel(PyTorchModelHubMixin):
                     local_files_only=local_files_only,
                 )
             except requests.exceptions.RequestException:
-                print(
+                logger.info(
                     f"{MODEL_HEAD_NAME} not found on HuggingFace Hub, initialising classification head with random weights."
+                    " You should TRAIN this model on a downstream task to use it for predictions and inference."
                 )
                 model_head_file = None
 

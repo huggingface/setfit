@@ -43,12 +43,12 @@ from setfit import SetFitModel, SetFitTrainer
 
 
 # Load a dataset from the Hugging Face Hub
-dataset = load_dataset("emotion")
+dataset = load_dataset("sst2")
 
 # Simulate the few-shot regime by sampling 8 examples per class
-num_classes = 6
-train_ds = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
-test_ds = dataset["test"]
+num_classes = 2
+train_dataset = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
+eval_dataset = dataset["validation"]
 
 # Load a SetFit model from Hub
 model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
@@ -60,7 +60,8 @@ trainer = SetFitTrainer(
     eval_dataset=test_ds,
     loss_class=CosineSimilarityLoss,
     batch_size=16,
-    num_iterations=20, # The number of text pairs to generate
+    num_iterations=20, # The number of text pairs to generate for contrastive learning
+    column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
 )
 
 # Train and evaluate
@@ -69,6 +70,11 @@ metrics = trainer.evaluate()
 
 # Push model to the Hub
 trainer.push_to_hub("my-awesome-setfit-model")
+
+# Download from Hub and run inference
+model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
+# Run inference
+preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
 ```
 
 For more examples, check out the `notebooks/` folder.
