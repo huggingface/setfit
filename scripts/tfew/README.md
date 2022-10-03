@@ -41,7 +41,7 @@ python -m t-few.src.pl_train \
         grad_accum_factor=8 \
 ```
 
-This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper. `T-Few` comes with two different base models -- 3 billion (3B) and 11 billion (11B) versions. 
+This will fine-tune the 3 billion parameter pretrained model using the (IA)^3 method from the `T-Few` paper, and then run the evaluation. For all our baselines, we use the default settings from the `T-Few` paper. `T-Few` comes in 2 versions: one with a 3 billion (3B) base model, and one with an 11 billion (11B) base model.
 
 You can run `T-Few` (3B) over all the supported test datasets in the `SetFit` paper by running:
 
@@ -49,7 +49,7 @@ You can run `T-Few` (3B) over all the supported test datasets in the `SetFit` pa
 ./run_tfew_test.sh
 ```
 
-To run `T-Few` (11B) run:
+Similarly, to run `T-Few` (11B) over all test datasets, run:
 
 ```
 ./run_tfew_11b.sh
