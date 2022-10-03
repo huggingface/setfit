@@ -8,8 +8,8 @@ from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
 
-from .modeling import SetFitModel, SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
 from . import logging
+from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
 if TYPE_CHECKING:
@@ -195,12 +195,14 @@ class SetFitTrainer:
     def evaluate(self):
         """Computes the metrics for a given classifier."""
         self._validate_column_mapping(self.eval_dataset)
-        
+
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
             self.eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
-            
-        metric_fn = evaluate.load(self.metric)
+
+        metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
+        metric_fn = evaluate.load(self.metric, config_name=metric_config)
+
         x_test = self.eval_dataset["text"]
 
         if self.model.multi_target_strategy:
