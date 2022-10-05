@@ -78,7 +78,7 @@ class SetFitTrainer:
         """
         required_columns = set(["text", "label"])
         column_names = set(dataset.column_names)
-        if self.column_mapping is None and not column_names.issubset(required_columns):
+        if self.column_mapping is None and not required_columns.issubset(column_names):
             raise ValueError(
                 f"A column mapping must be provided when the dataset does not contain the following columns: {required_columns}"
             )
