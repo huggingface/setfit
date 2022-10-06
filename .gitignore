@@ -142,3 +142,6 @@ scripts/**/summary_table.csv
 scripts/tfew/t-few
 scripts/tfew/results
 scripts/tfew/run_tmux.sh
+
+# macOS
+.DS_Store
