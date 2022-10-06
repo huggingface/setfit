@@ -33,7 +33,7 @@ class SetFitTrainer:
         eval_dataset (`Dataset`, *optional*):
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
-            A function that instantiates the model to be used. If provided, each call to [`~Trainer.train`] will start
+            A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
             from a new instance of the model as given by this function.
         metric (`str`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation.
