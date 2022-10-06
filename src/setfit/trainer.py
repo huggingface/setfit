@@ -81,10 +81,10 @@ class SetFitTrainer:
                 self.model_init = model_init
                 model = self.call_model_init()
             else:
-                raise RuntimeError("`Trainer` requires either a `model` or `model_init` argument")
+                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument")
         else:
             if model_init is not None:
-                raise RuntimeError("`Trainer` requires either a `model` or `model_init` argument, but not both")
+                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
 
             self.model_init = model_init
 
@@ -150,7 +150,7 @@ class SetFitTrainer:
             self.model = self.call_model_init()
 
         if self.train_dataset is None:
-            raise ValueError("Trainer: training requires a train_dataset.")
+            raise ValueError("SetFitTrainer: training requires a train_dataset.")
 
         self._validate_column_mapping(self.train_dataset)
         if self.column_mapping is not None:
