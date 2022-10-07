@@ -60,7 +60,7 @@ def test_setfit_multilabel_one_vs_rest_model_head():
 
 def test_setfit_multilabel_multi_output_classifier_model_head():
     model = SetFitModel.from_pretrained(
-        "sentence-transformers/paraphrase-mpnet-base-v2", multi_target_strategy="multi-output"
+        "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="multi-output"
     )
 
     assert type(model.model_head) is MultiOutputClassifier
