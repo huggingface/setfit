@@ -68,7 +68,7 @@ def test_setfit_multilabel_multi_output_classifier_model_head():
 
 def test_setfit_multilabel_classifier_chain_classifier_model_head():
     model = SetFitModel.from_pretrained(
-        "sentence-transformers/paraphrase-mpnet-base-v2", multi_target_strategy="classifier-chain"
+        "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="classifier-chain"
     )
 
     assert type(model.model_head) is ClassifierChain
