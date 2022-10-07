@@ -45,7 +45,7 @@ def test_setfit_model_body():
 
 
 def test_setfit_default_model_head():
-    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
 
     assert type(model.model_head) is LogisticRegression
 
