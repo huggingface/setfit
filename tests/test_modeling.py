@@ -39,7 +39,7 @@ def test_sentence_pairs_generation_multilabel():
 
 
 def test_setfit_model_body():
-    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
 
     assert type(model.model_body) is SentenceTransformer
 
