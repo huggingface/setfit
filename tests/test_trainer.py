@@ -42,3 +42,23 @@ def test_column_mapping_with_missing_text(setup_trainer):
     trainer.column_mapping = {"label_new": "label"}
     with pytest.raises(ValueError):
         trainer._validate_column_mapping(trainer.train_dataset)
+
+
+def test_column_mapping_multilabel(setup_trainer):
+    trainer = setup_trainer
+
+    trainer.column_mapping = {"text_new": "text", "label_new": "label"}
+    trainer.train_dataset = Dataset.from_dict(
+        {"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]}
+    )
+
+    trainer._validate_column_mapping(trainer.train_dataset)
+    formatted_dataset = trainer._apply_column_mapping(trainer.train_dataset, trainer.column_mapping)
+
+    assert formatted_dataset.column_names == ["text", "label"]
+
+    assert formatted_dataset[0]["text"] == "a"
+    assert formatted_dataset[0]["label"] == [0, 1]
+
+    assert formatted_dataset[1]["text"] == "b"
+    assert formatted_dataset[1]["label"] == [1, 2]
