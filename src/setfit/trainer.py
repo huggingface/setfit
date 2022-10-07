@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
@@ -7,6 +7,7 @@ from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
+from transformers.trainer_utils import number_of_arguments
 
 from . import logging
 from .modeling import SupConLoss, sentence_pairs_generation
@@ -25,12 +26,15 @@ class SetFitTrainer:
     """Trainer to train a SetFit model.
 
     Args:
-        model (`SetFitModel`):
-            The model to train.
+        model (`SetFitModel`, *optional*):
+            The model to train. If not provided, a `model_init` must be passed.
         train_dataset (`Dataset`):
             The training dataset.
         eval_dataset (`Dataset`, *optional*):
             The evaluation dataset.
+        model_init (`Callable[[], SetFitModel]`, *optional*):
+            A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
+            from a new instance of the model as given by this function.
         metric (`str`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation.
         loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
@@ -49,9 +53,10 @@ class SetFitTrainer:
 
     def __init__(
         self,
-        model: "SetFitModel",
-        train_dataset: "Dataset",
+        model: "SetFitModel" = None,
+        train_dataset: "Dataset" = None,
         eval_dataset: "Dataset" = None,
+        model_init: Callable[[], "SetFitModel"] = None,
         metric: str = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -61,7 +66,6 @@ class SetFitTrainer:
         column_mapping: Dict[str, str] = None,
     ):
 
-        self.model = model
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.metric = metric
@@ -71,6 +75,20 @@ class SetFitTrainer:
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.column_mapping = column_mapping
+
+        if model is None:
+            if model_init is not None:
+                self.model_init = model_init
+                model = self.call_model_init()
+            else:
+                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument")
+        else:
+            if model_init is not None:
+                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
+
+            self.model_init = model_init
+
+        self.model = model
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
@@ -113,7 +131,27 @@ class SetFitTrainer:
         )
         return dataset
 
+    def call_model_init(self):
+        model_init_argcount = number_of_arguments(self.model_init)
+        if model_init_argcount == 0:
+            model = self.model_init()
+        else:
+            raise RuntimeError("model_init should have 0 argument.")
+
+        if model is None:
+            raise RuntimeError("model_init should not return None.")
+
+        return model
+
     def train(self):
+
+        # Model re-init
+        if self.model_init is not None:
+            self.model = self.call_model_init()
+
+        if self.train_dataset is None:
+            raise ValueError("SetFitTrainer: training requires a train_dataset.")
+
         self._validate_column_mapping(self.train_dataset)
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
