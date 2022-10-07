@@ -1,0 +1,60 @@
+VALIDATE Profiler Report
+
+Action                             	|  Mean duration (s)	|Num calls      	|  Total time (s) 	|  Percentage %   	|
+-------------------------------------------------------------------------------------------------------------------------------------------
+Total                              	|  -              	|_              	|  560.4          	|  100 %          	|
+-------------------------------------------------------------------------------------------------------------------------------------------
+run_training_epoch                 	|  0.89382        	|500            	|  446.91         	|  79.748         	|
+run_training_batch                 	|  0.29663        	|1000           	|  296.63         	|  52.933         	|
+optimizer_step_with_closure_0      	|  0.29396        	|1000           	|  293.96         	|  52.456         	|
+training_step_and_backward         	|  0.22274        	|1000           	|  222.74         	|  39.746         	|
+model_forward                      	|  0.13673        	|1000           	|  136.73         	|  24.398         	|
+training_step                      	|  0.13656        	|1000           	|  136.56         	|  24.369         	|
+backward                           	|  0.084639       	|1000           	|  84.639         	|  15.103         	|
+run_validate_evaluation            	|  70.425         	|1              	|  70.425         	|  12.567         	|
+evaluation_step_and_end            	|  0.2198         	|313            	|  68.797         	|  12.276         	|
+validation_step                    	|  0.21974        	|313            	|  68.78          	|  12.273         	|
+get_train_batch                    	|  0.028722       	|1500           	|  43.084         	|  7.688          	|
+fetch_next_train_batch             	|  0.028689       	|1500           	|  43.034         	|  7.6791         	|
+zero_grad                          	|  0.0013393      	|1000           	|  1.3393         	|  0.23898        	|
+on_train_batch_end                 	|  0.0013212      	|1000           	|  1.3212         	|  0.23576        	|
+training_batch_to_device           	|  0.0005897      	|1000           	|  0.5897         	|  0.10523        	|
+get_validate_batch                 	|  0.0018692      	|314            	|  0.58693        	|  0.10473        	|
+fetch_next_validate_batch          	|  0.0018544      	|314            	|  0.58228        	|  0.1039         	|
+on_train_epoch_start               	|  0.00028669     	|500            	|  0.14334        	|  0.025579       	|
+on_train_epoch_end                 	|  0.00027777     	|500            	|  0.13888        	|  0.024783       	|
+on_train_batch_start               	|  0.00010485     	|1000           	|  0.10485        	|  0.018709       	|
+evaluation_batch_to_device         	|  0.00022309     	|313            	|  0.069828       	|  0.01246        	|
+on_batch_start                     	|  3.381e-05      	|1000           	|  0.03381        	|  0.0060333      	|
+on_pretrain_routine_start          	|  0.03111        	|1              	|  0.03111        	|  0.0055513      	|
+on_train_end                       	|  0.024037       	|1              	|  0.024037       	|  0.0042892      	|
+on_before_zero_grad                	|  2.1761e-05     	|1000           	|  0.021761       	|  0.003883       	|
+on_batch_end                       	|  1.4022e-05     	|1000           	|  0.014022       	|  0.0025021      	|
+on_before_optimizer_step           	|  1.2292e-05     	|1000           	|  0.012292       	|  0.0021935      	|
+on_after_backward                  	|  1.136e-05      	|1000           	|  0.01136        	|  0.0020271      	|
+on_before_backward                 	|  1.0926e-05     	|1000           	|  0.010926       	|  0.0019496      	|
+configure_optimizers               	|  0.0082295      	|1              	|  0.0082295      	|  0.0014685      	|
+training_step_end                  	|  8.2284e-06     	|1000           	|  0.0082284      	|  0.0014683      	|
+on_validation_batch_end            	|  1.9137e-05     	|313            	|  0.0059899      	|  0.0010689      	|
+on_epoch_start                     	|  1.0651e-05     	|501            	|  0.0053361      	|  0.00095219     	|
+on_epoch_end                       	|  1.0218e-05     	|501            	|  0.0051191      	|  0.00091347     	|
+on_validation_model_eval           	|  0.0040193      	|1              	|  0.0040193      	|  0.00071722     	|
+on_validation_batch_start          	|  1.0133e-05     	|313            	|  0.0031715      	|  0.00056594     	|
+validation_step_end                	|  4.8867e-06     	|313            	|  0.0015295      	|  0.00027294     	|
+on_train_start                     	|  0.00073374     	|1              	|  0.00073374     	|  0.00013093     	|
+on_validation_start                	|  0.00032501     	|1              	|  0.00032501     	|  5.7996e-05     	|
+on_validation_end                  	|  0.0001054      	|1              	|  0.0001054      	|  1.8808e-05     	|
+on_before_accelerator_backend_setup	|  1.6948e-05     	|2              	|  3.3895e-05     	|  6.0484e-06     	|
+teardown                           	|  1.6155e-05     	|2              	|  3.2311e-05     	|  5.7657e-06     	|
+on_validation_epoch_end            	|  3.0738e-05     	|1              	|  3.0738e-05     	|  5.485e-06      	|
+setup                              	|  1.3516e-05     	|2              	|  2.7031e-05     	|  4.8235e-06     	|
+on_configure_sharded_model         	|  1.3516e-05     	|2              	|  2.7031e-05     	|  4.8235e-06     	|
+on_fit_end                         	|  2.2222e-05     	|1              	|  2.2222e-05     	|  3.9654e-06     	|
+on_fit_start                       	|  1.6231e-05     	|1              	|  1.6231e-05     	|  2.8963e-06     	|
+on_val_dataloader                  	|  6.532e-06      	|2              	|  1.3064e-05     	|  2.3312e-06     	|
+prepare_data                       	|  5.1945e-06     	|2              	|  1.0389e-05     	|  1.8538e-06     	|
+on_pretrain_routine_end            	|  9.698e-06      	|1              	|  9.698e-06      	|  1.7305e-06     	|
+configure_callbacks                	|  4.8141e-06     	|2              	|  9.6281e-06     	|  1.7181e-06     	|
+on_validation_epoch_start          	|  9.618e-06      	|1              	|  9.618e-06      	|  1.7163e-06     	|
+configure_sharded_model            	|  4.739e-06      	|2              	|  9.4781e-06     	|  1.6913e-06     	|
+on_train_dataloader                	|  4.328e-06      	|1              	|  4.328e-06      	|  7.723e-07      	|
