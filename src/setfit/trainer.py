@@ -115,15 +115,13 @@ class SetFitTrainer:
 
     def train(self):
         self._validate_column_mapping(self.train_dataset)
+
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
             self.train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
-        x_train = self.train_dataset["text"]
 
-        if self.model.multi_target_strategy:
-            y_train = self.train_dataset.remove_columns("text").to_pandas().values
-        else:
-            y_train = self.train_dataset["label"]
+        x_train = self.train_dataset["text"]
+        y_train = self.train_dataset["label"]
 
         if self.loss_class is None:
             return
@@ -204,11 +202,7 @@ class SetFitTrainer:
         metric_fn = evaluate.load(self.metric, config_name=metric_config)
 
         x_test = self.eval_dataset["text"]
-
-        if self.model.multi_target_strategy:
-            y_test = self.eval_dataset.remove_columns("text").to_pandas().values
-        else:
-            y_test = self.eval_dataset["label"]
+        y_test = self.eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)

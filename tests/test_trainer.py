@@ -48,9 +48,7 @@ def test_column_mapping_multilabel(setup_trainer):
     trainer = setup_trainer
 
     trainer.column_mapping = {"text_new": "text", "label_new": "label"}
-    trainer.train_dataset = Dataset.from_dict(
-        {"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]}
-    )
+    trainer.train_dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]})
 
     trainer._validate_column_mapping(trainer.train_dataset)
     formatted_dataset = trainer._apply_column_mapping(trainer.train_dataset, trainer.column_mapping)
