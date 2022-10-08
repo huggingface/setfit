@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
@@ -7,13 +7,22 @@ from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
-from transformers.trainer_utils import number_of_arguments
+from transformers.trainer_utils import (
+    BestRun,
+    HPSearchBackend,
+    default_compute_objective,
+    number_of_arguments,
+    set_seed,
+)
 
 from . import logging
+from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .modeling import SupConLoss, sentence_pairs_generation
+from .utils import default_hp_space_optuna
 
 
 if TYPE_CHECKING:
+    import optuna
     from datasets import Dataset
 
     from .modeling import SetFitModel
@@ -47,6 +56,9 @@ class SetFitTrainer:
             The learning rate to use for contrastive training.
         batch_size (`int`, *optional*, defaults to `16`):
             The batch size to use for contrastive training.
+        seed (`int`, *optional*, defaults to 42):
+            Random seed that will be set at the beginning of training. To ensure reproducibility across runs, use the
+            [`~SetTrainer.model_init`] function to instantiate the model if it has some randomly initialized parameters.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
     """
@@ -63,6 +75,7 @@ class SetFitTrainer:
         num_epochs: int = 1,
         learning_rate: float = 2e-5,
         batch_size: int = 16,
+        seed: int = 42,
         column_mapping: Dict[str, str] = None,
     ):
 
@@ -74,6 +87,7 @@ class SetFitTrainer:
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
         self.batch_size = batch_size
+        self.seed = seed
         self.column_mapping = column_mapping
 
         if model is None:
@@ -89,6 +103,7 @@ class SetFitTrainer:
             self.model_init = model_init
 
         self.model = model
+        self.hp_search_backend = None
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
@@ -131,33 +146,70 @@ class SetFitTrainer:
         )
         return dataset
 
-    def call_model_init(self):
+    def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]):
+        """HP search setup code"""
+        self._trial = trial
+
+        if self.hp_search_backend is None or trial is None:
+            return
+        if self.hp_search_backend == HPSearchBackend.OPTUNA:
+            params = self.hp_space(trial)
+
+        for key, value in params.items():
+            if not hasattr(self, key):
+                logger.warning(
+                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in"
+                    " `SetFitTrainer`."
+                )
+                continue
+            old_attr = getattr(self, key, None)
+            # Casting value to the proper type
+            if old_attr is not None:
+                value = type(old_attr)(value)
+            setattr(self, key, value)
+
+        if self.hp_search_backend == HPSearchBackend.OPTUNA:
+            logger.info("Trial:", trial.params)
+
+    def call_model_init(self, trial=None):
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
+        elif model_init_argcount == 1:
+            model = self.model_init(trial)
         else:
-            raise RuntimeError("model_init should have 0 argument.")
+            raise RuntimeError("model_init should have 0 or 1 argument.")
 
         if model is None:
             raise RuntimeError("model_init should not return None.")
 
         return model
 
-    def train(self):
+    def train(self, trial: Union["optuna.Trial", Dict[str, Any]] = None):
+        """
+        Main training entry point.
 
+        Args:
+            trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
+                The trial run or the hyperparameter dictionary for hyperparameter search.
+        """
+        self._hp_search_setup(trial)
         # Model re-init
         if self.model_init is not None:
-            self.model = self.call_model_init()
+            # Seed must be set before instantiating the model when using model_init.
+            set_seed(self.seed)
+            self.model = self.call_model_init(trial)
 
         if self.train_dataset is None:
             raise ValueError("SetFitTrainer: training requires a train_dataset.")
 
         self._validate_column_mapping(self.train_dataset)
+        train_dataset = self.train_dataset
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
-            self.train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
-        x_train = self.train_dataset["text"]
-        y_train = self.train_dataset["label"]
+            train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+        x_train = train_dataset["text"]
+        y_train = train_dataset["label"]
 
         if self.loss_class is None:
             return
@@ -224,16 +276,93 @@ class SetFitTrainer:
     def evaluate(self):
         """Computes the metrics for a given classifier."""
         self._validate_column_mapping(self.eval_dataset)
+        eval_dataset = self.eval_dataset
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
-            self.eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
+            eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
         metric_fn = evaluate.load(self.metric)
-        x_test = self.eval_dataset["text"]
-        y_test = self.eval_dataset["label"]
+        x_test = eval_dataset["text"]
+        y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
         return metric_fn.compute(predictions=y_pred, references=y_test)
+
+    def hyperparameter_search(
+        self,
+        hp_space: Optional[Callable[["optuna.Trial"], Dict[str, float]]] = None,
+        compute_objective: Optional[Callable[[Dict[str, float]], float]] = None,
+        n_trials: int = 10,
+        direction: str = "minimize",
+        backend: Optional[Union["str", HPSearchBackend]] = None,
+        hp_name: Optional[Callable[["optuna.Trial"], str]] = None,
+        **kwargs,
+    ) -> BestRun:
+        """
+        Launch an hyperparameter search using `optuna`. The optimized quantity is determined
+        by `compute_objective`, which defaults to a function returning the evaluation loss when no metric is provided,
+        the sum of all metrics otherwise.
+
+        <Tip warning={true}>
+
+        To use this method, you need to have provided a `model_init` when initializing your [`Trainer`]: we need to
+        reinitialize the model at each new run.
+
+        </Tip>
+
+        Args:
+            hp_space (`Callable[["optuna.Trial"], Dict[str, float]]`, *optional*):
+                A function that defines the hyperparameter search space. Will default to
+                [`~trainer_utils.default_hp_space_optuna`].
+            compute_objective (`Callable[[Dict[str, float]], float]`, *optional*):
+                A function computing the objective to minimize or maximize from the metrics returned by the `evaluate`
+                method. Will default to [`~trainer_utils.default_compute_objective`].
+            n_trials (`int`, *optional*, defaults to 100):
+                The number of trial runs to test.
+            direction (`str`, *optional*, defaults to `"minimize"`):
+                Whether to optimize greater or lower objects. Can be `"minimize"` or `"maximize"`, you should pick
+                `"minimize"` when optimizing the validation loss, `"maximize"` when optimizing one or several metrics.
+            backend (`str` or [`~training_utils.HPSearchBackend`], *optional*):
+                The backend to use for hyperparameter search. Only optuna is supported for now.
+                TODO: add support for ray and sigopt.
+            hp_name (`Callable[["optuna.Trial"], str]]`, *optional*):
+                A function that defines the trial/run name. Will default to None.
+            kwargs (`Dict[str, Any]`, *optional*):
+                Additional keyword arguments passed along to `optuna.create_study`. For more
+                information see:
+
+                - the documentation of
+                  [optuna.create_study](https://optuna.readthedocs.io/en/stable/reference/generated/optuna.study.create_study.html)
+
+        Returns:
+            [`trainer_utils.BestRun`]: All the information about the best run.
+        """
+        if backend is None:
+            backend = default_hp_search_backend()
+            if backend is None:
+                raise RuntimeError("optuna should be installed. " "To install optuna run `pip install optuna`. ")
+        backend = HPSearchBackend(backend)
+        if backend == HPSearchBackend.OPTUNA and not is_optuna_available():
+            raise RuntimeError("You picked the optuna backend, but it is not installed. Use `pip install optuna`.")
+        elif backend != HPSearchBackend.OPTUNA:
+            raise RuntimeError("Only optuna backend is supported for hyperparameter search.")
+        self.hp_search_backend = backend
+        if self.model_init is None:
+            raise RuntimeError(
+                "To use hyperparameter search, you need to pass your model through a model_init function."
+            )
+
+        self.hp_space = default_hp_space_optuna if hp_space is None else hp_space
+        self.hp_name = hp_name
+        self.compute_objective = default_compute_objective if compute_objective is None else compute_objective
+
+        backend_dict = {
+            HPSearchBackend.OPTUNA: run_hp_search_optuna,
+        }
+        best_run = backend_dict[backend](self, n_trials, direction, **kwargs)
+
+        self.hp_search_backend = None
+        return best_run
 
     def push_to_hub(
         self,

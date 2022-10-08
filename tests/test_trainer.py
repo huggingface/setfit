@@ -2,6 +2,8 @@ from unittest import TestCase
 
 import pytest
 from datasets import Dataset
+from transformers.testing_utils import require_optuna
+from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit.modeling import SetFitModel
 from setfit.trainer import SetFitTrainer
@@ -70,3 +72,49 @@ class SetFitTrainerTest(TestCase):
         )
         with pytest.raises(ValueError):
             trainer.train()
+
+
+@require_optuna
+class TrainerHyperParameterOptunaIntegrationTest(TestCase):
+    def setUp(self):
+        self.dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+        self.num_iterations = 1
+
+    def test_hyperparameter_search(self):
+        class MyTrialShortNamer(TrialShortNamer):
+            DEFAULTS = {"max_iter": 100, "solver": "liblinear"}
+
+        def hp_space(trial):
+            return {
+                "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
+                "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
+            }
+
+        def model_init(trial):
+            if trial is not None:
+                max_iter = trial.suggest_int("max_iter", 50, 300)
+                solver = trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"])
+            else:
+                max_iter = 100
+                solver = "liblinear"
+            params = {
+                "head_params": {
+                    "max_iter": max_iter,
+                    "solver": solver,
+                }
+            }
+            return SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", **params)
+
+        def hp_name(trial):
+            return MyTrialShortNamer.shortname(trial.params)
+
+        trainer = SetFitTrainer(
+            train_dataset=self.dataset,
+            eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
+            model_init=model_init,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+        trainer.hyperparameter_search(direction="minimize", hp_space=hp_space, hp_name=hp_name, n_trials=4)

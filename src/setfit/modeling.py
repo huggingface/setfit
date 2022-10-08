@@ -102,7 +102,10 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
-            model_head = LogisticRegression()
+            if "head_params" in model_kwargs.keys():
+                model_head = LogisticRegression(**model_kwargs["head_params"])
+            else:
+                model_head = LogisticRegression()
         return SetFitModel(model_body=model_body, model_head=model_head)
 
 
