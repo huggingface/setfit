@@ -148,6 +148,9 @@ class SetFitTrainer:
 
     def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]):
         """HP search setup code"""
+
+        # Heavily inspired by transformers.Trainer._hp_search_setup
+        # https://github.com/huggingface/transformers/blob/cbb8a37929c3860210f95c9ec99b8b84b8cf57a1/src/transformers/trainer.py#L1163        self._trial = trial
         self._trial = trial
 
         if self.hp_search_backend is None or trial is None:
@@ -299,13 +302,13 @@ class SetFitTrainer:
         **kwargs,
     ) -> BestRun:
         """
-        Launch an hyperparameter search using `optuna`. The optimized quantity is determined
+        Launch a hyperparameter search using `optuna`. The optimized quantity is determined
         by `compute_objective`, which defaults to a function returning the evaluation loss when no metric is provided,
         the sum of all metrics otherwise.
 
         <Tip warning={true}>
 
-        To use this method, you need to have provided a `model_init` when initializing your [`Trainer`]: we need to
+        To use this method, you need to have provided a `model_init` when initializing your [`SetFitTrainer`]: we need to
         reinitialize the model at each new run.
 
         </Tip>
