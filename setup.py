@@ -6,13 +6,15 @@ from setuptools import find_packages, setup
 
 DOCLINES = __doc__.split("\n")
 
+INTEGRATIONS_REQUIRE = ["optuna"]
+
 REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.2.2"]
 
 QUALITY_REQUIRE = ["black", "flake8", "isort"]
 
 TESTS_REQUIRE = ["pytest", "pytest-cov"]
 
-EXTRAS_REQUIRE = {"quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
+EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
 
 
 def combine_requirements(base_keys):

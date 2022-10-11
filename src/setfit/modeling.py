@@ -106,13 +106,17 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
+            if "head_params" in model_kwargs.keys():
+                clf = LogisticRegression(**model_kwargs["head_params"])
+            else:
+                clf = LogisticRegression()
             if multi_target_strategy is not None:
                 if multi_target_strategy == "one-vs-rest":
-                    multilabel_classifier = OneVsRestClassifier(LogisticRegression())
+                    multilabel_classifier = OneVsRestClassifier(clf)
                 elif multi_target_strategy == "multi-output":
-                    multilabel_classifier = MultiOutputClassifier(LogisticRegression())
+                    multilabel_classifier = MultiOutputClassifier(clf)
                 elif multi_target_strategy == "classifier-chain":
-                    multilabel_classifier = ClassifierChain(LogisticRegression())
+                    multilabel_classifier = ClassifierChain(clf)
                 else:
                     raise ValueError(f"multi_target_strategy {multi_target_strategy} is not supported.")
 
