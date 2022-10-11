@@ -17,7 +17,7 @@ from transformers.trainer_utils import (
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation
+from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
 from .utils import default_hp_space_optuna
 
 
@@ -251,7 +251,12 @@ class SetFitTrainer:
             train_examples = []
 
             for _ in range(self.num_iterations):
-                train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+                if self.model.multi_target_strategy is not None:
+                    train_examples = sentence_pairs_generation_multilabel(
+                        np.array(x_train), np.array(y_train), train_examples
+                    )
+                else:
+                    train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)
             train_loss = self.loss_class(self.model.model_body)
@@ -283,12 +288,14 @@ class SetFitTrainer:
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
             eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
-        metric_fn = evaluate.load(self.metric)
+        metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
+        metric_fn = evaluate.load(self.metric, config_name=metric_config)
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
+
         return metric_fn.compute(predictions=y_pred, references=y_test)
 
     def hyperparameter_search(
