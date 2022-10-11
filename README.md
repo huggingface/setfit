@@ -98,6 +98,7 @@ To use this method, you need to have provided a `model_init` when initializing y
   }
   ```
 - Model head parameters (a logistic regression in our case) , can be listed inside `model_init`.
+
 This is an example how to set up and perform the hyperparameter search for both parameters:
 ```python
 from datasets import Dataset
