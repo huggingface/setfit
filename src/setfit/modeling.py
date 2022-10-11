@@ -79,7 +79,7 @@ class SetFitModel(PyTorchModelHubMixin):
         multi_target_strategy=None,
         **model_kwargs,
     ):
-        model_body = SentenceTransformer(model_id)
+        model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
 
         if os.path.isdir(model_id) and MODEL_HEAD_NAME in os.listdir(model_id):
             model_head_file = os.path.join(model_id, MODEL_HEAD_NAME)
