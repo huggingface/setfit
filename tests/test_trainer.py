@@ -72,7 +72,7 @@ class SetFitTrainerTest(TestCase):
         )
         with pytest.raises(ValueError):
             trainer.train()
-            
+
     def test_column_mapping_with_missing_text(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
         trainer = SetFitTrainer(
