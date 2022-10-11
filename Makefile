@@ -14,3 +14,6 @@ quality:
 
 test:
 	python -m pytest -sv tests/
+
+coverage:
+	python -m pytest --cov=src --cov-report=term-missing -sv tests/

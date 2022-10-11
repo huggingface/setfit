@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from transformers.trainer_utils import number_of_arguments
 
 from . import logging
-from .modeling import SupConLoss, sentence_pairs_generation
+from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
 if TYPE_CHECKING:
@@ -153,9 +153,11 @@ class SetFitTrainer:
             raise ValueError("SetFitTrainer: training requires a train_dataset.")
 
         self._validate_column_mapping(self.train_dataset)
+
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
             self.train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+
         x_train = self.train_dataset["text"]
         y_train = self.train_dataset["label"]
 
@@ -196,7 +198,12 @@ class SetFitTrainer:
             train_examples = []
 
             for _ in range(self.num_iterations):
-                train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+                if self.model.multi_target_strategy is not None:
+                    train_examples = sentence_pairs_generation_multilabel(
+                        np.array(x_train), np.array(y_train), train_examples
+                    )
+                else:
+                    train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)
             train_loss = self.loss_class(self.model.model_body)
@@ -224,15 +231,20 @@ class SetFitTrainer:
     def evaluate(self):
         """Computes the metrics for a given classifier."""
         self._validate_column_mapping(self.eval_dataset)
+
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
             self.eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
-        metric_fn = evaluate.load(self.metric)
+
+        metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
+        metric_fn = evaluate.load(self.metric, config_name=metric_config)
+
         x_test = self.eval_dataset["text"]
         y_test = self.eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
+
         return metric_fn.compute(predictions=y_pred, references=y_test)
 
     def push_to_hub(
