@@ -82,35 +82,21 @@ For more examples, check out the `notebooks/` folder.
 
 ### Running hyperparameter search
 
-`SetFitTrainer` module has `hyperparameter_search`. Only `optuna` backend is supported for now. 
+`SetFitTrainer` provides a `hyperparameter_search()` method that you can use to find good hyperparameters for your data. To use this feature, first install the `optuna` backend:
 
-To use this method, you need to have provided a `model_init` when initializing your [`SetFitTrainer`]: we need to reinitialize the model at each new run.
+```bash
+python -m pip install setfit[optuna]
+```
 
-**Note**:
-- Training parameters such as seed, epoch, batch_size, learning rate, etc... can be passed through hp_space. Default space if not given: 
-  ```python
-  {
-    "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
-    "num_epochs": trial.suggest_int("num_epochs", 1, 5),
-    "num_iterations": trial.suggest_categorical("num_iterations", [5, 10, 20]),
-    "seed": trial.suggest_int("seed", 1, 40),
-    "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64])
-  }
-  ```
-- Model head parameters (a logistic regression in our case) , can be listed inside `model_init`.
+To use this method, you need to define two functions:
 
-This is an example how to set up and perform the hyperparameter search for both parameters:
+* `model_init()`: A function that instantiates the model to be used. If provided, each call to `train()` will start from a new instance of the model as given by this function.
+* `hp_space()`: A function that defines the hyperparameter search space.
+
+Here is an example of a `model_init()` function that we'll use to scan over the hyperparameters associated with the classification head in `SetFitModel`:
+
 ```python
-from datasets import Dataset
-
-from setfit.trainer import SetFitTrainer
-from setfit.modeling import SetFitModel
-
-def hp_space(trial):  # Training parameters
-    return {
-        "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
-        "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
-    }
+from setfit import SetFitModel
 
 def model_init(trial):  # Model head parameters
     if trial is not None:
@@ -126,6 +112,28 @@ def model_init(trial):  # Model head parameters
         }
     }
     return SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", **params)
+```
+
+Similarly, to scan over hyperparameters associated with the SetFit training process, we can define a `hp_space()` function as follows:
+
+```python
+def hp_space(trial):  # Training parameters
+    return {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
+        "num_epochs": trial.suggest_int("num_epochs", 1, 5),
+        "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
+        "seed": trial.suggest_int("seed", 1, 40),
+        "num_iterations": trial.suggest_categorical("num_iterations", [5, 10, 20]),
+    }
+```
+
+**Note:** In practice, we found `num_iterations` to be the most important hyperparameter for the contrastive learning process.
+
+The final step is to instantiate a `SetFitTrainer` and call `hyperparameter_search()`:
+
+```python
+from datasets import Dataset
+from setfit import SetFitTrainer
 
 dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
