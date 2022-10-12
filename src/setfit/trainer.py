@@ -303,7 +303,7 @@ class SetFitTrainer:
         hp_space: Optional[Callable[["optuna.Trial"], Dict[str, float]]] = None,
         compute_objective: Optional[Callable[[Dict[str, float]], float]] = None,
         n_trials: int = 10,
-        direction: str = "minimize",
+        direction: str = "maximize",
         backend: Optional[Union["str", HPSearchBackend]] = None,
         hp_name: Optional[Callable[["optuna.Trial"], str]] = None,
         **kwargs,
@@ -326,10 +326,10 @@ class SetFitTrainer:
                 [`~trainer_utils.default_hp_space_optuna`].
             compute_objective (`Callable[[Dict[str, float]], float]`, *optional*):
                 A function computing the objective to minimize or maximize from the metrics returned by the `evaluate`
-                method. Will default to [`~trainer_utils.default_compute_objective`].
+                method. Will default to [`~trainer_utils.default_compute_objective`] which uses the sum of metrics.
             n_trials (`int`, *optional*, defaults to 100):
                 The number of trial runs to test.
-            direction (`str`, *optional*, defaults to `"minimize"`):
+            direction (`str`, *optional*, defaults to `"maximize"`):
                 Whether to optimize greater or lower objects. Can be `"minimize"` or `"maximize"`, you should pick
                 `"minimize"` when optimizing the validation loss, `"maximize"` when optimizing one or several metrics.
             backend (`str` or [`~training_utils.HPSearchBackend`], *optional*):
