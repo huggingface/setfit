@@ -1,7 +1,7 @@
 import importlib.util
 from typing import TYPE_CHECKING
 
-from transformers.trainer_utils import BestRun
+from .utils import BestRun
 
 
 if TYPE_CHECKING:
