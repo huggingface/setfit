@@ -7,17 +7,12 @@ from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
-from transformers.trainer_utils import (
-    HPSearchBackend,
-    default_compute_objective,
-    number_of_arguments,
-    set_seed,
-)
+from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
-from .utils import default_hp_space_optuna, BestRun
+from .utils import BestRun, default_hp_space_optuna
 
 
 if TYPE_CHECKING:
