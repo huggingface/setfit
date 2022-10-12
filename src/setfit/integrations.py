@@ -36,4 +36,4 @@ def run_hp_search_optuna(trainer: "SetFitTrainer", n_trials: int, direction: str
     study = optuna.create_study(direction=direction, **kwargs)
     study.optimize(_objective, n_trials=n_trials, timeout=timeout, n_jobs=n_jobs)
     best_trial = study.best_trial
-    return BestRun(str(best_trial.number), best_trial.value, best_trial.params)
+    return BestRun(str(best_trial.number), best_trial.value, best_trial.params, study)

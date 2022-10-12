@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic_ns
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
@@ -49,7 +49,7 @@ LOSS_NAME_TO_CLASS = {
 }
 
 
-def default_hp_space_optuna(trial) -> Dict[str, float]:
+def default_hp_space_optuna(trial) -> Dict[str, Any]:
     from transformers.integrations import is_optuna_available
 
     assert is_optuna_available(), "This function needs Optuna installed: `pip install optuna`"

@@ -109,7 +109,7 @@ class SetFitTrainer:
         """
         Validates the provided column mapping against the dataset.
         """
-        required_columns = set(["text", "label"])
+        required_columns = {"text", "label"}
         column_names = set(dataset.column_names)
         if self.column_mapping is None and not required_columns.issubset(column_names):
             raise ValueError(
