@@ -15,15 +15,18 @@ Compared to other few-shot learning methods, SetFit has several unique features:
 * 🏎 **Fast to train:** SetFit doesn't require large-scale models like T0 or GPT-3 to achieve high accuracy. As a result, it is typically an order of magnitude (or more) faster to train and run inference with.
 * 🌎 **Multilingual support**: SetFit can be used with any [Sentence Transformer](https://huggingface.co/models?library=sentence-transformers&sort=downloads) on the Hub, which means you can classify text in multiple languages by simply fine-tuning a multilingual checkpoint.
 
-## Getting started
-
-### Installation
+## Installation
 
 Download and install `setfit` by running:
 
 ```bash
 python -m pip install setfit
 ```
+
+## Usage
+
+The examples below provide a quick overview on the various features supported in `setfit`. For more examples, check out the [`notebooks`](https://github.com/huggingface/setfit/tree/main/notebooks) folder.
+
 
 ### Training a SetFit model
 
@@ -59,6 +62,7 @@ trainer = SetFitTrainer(
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
     loss_class=CosineSimilarityLoss,
+    metric="accuracy",
     batch_size=16,
     num_iterations=20, # The number of text pairs to generate for contrastive learning
     num_epochs=1, # The number of epochs to use for constrastive learning
@@ -78,7 +82,24 @@ model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
 preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
 ```
 
-For more examples, check out the `notebooks/` folder.
+### Training on multilabel datasets
+
+To train SetFit models on multilabel datasets, specify the `multi_target_strategy` argument when loading the pretrained model:
+
+```python
+from setfit import SetFitModel
+
+model = SetFitModel.from_pretrained(model_id, multi_target_strategy="one-vs-rest")
+```
+
+This will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:
+
+* `one-vs-rest`: use a `OneVsRestClassifier` head.
+* `multi-output`: use a `MultiOutputClassifier` head.
+* `classifier-chain`: use a `ClassifierChain` head.
+
+From here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.
+
 
 ### Running hyperparameter search
 
