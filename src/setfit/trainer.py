@@ -37,7 +37,7 @@ class SetFitTrainer:
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
-            from a new instance of the model as given by this function.
+            from a new instance of the model as given by this function when a `trial` is passed.
         metric (`str`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation.
         loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
@@ -178,7 +178,7 @@ class SetFitTrainer:
         else:
             raise ValueError("Invalid trial parameter")
 
-        logger.info("Trial:", params)
+        logger.info(f"Trial: {params}")
         self.apply_hyperparameters(params, final_model=False)
 
     def call_model_init(self, params: Dict[str, Any] = None):
