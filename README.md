@@ -98,13 +98,10 @@ Here is an example of a `model_init()` function that we'll use to scan over the 
 ```python
 from setfit import SetFitModel
 
-def model_init(trial):  # Model head parameters
-    if trial is not None:
-        max_iter = trial.suggest_int("max_iter", 50, 300)
-        solver = trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"])
-    else:
-        max_iter = 100
-        solver = "liblinear"
+def model_init(params):
+    params = params or {}
+    max_iter = params.get("max_iter", 100)
+    solver = params.get("solver", "liblinear")
     params = {
         "head_params": {
             "max_iter": max_iter,
@@ -124,12 +121,14 @@ def hp_space(trial):  # Training parameters
         "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
         "seed": trial.suggest_int("seed", 1, 40),
         "num_iterations": trial.suggest_categorical("num_iterations", [5, 10, 20]),
+        "max_iter": trial.suggest_int("max_iter", 50, 300),
+        "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),        
     }
 ```
 
 **Note:** In practice, we found `num_iterations` to be the most important hyperparameter for the contrastive learning process.
 
-The final step is to instantiate a `SetFitTrainer` and call `hyperparameter_search()`:
+The next step is to instantiate a `SetFitTrainer` and call `hyperparameter_search()`:
 
 ```python
 from datasets import Dataset
@@ -145,7 +144,15 @@ trainer = SetFitTrainer(
     model_init=model_init,
     column_mapping={"text_new": "text", "label_new": "label"},
 )
-trainer.hyperparameter_search(direction="minimize", hp_space=hp_space, n_trials=4)
+best_run = trainer.hyperparameter_search(direction="maximize", hp_space=hp_space, n_trials=20)
+```
+
+Finally, you can apply the hyperparameters you found to the trainer, and lock in the optimal model, before training for
+a final time.
+
+```python
+trainer.apply_hyperparameters(best_run.hyperparameters, final_model=True)
+trainer.train()
 ```
 
 ## Reproducing the results from the paper

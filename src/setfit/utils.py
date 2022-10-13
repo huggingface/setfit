@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic_ns
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, NamedTuple, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
@@ -49,7 +49,7 @@ LOSS_NAME_TO_CLASS = {
 }
 
 
-def default_hp_space_optuna(trial) -> Dict[str, float]:
+def default_hp_space_optuna(trial) -> Dict[str, Any]:
     from transformers.integrations import is_optuna_available
 
     assert is_optuna_available(), "This function needs Optuna installed: `pip install optuna`"
@@ -131,3 +131,24 @@ class Benchmark:
         Prints summary of all benchmarks performed.
         """
         self.print(f"\n{'#' * 30}\nBenchmark Summary:\n{'#' * 30}\n\n{self.summary_msg}")
+
+
+class BestRun(NamedTuple):
+    """
+    The best run found by a hyperparameter search (see [`~SetFitTrainer.hyperparameter_search`]).
+
+    Parameters:
+        run_id (`str`):
+            The id of the best run.
+        objective (`float`):
+            The objective that was obtained for this run.
+        hyperparameters (`Dict[str, Any]`):
+            The hyperparameters picked to get this run.
+        backend (`Any`):
+            The relevant internal object used for optimization. For optuna this is the `study` object.
+    """
+
+    run_id: str
+    objective: float
+    hyperparameters: Dict[str, Any]
+    backend: Any = None

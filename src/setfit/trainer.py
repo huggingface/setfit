@@ -7,18 +7,12 @@ from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
-from transformers.trainer_utils import (
-    BestRun,
-    HPSearchBackend,
-    default_compute_objective,
-    number_of_arguments,
-    set_seed,
-)
+from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
-from .utils import default_hp_space_optuna
+from .utils import BestRun, default_hp_space_optuna
 
 
 if TYPE_CHECKING:
@@ -43,7 +37,7 @@ class SetFitTrainer:
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
-            from a new instance of the model as given by this function.
+            from a new instance of the model as given by this function when a `trial` is passed.
         metric (`str`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation.
         loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
@@ -109,7 +103,7 @@ class SetFitTrainer:
         """
         Validates the provided column mapping against the dataset.
         """
-        required_columns = set(["text", "label"])
+        required_columns = {"text", "label"}
         column_names = set(dataset.column_names)
         if self.column_mapping is None and not required_columns.issubset(column_names):
             raise ValueError(
@@ -146,40 +140,53 @@ class SetFitTrainer:
         )
         return dataset
 
+    def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False):
+        """Applies a dictionary of hyperparameters to both the trainer and the model
+
+        Args:
+            params (`Dict[str, Any]`): The parameters, usually from `BestRun.hyperparameters`
+            final_model (`bool`, *optional*, defaults to `False`): If `True`, replace the `model_init()` function with a fixed model based on the parameters.
+        """
+        for key, value in params.items():
+            if hasattr(self, key):
+                old_attr = getattr(self, key, None)
+                # Casting value to the proper type
+                if old_attr is not None:
+                    value = type(old_attr)(value)
+                setattr(self, key, value)
+            elif number_of_arguments(self.model_init) == 0:  # we do not warn if model_init could be using it
+                logger.warning(
+                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in "
+                    "`SetFitTrainer`, and `model_init` does not take any arguments."
+                )
+
+        self.model = self.model_init(params)
+        if final_model:
+            self.model_init = None
+
     def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]):
         """HP search setup code"""
 
         # Heavily inspired by transformers.Trainer._hp_search_setup
-        # https://github.com/huggingface/transformers/blob/cbb8a37929c3860210f95c9ec99b8b84b8cf57a1/src/transformers/trainer.py#L1163        self._trial = trial
-        self._trial = trial
-
         if self.hp_search_backend is None or trial is None:
             return
-        if self.hp_search_backend == HPSearchBackend.OPTUNA:
+
+        if isinstance(trial, Dict):  # For passing a Dict to train() -- mostly unused for now
+            params = trial
+        elif self.hp_search_backend == HPSearchBackend.OPTUNA:
             params = self.hp_space(trial)
+        else:
+            raise ValueError("Invalid trial parameter")
 
-        for key, value in params.items():
-            if not hasattr(self, key):
-                logger.warning(
-                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in"
-                    " `SetFitTrainer`."
-                )
-                continue
-            old_attr = getattr(self, key, None)
-            # Casting value to the proper type
-            if old_attr is not None:
-                value = type(old_attr)(value)
-            setattr(self, key, value)
+        logger.info(f"Trial: {params}")
+        self.apply_hyperparameters(params, final_model=False)
 
-        if self.hp_search_backend == HPSearchBackend.OPTUNA:
-            logger.info("Trial:", trial.params)
-
-    def call_model_init(self, trial=None):
+    def call_model_init(self, params: Dict[str, Any] = None):
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
         elif model_init_argcount == 1:
-            model = self.model_init(trial)
+            model = self.model_init(params)
         else:
             raise RuntimeError("model_init should have 0 or 1 argument.")
 
@@ -196,12 +203,9 @@ class SetFitTrainer:
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
         """
-        self._hp_search_setup(trial)
-        # Model re-init
-        if self.model_init is not None:
-            # Seed must be set before instantiating the model when using model_init.
-            set_seed(self.seed)
-            self.model = self.call_model_init(trial)
+        if trial:  # Trial and model initialization
+            set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
+            self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
             raise ValueError("SetFitTrainer: training requires a train_dataset.")
@@ -303,7 +307,7 @@ class SetFitTrainer:
         hp_space: Optional[Callable[["optuna.Trial"], Dict[str, float]]] = None,
         compute_objective: Optional[Callable[[Dict[str, float]], float]] = None,
         n_trials: int = 10,
-        direction: str = "minimize",
+        direction: str = "maximize",
         backend: Optional[Union["str", HPSearchBackend]] = None,
         hp_name: Optional[Callable[["optuna.Trial"], str]] = None,
         **kwargs,
@@ -326,10 +330,10 @@ class SetFitTrainer:
                 [`~trainer_utils.default_hp_space_optuna`].
             compute_objective (`Callable[[Dict[str, float]], float]`, *optional*):
                 A function computing the objective to minimize or maximize from the metrics returned by the `evaluate`
-                method. Will default to [`~trainer_utils.default_compute_objective`].
+                method. Will default to [`~trainer_utils.default_compute_objective`] which uses the sum of metrics.
             n_trials (`int`, *optional*, defaults to 100):
                 The number of trial runs to test.
-            direction (`str`, *optional*, defaults to `"minimize"`):
+            direction (`str`, *optional*, defaults to `"maximize"`):
                 Whether to optimize greater or lower objects. Can be `"minimize"` or `"maximize"`, you should pick
                 `"minimize"` when optimizing the validation loss, `"maximize"` when optimizing one or several metrics.
             backend (`str` or [`~training_utils.HPSearchBackend`], *optional*):

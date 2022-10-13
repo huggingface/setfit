@@ -7,6 +7,7 @@ from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit.modeling import SetFitModel
 from setfit.trainer import SetFitTrainer
+from setfit.utils import BestRun
 
 
 class SetFitTrainerTest(TestCase):
@@ -123,15 +124,14 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
             return {
                 "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
                 "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
+                "max_iter": trial.suggest_int("max_iter", 50, 300),
+                "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),
             }
 
-        def model_init(trial):
-            if trial is not None:
-                max_iter = trial.suggest_int("max_iter", 50, 300)
-                solver = trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"])
-            else:
-                max_iter = 100
-                solver = "liblinear"
+        def model_init(params):
+            params = params or {}
+            max_iter = params.get("max_iter", 100)
+            solver = params.get("solver", "liblinear")
             params = {
                 "head_params": {
                     "max_iter": max_iter,
@@ -150,4 +150,6 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
             model_init=model_init,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
-        trainer.hyperparameter_search(direction="minimize", hp_space=hp_space, hp_name=hp_name, n_trials=4)
+        result = trainer.hyperparameter_search(direction="minimize", hp_space=hp_space, hp_name=hp_name, n_trials=4)
+        assert isinstance(result, BestRun)
+        assert result.hyperparameters.keys() == {"learning_rate", "batch_size", "max_iter", "solver"}
