@@ -145,7 +145,7 @@ class SetFitTrainer:
 
         Args:
             params (`Dict[str, Any]`): The parameters, usually from `BestRun.hyperparameters`
-            final_model (`bool`): If True, replace the model_init function with a fixed model based on the parameters.
+            final_model (`bool`, *optional*, defaults to `False`): If `True`, replace the `model_init()` function with a fixed model based on the parameters.
         """
         for key, value in params.items():
             if hasattr(self, key):
