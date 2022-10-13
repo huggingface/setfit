@@ -140,40 +140,53 @@ class SetFitTrainer:
         )
         return dataset
 
+    def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False):
+        """Applies a dictionary of hyperparameters to both the trainer and the model
+
+        Args:
+            params (`Dict[str, Any]`): The parameters, usually from `BestRun.hyperparameters`
+            final_model (`bool`): If True, replace the model_init function with a fixed model based on the parameters.
+        """
+        for key, value in params.items():
+            if hasattr(self, key):
+                old_attr = getattr(self, key, None)
+                # Casting value to the proper type
+                if old_attr is not None:
+                    value = type(old_attr)(value)
+                setattr(self, key, value)
+            elif number_of_arguments(self.model_init) == 0:  # we do not warn if model_init could be using it
+                logger.warning(
+                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in "
+                    "`SetFitTrainer`, and `model_init` does not take any arguments."
+                )
+
+        self.model = self.model_init(params)
+        if final_model:
+            self.model_init = None
+
     def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]):
         """HP search setup code"""
 
         # Heavily inspired by transformers.Trainer._hp_search_setup
-        # https://github.com/huggingface/transformers/blob/cbb8a37929c3860210f95c9ec99b8b84b8cf57a1/src/transformers/trainer.py#L1163        self._trial = trial
-        self._trial = trial
-
         if self.hp_search_backend is None or trial is None:
             return
-        if self.hp_search_backend == HPSearchBackend.OPTUNA:
+
+        if isinstance(trial, Dict):  # For passing a Dict to train() -- mostly unused for now
+            params = trial
+        elif self.hp_search_backend == HPSearchBackend.OPTUNA:
             params = self.hp_space(trial)
+        else:
+            raise ValueError("Invalid trial parameter")
 
-        for key, value in params.items():
-            if not hasattr(self, key):
-                logger.warning(
-                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in"
-                    " `SetFitTrainer`."
-                )
-                continue
-            old_attr = getattr(self, key, None)
-            # Casting value to the proper type
-            if old_attr is not None:
-                value = type(old_attr)(value)
-            setattr(self, key, value)
+        logger.info("Trial:", params)
+        self.apply_hyperparameters(params, final_model=False)
 
-        if self.hp_search_backend == HPSearchBackend.OPTUNA:
-            logger.info("Trial:", trial.params)
-
-    def call_model_init(self, trial=None):
+    def call_model_init(self, params: Dict[str, Any] = None):
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
         elif model_init_argcount == 1:
-            model = self.model_init(trial)
+            model = self.model_init(params)
         else:
             raise RuntimeError("model_init should have 0 or 1 argument.")
 
@@ -190,12 +203,9 @@ class SetFitTrainer:
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
         """
-        self._hp_search_setup(trial)
-        # Model re-init
-        if self.model_init is not None:
-            # Seed must be set before instantiating the model when using model_init.
-            set_seed(self.seed)
-            self.model = self.call_model_init(trial)
+        if trial:  # Trial and model initialization
+            set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
+            self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
             raise ValueError("SetFitTrainer: training requires a train_dataset.")

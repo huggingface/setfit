@@ -135,7 +135,7 @@ class Benchmark:
 
 class BestRun(NamedTuple):
     """
-    The best run found by an hyperparameter search (see [`~SetFitTrainer.hyperparameter_search`]).
+    The best run found by a hyperparameter search (see [`~SetFitTrainer.hyperparameter_search`]).
 
     Parameters:
         run_id (`str`):
@@ -151,4 +151,4 @@ class BestRun(NamedTuple):
     run_id: str
     objective: float
     hyperparameters: Dict[str, Any]
-    backend: Any
+    backend: Any = None
