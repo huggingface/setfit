@@ -10,7 +10,7 @@ INTEGRATIONS_REQUIRE = ["optuna"]
 
 REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.2.2"]
 
-QUALITY_REQUIRE = ["black", "flake8", "isort"]
+QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
 TESTS_REQUIRE = ["pytest", "pytest-cov"]
 
