@@ -26,7 +26,7 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 
 setup(
     name="setfit",
-    version="0.3.0.dev0",
+    version="0.3.0",
     description=DOCLINES[0],
     long_description="\n".join(DOCLINES[2:]),
     author="SetFit",
