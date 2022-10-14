@@ -33,6 +33,46 @@ class SetFitBaseModel:
             self.model._modules["2"] = models.Normalize()
 
 
+class SetFitHead(nn.Module):
+    """
+    A SetFit head that supports binary/multi-classes logistic regression
+    for end-to-end training.
+
+    Args:
+        embedding_dim (`int`):
+            The embedding dimension from the output of the SetFit body.
+        num_targets (`int`):
+            The number of targets.
+        temperature (`float`):
+            A logits' scaling factor when using multi-targets (number of targets more than 1).
+        use_bias (`bool`, *optional*, defaults to `True`):
+            Whether to add bias to the head.
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int,
+        num_targets: int,
+        temperature: float = 1.,
+        use_bias: bool = True,
+    ) -> None:
+        super(SetFitHead, self).__init__()
+
+        self.linear = nn.Linear(embedding_dim, num_targets, bias=use_bias)
+        self.temperature = temperature
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        logits = self.linear(x)
+
+        outputs = None
+        if self.linear.weight.shape[0] == 1:  # only has one target
+            outputs = torch.sigmoid(logits)
+        else:  # multiple targets
+            outputs = nn.functional.softmax(logits / self.temperature)
+
+        return outputs
+
+
 @dataclass
 class SetFitModel(PyTorchModelHubMixin):
     """A SetFit model with integration to the Hugging Face Hub."""
