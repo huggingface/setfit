@@ -1,6 +1,7 @@
 import copy
 import os
 from dataclasses import dataclass
+from typing import Dict
 
 import joblib
 import numpy as np
@@ -33,44 +34,78 @@ class SetFitBaseModel:
             self.model._modules["2"] = models.Normalize()
 
 
-class SetFitHead(nn.Module):
+class SetFitHead(models.Dense):
     """
     A SetFit head that supports binary/multi-classes logistic regression
     for end-to-end training.
 
+    To be compatible with Sentence Transformers, we inherit `Dense` from: 
+    https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Dense.py
+
     Args:
-        embedding_dim (`int`):
+        in_features (`int`):
             The embedding dimension from the output of the SetFit body.
-        num_targets (`int`):
+        out_features (`int`):
             The number of targets.
         temperature (`float`):
-            A logits' scaling factor when using multi-targets (number of targets more than 1).
-        use_bias (`bool`, *optional*, defaults to `True`):
+            A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
+        bias (`bool`, *optional*, defaults to `True`):
             Whether to add bias to the head.
     """
-    
+
     def __init__(
         self,
-        embedding_dim: int,
-        num_targets: int,
+        in_features: int,
+        out_features: int,
         temperature: float = 1.,
-        use_bias: bool = True,
+        bias: bool = True,
     ) -> None:
         super(SetFitHead, self).__init__()
 
-        self.linear = nn.Linear(embedding_dim, num_targets, bias=use_bias)
+        self.linear = nn.Linear(in_features, out_features, bias=bias)
+        self.in_features = in_features
+        self.out_features = out_features
         self.temperature = temperature
+        self.bias = bias
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def _forward(self, x: torch.Tensor) -> torch.Tensor:
         logits = self.linear(x)
 
         outputs = None
-        if self.linear.weight.shape[0] == 1:  # only has one target
+        if self.out_features == 1:  # only has one target
             outputs = torch.sigmoid(logits)
         else:  # multiple targets
             outputs = nn.functional.softmax(logits / self.temperature)
 
         return outputs
+
+    def forward(self, features: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        features.update({
+            'sentence_embedding': self._forward(features['sentence_embedding'])
+        })
+        return features
+
+    def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
+        return self(x_test)
+
+    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
+        probs = self(x_test)
+        
+        if probs.shape[-1] == 1:
+            return torch.where(probs >= 0.5, 1, 0)
+        else:
+            return torch.argmax(probs, dim=-1)
+
+    def get_config_dict(self):
+        return {
+            'in_features': self.in_features,
+            'out_features': self.out_features,
+            'temperature': self.temperature,
+            'bias': self.bias,
+        }
+
+    def __repr__(self):
+        return "SetFitHead({})".format(self.get_config_dict())
 
 
 @dataclass
