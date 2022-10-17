@@ -1,13 +1,14 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List, Optional, Literal
 
 import joblib
 import numpy as np
 import requests
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
@@ -24,6 +25,47 @@ logger = logging.get_logger(__name__)
 MODEL_HEAD_NAME = "model_head.pkl"
 
 
+class SetFitDataset(Dataset):
+    def __init__(self, x, y, tokenizer, max_length=32):
+        self.x = x
+        self.y = y
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __len__(self):
+        return len(self.x)
+
+    def __getitem__(self, idx):
+        feature = self.tokenizer(
+            self.x[idx],
+            max_length=self.max_length,
+            padding='max_length',
+            truncation=True
+        )
+        label = self.y[idx]
+
+        return feature, label
+
+    @staticmethod
+    def collate_fn(batch):
+        features = {
+            "input_ids": [],
+            "attention_mask": [],
+            "token_type_ids": [],
+        }
+        labels = []
+        for feature, label in batch:
+            features["input_ids"].append(feature["input_ids"])
+            features["attention_mask"].append(feature["attention_mask"])
+            features["token_type_ids"].append(feature["token_type_ids"])
+            labels.append(label)
+
+        # convert to tensors
+        features = {k: torch.Tensor(v).int() for k, v in features.items()}
+        labels = torch.Tensor(labels).int()
+
+        return features, labels
+        
 class SetFitBaseModel:
     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
         self.model = SentenceTransformer(model)
@@ -120,9 +162,66 @@ class SetFitModel(PyTorchModelHubMixin):
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
 
-    def fit(self, x_train, y_train):
-        embeddings = self.model_body.encode(x_train)
-        self.model_head.fit(embeddings, y_train)
+    def fit(
+        self,
+        x_train: List[str],
+        y_train: List[int],
+        num_epochs: int,
+        batch_size: int,
+        learning_rate: float,
+        body_learning_rate: Optional[float] = None,
+        l2_weight: float = 0.,
+    ):
+        dataset = SetFitDataset(x_train, y_train, self.model_body.tokenizer)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            collate_fn=SetFitDataset.collate_fn,
+            shuffle=True,
+        )
+
+        criterion = None
+        if self.model_head.out_features == 1:  # if single target
+            criterion = torch.nn.BCELoss()
+        else:
+            criterion = torch.nn.CrossEntropyLoss()
+
+        optimizer = torch.optim.SGD(
+            [
+                {"params": self.model_body.parameters(), 'lr': body_learning_rate},
+                {"params": self.model_head.parameters(), 'weight_decay': l2_weight},
+            ],
+            lr=learning_rate,
+        )
+
+        for epoch_idx in range(num_epochs):
+            for batch in dataloader:
+                features, labels = batch
+                optimizer.zero_grad()
+
+                outputs = self.model_body(features)
+                predictions = self.model_head(outputs)
+                loss = criterion(predictions, labels)
+                loss.backward()
+                optimizer.step()
+
+    def freeze(self, component: Optional[Literal["body", "head"]] = None):
+        if component is None or component == "body":
+            self._freeze_or_not(self.model_body, to_freeze=True)
+
+        if component is None or component == "head":
+            self._freeze_or_not(self.model_body, to_freeze=True)
+
+    def unfreeze(self, component: Optional[Literal["body", "head"]] = None):
+        if component is None or component == "body":
+            self._freeze_or_not(self.model_body, to_freeze=False)
+
+        if component is None or component == "head":
+            self._freeze_or_not(self.model_body, to_freeze=False)
+
+    def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool):
+        for param in model.parameters():
+                param.requires_grad = to_freeze
 
     def predict(self, x_test):
         embeddings = self.model_body.encode(x_test)
