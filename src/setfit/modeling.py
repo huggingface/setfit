@@ -186,6 +186,7 @@ class SetFitModel(PyTorchModelHubMixin):
         else:
             criterion = torch.nn.CrossEntropyLoss()
 
+        body_learning_rate = body_learning_rate or learning_rate
         optimizer = torch.optim.SGD(
             [
                 {"params": self.model_body.parameters(), 'lr': body_learning_rate},
