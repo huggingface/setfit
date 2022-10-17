@@ -85,9 +85,9 @@ class SetFitHead(models.Dense):
     https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Dense.py
 
     Args:
-        in_features (`int`):
-            The embedding dimension from the output of the SetFit body.
-        out_features (`int`):
+        in_features (`int`, *optional*):
+            The embedding dimension from the output of the SetFit body. If ignore, will use LazyLinear.
+        out_features (`int`, default to `1`):
             The number of targets.
         temperature (`float`):
             A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
@@ -97,14 +97,19 @@ class SetFitHead(models.Dense):
 
     def __init__(
         self,
-        in_features: int,
-        out_features: int,
+        in_features: Optional[int] = None,
+        out_features: int = 1,
         temperature: float = 1.,
         bias: bool = True,
     ) -> None:
         super(SetFitHead, self).__init__()
 
-        self.linear = nn.Linear(in_features, out_features, bias=bias)
+        self.linear = None
+        if in_features is not None:
+            self.linear = nn.Linear(in_features, out_features, bias=bias)
+        else:
+            self.linear = nn.LazyLinear(out_features, bias=bias)
+
         self.in_features = in_features
         self.out_features = out_features
         self.temperature = temperature
@@ -252,6 +257,7 @@ class SetFitModel(PyTorchModelHubMixin):
         local_files_only=None,
         use_auth_token=None,
         multi_target_strategy=None,
+        use_differentiable_head=False,
         **model_kwargs,
     ):
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
@@ -281,23 +287,30 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
-            if "head_params" in model_kwargs.keys():
-                clf = LogisticRegression(**model_kwargs["head_params"])
-            else:
-                clf = LogisticRegression()
-            if multi_target_strategy is not None:
-                if multi_target_strategy == "one-vs-rest":
-                    multilabel_classifier = OneVsRestClassifier(clf)
-                elif multi_target_strategy == "multi-output":
-                    multilabel_classifier = MultiOutputClassifier(clf)
-                elif multi_target_strategy == "classifier-chain":
-                    multilabel_classifier = ClassifierChain(clf)
+            model_head = None
+            if use_differentiable_head:
+                if "head_params" in model_kwargs.keys():
+                    model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    raise ValueError(f"multi_target_strategy {multi_target_strategy} is not supported.")
-
-                model_head = multilabel_classifier
+                    model_head = SetFitModel()  # a head for single target
             else:
-                model_head = LogisticRegression()
+                if "head_params" in model_kwargs.keys():
+                    clf = LogisticRegression(**model_kwargs["head_params"])
+                else:
+                    clf = LogisticRegression()
+                if multi_target_strategy is not None:
+                    if multi_target_strategy == "one-vs-rest":
+                        multilabel_classifier = OneVsRestClassifier(clf)
+                    elif multi_target_strategy == "multi-output":
+                        multilabel_classifier = MultiOutputClassifier(clf)
+                    elif multi_target_strategy == "classifier-chain":
+                        multilabel_classifier = ClassifierChain(clf)
+                    else:
+                        raise ValueError(f"multi_target_strategy {multi_target_strategy} is not supported.")
+
+                    model_head = multilabel_classifier
+                else:
+                    model_head = LogisticRegression()
 
         return SetFitModel(model_body=model_body, model_head=model_head, multi_target_strategy=multi_target_strategy)
 

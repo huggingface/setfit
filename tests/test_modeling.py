@@ -4,7 +4,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
-from setfit import SetFitModel
+from setfit import SetFitModel, SetFitHead
 from setfit.modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
@@ -72,3 +72,11 @@ def test_setfit_multilabel_classifier_chain_classifier_model_head():
     )
 
     assert type(model.model_head) is ClassifierChain
+
+
+def test_setfit_differentiable_head():
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
+    )
+
+    assert type(model.model_head) is SetFitHead
