@@ -1,14 +1,14 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Literal, Optional
 
 import joblib
 import numpy as np
 import requests
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
@@ -36,12 +36,7 @@ class SetFitDataset(Dataset):
         return len(self.x)
 
     def __getitem__(self, idx):
-        feature = self.tokenizer(
-            self.x[idx],
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True
-        )
+        feature = self.tokenizer(self.x[idx], max_length=self.max_length, padding="max_length", truncation=True)
         label = self.y[idx]
 
         return feature, label
@@ -65,7 +60,8 @@ class SetFitDataset(Dataset):
         labels = torch.Tensor(labels).int()
 
         return features, labels
-        
+
+
 class SetFitBaseModel:
     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
         self.model = SentenceTransformer(model)
@@ -81,13 +77,13 @@ class SetFitHead(models.Dense):
     A SetFit head that supports binary/multi-classes logistic regression
     for end-to-end training.
 
-    To be compatible with Sentence Transformers, we inherit `Dense` from: 
+    To be compatible with Sentence Transformers, we inherit `Dense` from:
     https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Dense.py
 
     Args:
         in_features (`int`, *optional*):
             The embedding dimension from the output of the SetFit body. If ignore, will use LazyLinear.
-        out_features (`int`, default to `1`):
+        out_features (`int`, defaults to `1`):
             The number of targets.
         temperature (`float`):
             A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
@@ -99,10 +95,10 @@ class SetFitHead(models.Dense):
         self,
         in_features: Optional[int] = None,
         out_features: int = 1,
-        temperature: float = 1.,
+        temperature: float = 1.0,
         bias: bool = True,
     ) -> None:
-        super(SetFitHead, self).__init__()
+        super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
         self.linear = None
         if in_features is not None:
@@ -127,9 +123,7 @@ class SetFitHead(models.Dense):
         return outputs
 
     def forward(self, features: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        features.update({
-            'sentence_embedding': self._forward(features['sentence_embedding'])
-        })
+        features.update({"sentence_embedding": self._forward(features["sentence_embedding"])})
         return features
 
     def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
@@ -137,7 +131,7 @@ class SetFitHead(models.Dense):
 
     def predict(self, x_test: torch.Tensor) -> torch.Tensor:
         probs = self(x_test)
-        
+
         if probs.shape[-1] == 1:
             return torch.where(probs >= 0.5, 1, 0)
         else:
@@ -145,10 +139,10 @@ class SetFitHead(models.Dense):
 
     def get_config_dict(self):
         return {
-            'in_features': self.in_features,
-            'out_features': self.out_features,
-            'temperature': self.temperature,
-            'bias': self.bias,
+            "in_features": self.in_features,
+            "out_features": self.out_features,
+            "temperature": self.temperature,
+            "bias": self.bias,
         }
 
     def __repr__(self):
@@ -175,7 +169,7 @@ class SetFitModel(PyTorchModelHubMixin):
         batch_size: int,
         learning_rate: float,
         body_learning_rate: Optional[float] = None,
-        l2_weight: float = 0.,
+        l2_weight: float = 0.0,
     ):
         dataset = SetFitDataset(x_train, y_train, self.model_body.tokenizer)
         dataloader = DataLoader(
@@ -194,8 +188,8 @@ class SetFitModel(PyTorchModelHubMixin):
         body_learning_rate = body_learning_rate or learning_rate
         optimizer = torch.optim.SGD(
             [
-                {"params": self.model_body.parameters(), 'lr': body_learning_rate},
-                {"params": self.model_head.parameters(), 'weight_decay': l2_weight},
+                {"params": self.model_body.parameters(), "lr": body_learning_rate},
+                {"params": self.model_head.parameters(), "weight_decay": l2_weight},
             ],
             lr=learning_rate,
         )
@@ -227,7 +221,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool):
         for param in model.parameters():
-                param.requires_grad = to_freeze
+            param.requires_grad = to_freeze
 
     def predict(self, x_test):
         embeddings = self.model_body.encode(x_test)
@@ -287,12 +281,11 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
-            model_head = None
             if use_differentiable_head:
                 if "head_params" in model_kwargs.keys():
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitModel()  # a head for single target
+                    model_head = SetFitHead()  # a head for single target
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])

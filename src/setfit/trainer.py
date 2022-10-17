@@ -201,14 +201,22 @@ class SetFitTrainer:
         Freeze SetFitModel's head.
         """
         self._freeze = True  # Currently use self._freeze as a switch
-        # self.model.freeze("head")
+        self.model.freeze("head")
 
-    def unfreeze(self):
+    def unfreeze(self, keep_body_frozen: bool = False):
         """
         Unfreeze SetFitModel's head.
+
+        Args:
+            keep_body_frozen (`bool`, *optional*, defaults to `False`):
+                Whether to freeze the body when unfreeze the head.
         """
         self._freeze = False  # Currently use self._freeze as a switch
-        # self.model.unfreeze("head")
+        self.model.unfreeze("head")
+        if keep_body_frozen:
+            self.model.freeze("body")
+        else:  # ensure to unfreeze the body
+            self.model.unfreeze("body")
 
     def train(
         self,
@@ -216,9 +224,9 @@ class SetFitTrainer:
         batch_size: Optional[int] = None,
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
-        l2_weight: float = 0.,
+        l2_weight: float = 0.0,
         trial: Union["optuna.Trial", Dict[str, Any]] = None,
-    ):                                
+    ):
         """
         Main training entry point.
 
@@ -235,7 +243,7 @@ class SetFitTrainer:
             body_learning_rate (float, *optional*):
                 Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
                 If ignore, will be the same as `learning_rate`.
-            l2_weight (float, default to `0.0`):
+            l2_weight (float, defaults to `0.0`):
                 Temporary change the weight of L2 regularization for SetFitModel's head in logistic regression.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
@@ -302,7 +310,9 @@ class SetFitTrainer:
                             np.array(x_train), np.array(y_train), train_examples
                         )
                     else:
-                        train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+                        train_examples = sentence_pairs_generation(
+                            np.array(x_train), np.array(y_train), train_examples
+                        )
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)

@@ -4,7 +4,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
-from setfit import SetFitModel, SetFitHead
+from setfit import SetFitHead, SetFitModel
 from setfit.modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
