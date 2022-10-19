@@ -8,12 +8,12 @@ import numpy as np
 import requests
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
+from torch.utils.data import DataLoader, Dataset
 
 from . import logging
 
@@ -57,7 +57,7 @@ class SetFitDataset(Dataset):
 
         # convert to tensors
         features = {k: torch.Tensor(v).int() for k, v in features.items()}
-        labels = torch.Tensor(labels).int()
+        labels = torch.Tensor(labels).long()
 
         return features, labels
 
@@ -123,19 +123,28 @@ class SetFitHead(models.Dense):
         return outputs
 
     def forward(self, features: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        features.update({"sentence_embedding": self._forward(features["sentence_embedding"])})
+        features.update({"prediction": self._forward(features["sentence_embedding"])})
         return features
 
     def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
+        self.eval()
+
         return self(x_test)
 
     def predict(self, x_test: torch.Tensor) -> torch.Tensor:
-        probs = self(x_test)
+        self.eval()
 
+        probs = self(x_test)
         if probs.shape[-1] == 1:
             return torch.where(probs >= 0.5, 1, 0)
         else:
             return torch.argmax(probs, dim=-1)
+
+    def get_loss_fn(self):
+        if self.out_features == 1:  # if single target
+            return torch.nn.BCELoss()
+        else:
+            return torch.nn.CrossEntropyLoss()
 
     def get_config_dict(self):
         return {
@@ -157,6 +166,7 @@ class SetFitModel(PyTorchModelHubMixin):
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
+
         self.multi_target_strategy = multi_target_strategy
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
@@ -165,26 +175,51 @@ class SetFitModel(PyTorchModelHubMixin):
         self,
         x_train: List[str],
         y_train: List[int],
-        num_epochs: int,
-        batch_size: int,
-        learning_rate: float,
+        num_epochs: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
-        l2_weight: float = 0.0,
+        l2_weight: Optional[float] = None,
     ):
+        if isinstance(self.model_head, nn.Module):  # train with pyTorch
+            self.model_body.train()
+            self.model_head.train()
+
+            dataloader = self._prepare_dataloader(x_train, y_train, batch_size)
+            criterion = self.model_head.get_loss_fn()
+            optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
+
+            for epoch_idx in range(num_epochs):
+                for batch in dataloader:
+                    features, labels = batch
+                    optimizer.zero_grad()
+
+                    outputs = self.model_body(features)
+                    predictions = self.model_head._forward(outputs["sentence_embedding"])
+                    loss = criterion(predictions, labels)
+                    loss.backward()
+                    optimizer.step()
+        else:  # train with sklean
+            embeddings = self.model_body.encode(x_train)
+            self.model_head.fit(embeddings, y_train)
+
+    def _prepare_dataloader(self, x_train: List[str], y_train: List[int], batch_size: int, shuffle: bool = True):
         dataset = SetFitDataset(x_train, y_train, self.model_body.tokenizer)
         dataloader = DataLoader(
             dataset,
             batch_size=batch_size,
             collate_fn=SetFitDataset.collate_fn,
-            shuffle=True,
+            shuffle=shuffle,
         )
 
-        criterion = None
-        if self.model_head.out_features == 1:  # if single target
-            criterion = torch.nn.BCELoss()
-        else:
-            criterion = torch.nn.CrossEntropyLoss()
+        return dataloader
 
+    def _prepare_optimizer(
+        self,
+        learning_rate: float,
+        body_learning_rate: Optional[float],
+        l2_weight: float,
+    ):
         body_learning_rate = body_learning_rate or learning_rate
         optimizer = torch.optim.SGD(
             [
@@ -194,34 +229,25 @@ class SetFitModel(PyTorchModelHubMixin):
             lr=learning_rate,
         )
 
-        for epoch_idx in range(num_epochs):
-            for batch in dataloader:
-                features, labels = batch
-                optimizer.zero_grad()
-
-                outputs = self.model_body(features)
-                predictions = self.model_head(outputs)
-                loss = criterion(predictions, labels)
-                loss.backward()
-                optimizer.step()
+        return optimizer
 
     def freeze(self, component: Optional[Literal["body", "head"]] = None):
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=True)
 
         if component is None or component == "head":
-            self._freeze_or_not(self.model_body, to_freeze=True)
+            self._freeze_or_not(self.model_head, to_freeze=True)
 
     def unfreeze(self, component: Optional[Literal["body", "head"]] = None):
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=False)
 
         if component is None or component == "head":
-            self._freeze_or_not(self.model_body, to_freeze=False)
+            self._freeze_or_not(self.model_head, to_freeze=False)
 
     def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool):
         for param in model.parameters():
-            param.requires_grad = to_freeze
+            param.requires_grad = not to_freeze
 
     def predict(self, x_test):
         embeddings = self.model_body.encode(x_test)
@@ -282,10 +308,12 @@ class SetFitModel(PyTorchModelHubMixin):
             model_head = joblib.load(model_head_file)
         else:
             if use_differentiable_head:
+                body_embedding_dim = model_body.get_sentence_embedding_dimension()
                 if "head_params" in model_kwargs.keys():
+                    model_kwargs["head_params"].update({"in_features": body_embedding_dim})
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitHead()  # a head for single target
+                    model_head = SetFitHead(in_features=body_embedding_dim)  # a head for single target
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])

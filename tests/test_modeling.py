@@ -1,4 +1,6 @@
 import numpy as np
+import pytest
+from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
@@ -6,6 +8,41 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel
 from setfit.modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
+
+
+@pytest.fixture(scope="module")
+def one_step_setfit_model():
+    dataset = load_dataset("sst2")
+    num_classes = 2
+    train_dataset = dataset["train"].shuffle(seed=42).select(range(2 * num_classes))
+    x_train, y_train = train_dataset["sentence"], train_dataset["label"]
+
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2",
+        use_differentiable_head=True,
+        head_params={"out_features": num_classes},
+    )
+    model.unfreeze()  # unfreeze the model body and head
+
+    # run one step
+    model.model_body.train()
+    model.model_head.train()
+
+    dataloader = model._prepare_dataloader(x_train, y_train, batch_size=2 * num_classes)
+    criterion = model.model_head.get_loss_fn()
+    optimizer = model._prepare_optimizer(2e-4, None, 0.1)
+
+    batch = next(iter(dataloader))
+    features, labels = batch
+    optimizer.zero_grad()
+
+    outputs = model.model_body(features)
+    predictions = model.model_head._forward(outputs["sentence_embedding"])
+    loss = criterion(predictions, labels)
+    loss.backward()
+    optimizer.step()
+
+    return model, predictions
 
 
 def test_sentence_pairs_generation():
@@ -74,9 +111,47 @@ def test_setfit_multilabel_classifier_chain_classifier_model_head():
     assert type(model.model_head) is ClassifierChain
 
 
-def test_setfit_differentiable_head():
+def test_setfit_single_target_differentiable_head():
     model = SetFitModel.from_pretrained(
         "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
     )
 
     assert type(model.model_head) is SetFitHead
+    assert model.model_head.out_features == 1
+
+
+def test_setfit_multi_targets_differentiable_head():
+    out_features = 10
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2",
+        use_differentiable_head=True,
+        head_params={"out_features": out_features},
+    )
+
+    assert type(model.model_head) is SetFitHead
+    assert model.model_head.out_features == out_features
+
+
+def test_setfit_model_forward(one_step_setfit_model):
+    # Already ran the model's forward in the fixture, so do simple testing here.
+    assert type(one_step_setfit_model[0]) is SetFitModel
+
+
+def test_setfit_model_backward(one_step_setfit_model):
+    one_step_setfit_model, outputs = one_step_setfit_model
+    # check the model head's gradients
+    for name, param in one_step_setfit_model.model_head.named_parameters():
+        assert param.grad is not None, f"Gradients of {name} in the model head is None."
+        assert not (param.grad == 0).all().item(), f"All gradients of {name} in the model head are zeros."
+        assert not param.grad.isnan().any().item(), f"Gradients of {name} in the model head have NaN."
+        assert not param.grad.isinf().any().item(), f"Gradients of {name} in the model head have Inf."
+
+    # check the model body's gradients
+    for name, param in one_step_setfit_model.model_body.named_parameters():
+        if "0.auto_model.pooler" in name:  # ignore pooler
+            continue
+
+        assert param.grad is not None, f"Gradients of {name} in the model body is None. {outputs}"
+        assert not (param.grad == 0).all().item(), f"All gradients of {name} in the model body are zeros."
+        assert not param.grad.isnan().any().item(), f"Gradients of {name} in the model body have NaN."
+        assert not param.grad.isinf().any().item(), f"Gradients of {name} in the model body have Inf."

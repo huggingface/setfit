@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
+import torch
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -224,7 +225,7 @@ class SetFitTrainer:
         batch_size: Optional[int] = None,
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
-        l2_weight: float = 0.0,
+        l2_weight: Optional[float] = None,
         trial: Union["optuna.Trial", Dict[str, Any]] = None,
     ):
         """
@@ -243,8 +244,8 @@ class SetFitTrainer:
             body_learning_rate (float, *optional*):
                 Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
                 If ignore, will be the same as `learning_rate`.
-            l2_weight (float, defaults to `0.0`):
-                Temporary change the weight of L2 regularization for SetFitModel's head in logistic regression.
+            l2_weight (float, *optional*):
+                Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
         """
@@ -270,8 +271,9 @@ class SetFitTrainer:
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
         batch_size = batch_size or self.batch_size
+        is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
-        if not self._freeze:
+        if not is_differentiable_head or not self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
                 losses.BatchAllTripletLoss,
@@ -333,7 +335,8 @@ class SetFitTrainer:
                 warmup_steps=warmup_steps,
                 show_progress_bar=True,
             )
-        else:
+
+        if not is_differentiable_head or self._freeze:
             # Train the final classifier
             self.model.fit(
                 x_train,
