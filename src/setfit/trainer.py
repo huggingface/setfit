@@ -99,7 +99,7 @@ class SetFitTrainer:
 
         self.model = model
         self.hp_search_backend = None
-        self._freeze = False  # If False, will train the body only; otherwise, train the body and head
+        self._freeze = True  # If True, will train the body only; otherwise, train the body and head
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
@@ -199,14 +199,16 @@ class SetFitTrainer:
 
     def freeze(self):
         """
-        Freeze SetFitModel's head.
+        Freeze SetFitModel's differentiable head.
+        Note: call this function only when using the differentiable head.
         """
         self._freeze = True  # Currently use self._freeze as a switch
         self.model.freeze("head")
 
     def unfreeze(self, keep_body_frozen: bool = False):
         """
-        Unfreeze SetFitModel's head.
+        Unfreeze SetFitModel's differentiable head.
+        Note: call this function only when using the differentiable head.
 
         Args:
             keep_body_frozen (`bool`, *optional*, defaults to `False`):
@@ -273,7 +275,7 @@ class SetFitTrainer:
         batch_size = batch_size or self.batch_size
         is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
-        if not is_differentiable_head or not self._freeze:
+        if not is_differentiable_head or self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
                 losses.BatchAllTripletLoss,
@@ -336,7 +338,7 @@ class SetFitTrainer:
                 show_progress_bar=True,
             )
 
-        if not is_differentiable_head or self._freeze:
+        if not is_differentiable_head or not self._freeze:
             # Train the final classifier
             self.model.fit(
                 x_train,
