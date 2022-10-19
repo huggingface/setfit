@@ -204,7 +204,12 @@ class SetFitModel(PyTorchModelHubMixin):
             self.model_head.fit(embeddings, y_train)
 
     def _prepare_dataloader(self, x_train: List[str], y_train: List[int], batch_size: int, shuffle: bool = True):
-        dataset = SetFitDataset(x_train, y_train, self.model_body.tokenizer)
+        dataset = SetFitDataset(
+            x_train,
+            y_train,
+            tokenizer=self.model_body.tokenizer,
+            max_length=self.model_body.get_max_seq_length(),
+        )
         dataloader = DataLoader(
             dataset,
             batch_size=batch_size,
