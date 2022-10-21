@@ -5,7 +5,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitModel
-from setfit.modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
+from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
 def test_sentence_pairs_generation():
@@ -72,3 +72,23 @@ def test_setfit_multilabel_classifier_chain_classifier_model_head():
     )
 
     assert type(model.model_head) is ClassifierChain
+
+
+def test_setfit_from_pretrained_local_model_without_head(tmp_path):
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    model.save_pretrained(str(tmp_path.absolute()))
+
+    (tmp_path / MODEL_HEAD_NAME).unlink()  # Delete head
+
+    model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
+
+    assert isinstance(model, SetFitModel)
+
+
+def test_setfit_from_pretrained_local_model_with_head(tmp_path):
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    model.save_pretrained(str(tmp_path.absolute()))
+
+    model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
+
+    assert isinstance(model, SetFitModel)
