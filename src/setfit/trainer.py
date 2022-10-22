@@ -202,6 +202,9 @@ class SetFitTrainer:
         Freeze SetFitModel's differentiable head.
         Note: call this function only when using the differentiable head.
         """
+        if not isinstance(self.model.model_head, torch.nn.Module):
+            raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
+
         self._freeze = True  # Currently use self._freeze as a switch
         self.model.freeze("head")
 
@@ -214,6 +217,9 @@ class SetFitTrainer:
             keep_body_frozen (`bool`, *optional*, defaults to `False`):
                 Whether to freeze the body when unfreeze the head.
         """
+        if not isinstance(self.model.model_head, torch.nn.Module):
+            raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
+
         self._freeze = False  # Currently use self._freeze as a switch
         self.model.unfreeze("head")
         if keep_body_frozen:
