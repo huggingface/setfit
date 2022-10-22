@@ -74,7 +74,7 @@ class SetFitBaseModel:
 
 class SetFitHead(models.Dense):
     """
-    A SetFit head that supports binary/multi-classes logistic regression
+    A SetFit head that supports binary and multi-class classification
     for end-to-end training.
 
     To be compatible with Sentence Transformers, we inherit `Dense` from:
