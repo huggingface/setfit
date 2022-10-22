@@ -1,7 +1,7 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union
 
 import joblib
 import numpy as np
@@ -18,24 +18,36 @@ from torch.utils.data import DataLoader, Dataset
 from . import logging
 
 
+if TYPE_CHECKING:
+    from transformers import PreTrainedTokenizerBase
+
+
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
-
+TokenizerOutput = Dict[str, List[int]]
 MODEL_HEAD_NAME = "model_head.pkl"
 
 
 class SetFitDataset(Dataset):
-    def __init__(self, x, y, tokenizer, max_length=32):
+    def __init__(
+        self,
+        x: List[str],
+        y: List[int],
+        tokenizer: "PreTrainedTokenizerBase",
+        max_length: int = 32,
+    ) -> None:
+        assert len(x) == len(y)
+
         self.x = x
         self.y = y
         self.tokenizer = tokenizer
         self.max_length = max_length
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.x)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
         feature = self.tokenizer(self.x[idx], max_length=self.max_length, padding="max_length", truncation=True)
         label = self.y[idx]
 
@@ -112,8 +124,7 @@ class SetFitHead(models.Dense):
         self.bias = bias
 
     def forward(
-        self,
-        features: Union[Dict[str, torch.Tensor], torch.Tensor]
+        self, features: Union[Dict[str, torch.Tensor], torch.Tensor]
     ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """
         SetFitHead can accept embeddings in:
@@ -122,10 +133,10 @@ class SetFitHead(models.Dense):
 
         Args:
             features (`Dict[str, torch.Tensor]` or `torch.Tensor):
-                The embeddings from the encoder. If using `dict` format, 
+                The embeddings from the encoder. If using `dict` format,
                 make sure to store embeddings under the key: 'sentence_embedding'
                 and the outputs will be under the key: 'prediction'.
-        
+
         Returns:
         [`Dict[str, torch.Tensor]` or `torch.Tensor`]
         """
@@ -167,7 +178,7 @@ class SetFitHead(models.Dense):
         else:
             return torch.nn.CrossEntropyLoss()
 
-    def get_config_dict(self):
+    def get_config_dict(self) -> Dict[str, Union[int, float, bool]]:
         return {
             "in_features": self.in_features,
             "out_features": self.out_features,
@@ -183,7 +194,12 @@ class SetFitHead(models.Dense):
 class SetFitModel(PyTorchModelHubMixin):
     """A SetFit model with integration to the Hugging Face Hub."""
 
-    def __init__(self, model_body=None, model_head=None, multi_target_strategy=None):
+    def __init__(
+        self,
+        model_body: Optional[nn.Module] = None,
+        model_head: Optional[Union[nn.Module, LogisticRegression]] = None,
+        multi_target_strategy: str = None,
+    ) -> None:
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
@@ -201,7 +217,7 @@ class SetFitModel(PyTorchModelHubMixin):
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
-    ):
+    ) -> None:
         if isinstance(self.model_head, nn.Module):  # train with pyTorch
             self.model_body.train()
             self.model_head.train()
@@ -225,7 +241,9 @@ class SetFitModel(PyTorchModelHubMixin):
             embeddings = self.model_body.encode(x_train)
             self.model_head.fit(embeddings, y_train)
 
-    def _prepare_dataloader(self, x_train: List[str], y_train: List[int], batch_size: int, shuffle: bool = True):
+    def _prepare_dataloader(
+        self, x_train: List[str], y_train: List[int], batch_size: int, shuffle: bool = True
+    ) -> DataLoader:
         dataset = SetFitDataset(
             x_train,
             y_train,
@@ -246,7 +264,7 @@ class SetFitModel(PyTorchModelHubMixin):
         learning_rate: float,
         body_learning_rate: Optional[float],
         l2_weight: float,
-    ):
+    ) -> torch.optim.Optimizer:
         body_learning_rate = body_learning_rate or learning_rate
         optimizer = torch.optim.SGD(
             [
@@ -258,37 +276,37 @@ class SetFitModel(PyTorchModelHubMixin):
 
         return optimizer
 
-    def freeze(self, component: Optional[Literal["body", "head"]] = None):
+    def freeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=True)
 
         if component is None or component == "head":
             self._freeze_or_not(self.model_head, to_freeze=True)
 
-    def unfreeze(self, component: Optional[Literal["body", "head"]] = None):
+    def unfreeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=False)
 
         if component is None or component == "head":
             self._freeze_or_not(self.model_head, to_freeze=False)
 
-    def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool):
+    def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool) -> None:
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def predict(self, x_test):
+    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
         embeddings = self.model_body.encode(x_test)
         return self.model_head.predict(embeddings)
 
-    def predict_proba(self, x_test):
+    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
         embeddings = self.model_body.encode(x_test)
         return self.model_head.predict_proba(embeddings)
 
-    def __call__(self, inputs):
+    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
         embeddings = self.model_body.encode(inputs)
         return self.model_head.predict(embeddings)
 
-    def _save_pretrained(self, save_directory):
+    def _save_pretrained(self, save_directory: str) -> None:
         self.model_body.save(path=save_directory)
         joblib.dump(self.model_head, f"{save_directory}/{MODEL_HEAD_NAME}")
 
@@ -296,17 +314,17 @@ class SetFitModel(PyTorchModelHubMixin):
     def _from_pretrained(
         cls,
         model_id: str,
-        revision=None,
-        cache_dir=None,
-        force_download=None,
-        proxies=None,
-        resume_download=None,
-        local_files_only=None,
-        use_auth_token=None,
-        multi_target_strategy=None,
-        use_differentiable_head=False,
+        revision: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+        force_download: Optional[bool] = None,
+        proxies: Optional[Dict] = None,
+        resume_download: Optional[bool] = None,
+        local_files_only: Optional[bool] = None,
+        use_auth_token: Optional[Union[bool, str]] = None,
+        multi_target_strategy: Optional[str] = None,
+        use_differentiable_head: bool = False,
         **model_kwargs,
-    ):
+    ) -> "SetFitModel":
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
 
         if os.path.isdir(model_id) and MODEL_HEAD_NAME in os.listdir(model_id):
