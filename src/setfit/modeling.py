@@ -1,7 +1,7 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Union
 
 import joblib
 import numpy as np
@@ -111,20 +111,41 @@ class SetFitHead(models.Dense):
         self.temperature = temperature
         self.bias = bias
 
-    def _forward(self, x: torch.Tensor) -> torch.Tensor:
-        logits = self.linear(x)
+    def forward(
+        self,
+        features: Union[Dict[str, torch.Tensor], torch.Tensor]
+    ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
+        """
+        SetFitHead can accept embeddings in:
+        1. Output format (`dict`) from Sentence-Transformers.
+        2. Pure `torch.Tensor`.
 
-        outputs = None
+        Args:
+            features (`Dict[str, torch.Tensor]` or `torch.Tensor):
+                The embeddings from the encoder. If using `dict` format, 
+                make sure to store embeddings under the key: 'sentence_embedding'
+                and the outputs will be under the key: 'prediction'.
+        
+        Returns:
+        [`Dict[str, torch.Tensor]` or `torch.Tensor`]
+        """
+        is_dict = False  # whether `features` is dict or not
+        if isinstance(features, dict):
+            assert "sentence_embedding" in features
+            is_dict = True
+
+        x = features["sentence_embedding"] if is_dict else features
+        logits = self.linear(x)
         if self.out_features == 1:  # only has one target
             outputs = torch.sigmoid(logits)
         else:  # multiple targets
             outputs = nn.functional.softmax(logits / self.temperature)
 
-        return outputs
+        if is_dict:
+            features.update({"prediction": outputs})
+            return features
 
-    def forward(self, features: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        features.update({"prediction": self._forward(features["sentence_embedding"])})
-        return features
+        return outputs
 
     def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
@@ -195,7 +216,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     optimizer.zero_grad()
 
                     outputs = self.model_body(features)
-                    predictions = self.model_head._forward(outputs["sentence_embedding"])
+                    outputs = self.model_head(outputs)
+                    predictions = outputs["prediction"]
                     loss = criterion(predictions, labels)
                     loss.backward()
                     optimizer.step()

@@ -37,7 +37,7 @@ def one_step_setfit_model():
     optimizer.zero_grad()
 
     outputs = model.model_body(features)
-    predictions = model.model_head._forward(outputs["sentence_embedding"])
+    predictions = model.model_head.forward(outputs["sentence_embedding"])
     loss = criterion(predictions, labels)
     loss.backward()
     optimizer.step()
