@@ -82,7 +82,7 @@ class SetFitHead(models.Dense):
 
     Args:
         in_features (`int`, *optional*):
-            The embedding dimension from the output of the SetFit body. If ignore, will use LazyLinear.
+            The embedding dimension from the output of the SetFit body. If`None`, defaults to `LazyLinear`.
         out_features (`int`, defaults to `1`):
             The number of targets.
         temperature (`float`):
