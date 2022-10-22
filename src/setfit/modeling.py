@@ -35,7 +35,7 @@ class SetFitDataset(Dataset):
     def __len__(self):
         return len(self.x)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         feature = self.tokenizer(self.x[idx], max_length=self.max_length, padding="max_length", truncation=True)
         label = self.y[idx]
 
