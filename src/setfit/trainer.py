@@ -269,9 +269,9 @@ class SetFitTrainer:
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
             train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
-
         if self.loss_class is None:
             return
 
@@ -330,7 +330,7 @@ class SetFitTrainer:
 
             logger.info("***** Running training *****")
             logger.info(f"  Num examples = {len(train_examples)}")
-            logger.info(f"  Num epochs = {self.num_epochs}")
+            logger.info(f"  Num epochs = {num_epochs}")
             logger.info(f"  Total optimization steps = {train_steps}")
             logger.info(f"  Total train batch size = {batch_size}")
 
@@ -354,6 +354,7 @@ class SetFitTrainer:
                 learning_rate=learning_rate,
                 body_learning_rate=body_learning_rate,
                 l2_weight=l2_weight,
+                show_progress_bar=True,
             )
 
     def evaluate(self):

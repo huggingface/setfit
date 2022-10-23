@@ -14,6 +14,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 from . import logging
 
@@ -150,7 +151,7 @@ class SetFitHead(models.Dense):
         if self.out_features == 1:  # only has one target
             outputs = torch.sigmoid(logits)
         else:  # multiple targets
-            outputs = nn.functional.softmax(logits / self.temperature)
+            outputs = nn.functional.softmax(logits / self.temperature, dim=-1)
 
         if is_dict:
             features.update({"prediction": outputs})
@@ -199,12 +200,14 @@ class SetFitModel(PyTorchModelHubMixin):
         model_body: Optional[nn.Module] = None,
         model_head: Optional[Union[nn.Module, LogisticRegression]] = None,
         multi_target_strategy: str = None,
+        l2_weight: float = 1e-2,
     ) -> None:
         super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
 
         self.multi_target_strategy = multi_target_strategy
+        self.l2_weight = l2_weight
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
 
@@ -217,6 +220,7 @@ class SetFitModel(PyTorchModelHubMixin):
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
+        show_progress_bar: Optional[bool] = None,
     ) -> None:
         if isinstance(self.model_head, nn.Module):  # train with pyTorch
             self.model_body.train()
@@ -226,14 +230,15 @@ class SetFitModel(PyTorchModelHubMixin):
             criterion = self.model_head.get_loss_fn()
             optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
 
-            for epoch_idx in range(num_epochs):
-                for batch in dataloader:
+            for epoch_idx in tqdm(range(num_epochs), desc="Epoch", disable=not show_progress_bar):
+                for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar):
                     features, labels = batch
                     optimizer.zero_grad()
 
                     outputs = self.model_body(features)
                     outputs = self.model_head(outputs)
                     predictions = outputs["prediction"]
+
                     loss = criterion(predictions, labels)
                     loss.backward()
                     optimizer.step()
@@ -266,12 +271,12 @@ class SetFitModel(PyTorchModelHubMixin):
         l2_weight: float,
     ) -> torch.optim.Optimizer:
         body_learning_rate = body_learning_rate or learning_rate
-        optimizer = torch.optim.SGD(
+        l2_weight = l2_weight or self.l2_weight
+        optimizer = torch.optim.AdamW(
             [
-                {"params": self.model_body.parameters(), "lr": body_learning_rate},
-                {"params": self.model_head.parameters(), "weight_decay": l2_weight},
+                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": self.l2_weight},
+                {"params": self.model_head.parameters(), "lr": learning_rate, "weight_decay": l2_weight},
             ],
-            lr=learning_rate,
         )
 
         return optimizer
