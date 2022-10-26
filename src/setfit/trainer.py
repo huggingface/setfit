@@ -285,22 +285,31 @@ class SetFitTrainer:
         # Train the final classifier
         self.model.fit(x_train, y_train)
 
-    def evaluate(self):
-        """Computes the metrics for a given classifier."""
+    def evaluate(self, **kwargs):
+        """
+        Computes the metrics for a given classifier.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to the `evaluate` method of the classifier.
+        """
+
         self._validate_column_mapping(self.eval_dataset)
         eval_dataset = self.eval_dataset
+
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
             eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
+
         metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
         metric_fn = evaluate.load(self.metric, config_name=metric_config)
+
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
 
-        return metric_fn.compute(predictions=y_pred, references=y_test)
+        return metric_fn.compute(predictions=y_pred, references=y_test, **kwargs)
 
     def hyperparameter_search(
         self,
