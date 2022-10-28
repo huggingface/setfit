@@ -18,6 +18,14 @@ limitations under the License.
 
 You can find here a list of notebooks covering various applications of SetFit. If you would like to contribute a notebook, please open a Pull Request so it can be included!
 
+**Note:** On Kaggle, there is an issue with running `setfit` alongside the pre-installed version of `tensorflow`. To handle that, run 
+
+```
+%pip uninstall tensorflow -y
+```
+
+in the first cell of the notebook.
+
 <!--This table is automatically generated, do not fill manually!-->
 
 
