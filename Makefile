@@ -17,3 +17,36 @@ test:
 
 coverage:
 	python -m pytest --cov=src --cov-report=term-missing -sv tests/
+
+# Release stuff
+
+pre-release:
+	python utils/release.py
+
+pre-patch:
+	python utils/release.py --patch
+
+post-release:
+	python utils/release.py --post_release
+
+post-patch:
+	python utils/release.py --post_release --patch
+
+wheels:
+	python setup.py bdist_wheel && python setup.py sdist
+
+wheels_clean:
+	rm -rf build && rm -rf dist
+
+pypi_upload:
+	python -m pip install twine
+	twine upload dist/* -r pypi
+
+pypi_test_upload:
+	twine upload dist/* -r pypitest --repository-url=https://test.pypi.org/legacy/
+
+pypi_test_install:
+	python -m pip install datasets==2.3.2 sentence_transformers==2.2.2
+	python -m pip install -i https://testpypi.python.org/pypi setfit
+	python -c "from setfit import *"
+	echo "🚀 Successfully installed setfit from test.pypi.org"

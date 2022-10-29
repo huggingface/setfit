@@ -358,8 +358,16 @@ class SetFitModel(PyTorchModelHubMixin):
     ) -> "SetFitModel":
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
 
-        if os.path.isdir(model_id) and MODEL_HEAD_NAME in os.listdir(model_id):
-            model_head_file = os.path.join(model_id, MODEL_HEAD_NAME)
+        if os.path.isdir(model_id):
+            if MODEL_HEAD_NAME in os.listdir(model_id):
+                model_head_file = os.path.join(model_id, MODEL_HEAD_NAME)
+            else:
+                logger.info(
+                    f"{MODEL_HEAD_NAME} not found in {Path(model_id).resolve()},"
+                    " initialising classification head with random weights."
+                    " You should TRAIN this model on a downstream task to use it for predictions and inference."
+                )
+                model_head_file = None
         else:
             try:
                 model_head_file = hf_hub_download(
