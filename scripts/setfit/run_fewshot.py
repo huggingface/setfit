@@ -105,7 +105,14 @@ def main():
                 continue
 
             # Load model
-            model = SetFitModel.from_pretrained(args.model)
+            if args.classifier == "pytorch":
+                model = SetFitModel.from_pretrained(
+                    args.model,
+                    use_differentiable_head=True,
+                    head_params={"out_features": len(set(train_data["label"]))},
+                )
+            else:
+                model = SetFitModel.from_pretrained(args.model)
             model.model_body.max_seq_length = args.max_seq_length
             if args.add_normalization_layer:
                 model.model_body._modules["2"] = models.Normalize()
@@ -121,7 +128,19 @@ def main():
                 num_epochs=args.num_epochs,
                 num_iterations=args.num_iterations,
             )
-            trainer.train()
+            if args.classifier == "pytorch":
+                trainer.freeze()
+                trainer.train()
+                trainer.unfreeze(keep_body_frozen=True)
+                trainer.train(
+                    num_epochs=50,
+                    body_learning_rate=5e-4,
+                    learning_rate=1e-2,
+                    l2_weight=0.,
+                    batch_size=16,
+                )
+            else:
+                trainer.train()
 
             # Evaluate the model on the test data
             metrics = trainer.evaluate()

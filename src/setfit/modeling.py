@@ -49,7 +49,14 @@ class SetFitDataset(Dataset):
         return len(self.x)
 
     def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
-        feature = self.tokenizer(self.x[idx], max_length=self.max_length, padding="max_length", truncation=True)
+        feature = self.tokenizer(
+            self.x[idx],
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            return_token_type_ids=True,
+        )
         label = self.y[idx]
 
         return feature, label
@@ -123,6 +130,8 @@ class SetFitHead(models.Dense):
         self.out_features = out_features
         self.temperature = temperature
         self.bias = bias
+        
+        self.apply(self._init_weight)
 
     def forward(
         self, features: Union[Dict[str, torch.Tensor], torch.Tensor]
@@ -161,17 +170,25 @@ class SetFitHead(models.Dense):
 
     def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
-
+        
         return self(x_test)
 
     def predict(self, x_test: torch.Tensor) -> torch.Tensor:
-        self.eval()
+        is_tensor = isinstance(x_test, torch.Tensor)
+        if not is_tensor:
+            x_test = torch.Tensor(x_test)
 
-        probs = self(x_test)
-        if probs.shape[-1] == 1:
-            return torch.where(probs >= 0.5, 1, 0)
+        probs = self.predict_prob(x_test)
+
+        if self.out_features == 1:
+            out = torch.where(probs >= 0.5, 1, 0)
         else:
-            return torch.argmax(probs, dim=-1)
+            out = torch.argmax(probs, dim=-1)
+
+        if not is_tensor:
+            return out.numpy()
+
+        return out
 
     def get_loss_fn(self):
         if self.out_features == 1:  # if single target
@@ -186,6 +203,13 @@ class SetFitHead(models.Dense):
             "temperature": self.temperature,
             "bias": self.bias,
         }
+
+    @staticmethod
+    def _init_weight(module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.xavier_uniform_(module.weight)
+            if module.bias is not None:
+                torch.nn.init.constant_(module.bias, 1e-2)
 
     def __repr__(self):
         return "SetFitHead({})".format(self.get_config_dict())
@@ -229,7 +253,7 @@ class SetFitModel(PyTorchModelHubMixin):
             dataloader = self._prepare_dataloader(x_train, y_train, batch_size)
             criterion = self.model_head.get_loss_fn()
             optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
-
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
             for epoch_idx in tqdm(range(num_epochs), desc="Epoch", disable=not show_progress_bar):
                 for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar):
                     features, labels = batch
@@ -242,6 +266,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     loss = criterion(predictions, labels)
                     loss.backward()
                     optimizer.step()
+
+                scheduler.step()
         else:  # train with sklean
             embeddings = self.model_body.encode(x_train)
             self.model_head.fit(embeddings, y_train)
@@ -274,7 +300,7 @@ class SetFitModel(PyTorchModelHubMixin):
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
-                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": self.l2_weight},
+                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": l2_weight},
                 {"params": self.model_head.parameters(), "lr": learning_rate, "weight_decay": l2_weight},
             ],
         )
