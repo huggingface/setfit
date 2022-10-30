@@ -15,6 +15,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
+from pathlib import Path
 
 from . import logging
 
@@ -103,13 +104,15 @@ class SetFitHead(models.Dense):
 
     Args:
         in_features (`int`, *optional*):
-            The embedding dimension from the output of the SetFit body. If`None`, defaults to `LazyLinear`.
+            The embedding dimension from the output of the SetFit body. If `None`, defaults to `LazyLinear`.
         out_features (`int`, defaults to `1`):
             The number of targets.
         temperature (`float`):
             A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
         bias (`bool`, *optional*, defaults to `True`):
             Whether to add bias to the head.
+        device (`torch.device`, str, *optional*):
+            The device the model will be sent to. If `None`, will check whether GPU is available.
     """
 
     def __init__(
@@ -118,7 +121,7 @@ class SetFitHead(models.Dense):
         out_features: int = 1,
         temperature: float = 1.0,
         bias: bool = True,
-        device: Union[torch.device, str] = "cpu",
+        device: Optional[Union[torch.device, str]] = None,
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
@@ -132,7 +135,7 @@ class SetFitHead(models.Dense):
         self.out_features = out_features
         self.temperature = temperature
         self.bias = bias
-        self.device = device
+        self.device = device or "cuda" if torch.cuda.is_available() else "cpu"
 
         self.to(device)
         self.apply(self._init_weight)
@@ -403,12 +406,13 @@ class SetFitModel(PyTorchModelHubMixin):
         else:
             if use_differentiable_head:
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
+                device = model_body._target_device
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})
-                    model_kwargs["head_params"].update({"device": model_body.device})  # follow the model head
+                    model_kwargs["head_params"].update({"device": device})  # follow the model head
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitHead(in_features=body_embedding_dim, device=model_body.device)  # a head for single target
+                    model_head = SetFitHead(in_features=body_embedding_dim, device=device)  # a head for single target
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])
