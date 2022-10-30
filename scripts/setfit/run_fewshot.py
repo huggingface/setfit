@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument("--is_dev_set", type=bool, default=False)
     parser.add_argument("--is_test_set", type=bool, default=False)
     parser.add_argument("--override_results", default=False, action="store_true")
+    parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
 
     args = parser.parse_args()
@@ -131,13 +132,13 @@ def main():
             if args.classifier == "pytorch":
                 trainer.freeze()
                 trainer.train()
-                trainer.unfreeze(keep_body_frozen=True)
+                trainer.unfreeze(keep_body_frozen=args.keep_body_frozen)
                 trainer.train(
-                    num_epochs=50,
-                    body_learning_rate=5e-4,
-                    learning_rate=1e-2,
-                    l2_weight=0.,
-                    batch_size=16,
+                    num_epochs=25,
+                    body_learning_rate=1e-5,
+                    learning_rate=args.lr,  # recommand: 1e-2
+                    l2_weight=0.0,
+                    batch_size=args.batch_size,
                 )
             else:
                 trainer.train()
