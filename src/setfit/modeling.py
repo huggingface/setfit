@@ -408,7 +408,7 @@ class SetFitModel(PyTorchModelHubMixin):
                     model_kwargs["head_params"].update({"device": model_body.device})  # follow the model head
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitHead(in_features=body_embedding_dim)  # a head for single target
+                    model_head = SetFitHead(in_features=body_embedding_dim, device=model_body.device)  # a head for single target
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])
