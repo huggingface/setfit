@@ -55,6 +55,8 @@ class SetFitTrainer:
             [`~SetTrainer.model_init`] function to instantiate the model if it has some randomly initialized parameters.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
+        use_amp (`bool`, *optional*, defaults to `False`):
+            Use Automatic Mixed Precision (AMP). Only for Pytorch >= 1.6.0
     """
 
     def __init__(
@@ -71,6 +73,7 @@ class SetFitTrainer:
         batch_size: int = 16,
         seed: int = 42,
         column_mapping: Dict[str, str] = None,
+        use_amp: bool = False,
     ):
 
         self.train_dataset = train_dataset
@@ -83,6 +86,7 @@ class SetFitTrainer:
         self.batch_size = batch_size
         self.seed = seed
         self.column_mapping = column_mapping
+        self.use_amp = use_amp
 
         if model is None:
             if model_init is not None:
@@ -280,6 +284,7 @@ class SetFitTrainer:
             optimizer_params={"lr": self.learning_rate},
             warmup_steps=warmup_steps,
             show_progress_bar=True,
+            use_amp=self.use_amp,
         )
 
         # Train the final classifier
