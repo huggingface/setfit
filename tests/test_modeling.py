@@ -8,7 +8,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel
-from setfit.modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
+from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence_pairs_generation_multilabel
 
 
 def test_sentence_pairs_generation():
@@ -150,3 +150,22 @@ class SetFitModelDifferentiableHeadTest(TestCase):
             assert not (param.grad == 0).all().item(), f"All gradients of {name} in the model body are zeros."
             assert not param.grad.isnan().any().item(), f"Gradients of {name} in the model body have NaN."
             assert not param.grad.isinf().any().item(), f"Gradients of {name} in the model body have Inf."
+
+def test_setfit_from_pretrained_local_model_without_head(tmp_path):
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    model.save_pretrained(str(tmp_path.absolute()))
+
+    (tmp_path / MODEL_HEAD_NAME).unlink()  # Delete head
+
+    model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
+
+    assert isinstance(model, SetFitModel)
+
+
+def test_setfit_from_pretrained_local_model_with_head(tmp_path):
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    model.save_pretrained(str(tmp_path.absolute()))
+
+    model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
+
+    assert isinstance(model, SetFitModel)

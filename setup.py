@@ -10,7 +10,7 @@ INTEGRATIONS_REQUIRE = ["optuna"]
 
 REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.2.2"]
 
-QUALITY_REQUIRE = ["black", "flake8", "isort"]
+QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
 TESTS_REQUIRE = ["pytest", "pytest-cov"]
 
@@ -26,7 +26,7 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 
 setup(
     name="setfit",
-    version="0.3.0.dev0",
+    version="0.4.0.dev0",
     description=DOCLINES[0],
     long_description="\n".join(DOCLINES[2:]),
     author="SetFit",
