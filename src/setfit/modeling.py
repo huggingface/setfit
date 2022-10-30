@@ -20,6 +20,7 @@ from . import logging
 
 
 if TYPE_CHECKING:
+    from numpy import ndarray
     from transformers import PreTrainedTokenizerBase
 
 
@@ -117,6 +118,7 @@ class SetFitHead(models.Dense):
         out_features: int = 1,
         temperature: float = 1.0,
         bias: bool = True,
+        device: Union[torch.device, str] = "cpu",
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
@@ -130,11 +132,13 @@ class SetFitHead(models.Dense):
         self.out_features = out_features
         self.temperature = temperature
         self.bias = bias
-        
+        self.device = device
+
+        self.to(device)
         self.apply(self._init_weight)
 
     def forward(
-        self, features: Union[Dict[str, torch.Tensor], torch.Tensor]
+        self, features: Union[Dict[str, torch.Tensor], torch.Tensor], temperature: Optional[float] = None
     ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """
         SetFitHead can accept embeddings in:
@@ -146,7 +150,9 @@ class SetFitHead(models.Dense):
                 The embeddings from the encoder. If using `dict` format,
                 make sure to store embeddings under the key: 'sentence_embedding'
                 and the outputs will be under the key: 'prediction'.
-
+            temperature (`float`, *optional*):
+                A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
+                Will override the temerature given during initialization.
         Returns:
         [`Dict[str, torch.Tensor]` or `torch.Tensor`]
         """
@@ -160,7 +166,8 @@ class SetFitHead(models.Dense):
         if self.out_features == 1:  # only has one target
             outputs = torch.sigmoid(logits)
         else:  # multiple targets
-            outputs = nn.functional.softmax(logits / self.temperature, dim=-1)
+            temperature = temperature or self.temperature
+            outputs = nn.functional.softmax(logits / temperature, dim=-1)
 
         if is_dict:
             features.update({"prediction": outputs})
@@ -170,13 +177,13 @@ class SetFitHead(models.Dense):
 
     def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
-        
+
         return self(x_test)
 
-    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
         is_tensor = isinstance(x_test, torch.Tensor)
-        if not is_tensor:
-            x_test = torch.Tensor(x_test)
+        if not is_tensor:  # then assume it's ndarray
+            x_test = torch.Tensor(x_test).to(self.device)
 
         probs = self.predict_prob(x_test)
 
@@ -186,7 +193,7 @@ class SetFitHead(models.Dense):
             out = torch.argmax(probs, dim=-1)
 
         if not is_tensor:
-            return out.numpy()
+            return out.cpu().numpy()
 
         return out
 
@@ -202,6 +209,7 @@ class SetFitHead(models.Dense):
             "out_features": self.out_features,
             "temperature": self.temperature,
             "bias": self.bias,
+            "device": self.device,
         }
 
     @staticmethod
@@ -247,6 +255,7 @@ class SetFitModel(PyTorchModelHubMixin):
         show_progress_bar: Optional[bool] = None,
     ) -> None:
         if isinstance(self.model_head, nn.Module):  # train with pyTorch
+            device = self.model_body.device
             self.model_body.train()
             self.model_head.train()
 
@@ -258,6 +267,10 @@ class SetFitModel(PyTorchModelHubMixin):
                 for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar):
                     features, labels = batch
                     optimizer.zero_grad()
+
+                    # to model's device
+                    features = {k: v.to(device) for k, v in features.items()}
+                    labels = labels.to(device)
 
                     outputs = self.model_body(features)
                     outputs = self.model_head(outputs)
@@ -282,10 +295,7 @@ class SetFitModel(PyTorchModelHubMixin):
             max_length=self.model_body.get_max_seq_length(),
         )
         dataloader = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            collate_fn=SetFitDataset.collate_fn,
-            shuffle=shuffle,
+            dataset, batch_size=batch_size, collate_fn=SetFitDataset.collate_fn, shuffle=shuffle, pin_memory=True
         )
 
         return dataloader
@@ -387,6 +397,7 @@ class SetFitModel(PyTorchModelHubMixin):
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})
+                    model_kwargs["head_params"].update({"device": model_body.device})  # follow the model head
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
                     model_head = SetFitHead(in_features=body_embedding_dim)  # a head for single target
