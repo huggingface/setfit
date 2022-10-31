@@ -1,4 +1,4 @@
-<img src="assets/setfit.png">
+<img src="https://raw.githubusercontent.com/huggingface/setfit/main/assets/setfit.png">
 
 <p align="center">
     🤗 <a href="https://huggingface.co/setfit" target="_blank">Models & Datasets</a> | 📖 <a href="https://huggingface.co/blog/setfit" target="_blank">Blog</a> | 📃 <a href="https://arxiv.org/abs/2209.11055" target="_blank">Paper</a>
