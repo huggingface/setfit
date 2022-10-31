@@ -107,6 +107,13 @@ class SetFitTrainerTest(TestCase):
 
         assert formatted_dataset[1]["text"] == "b"
 
+    def test_trainer_raises_error_with_wrong_warmup_proportion(self):
+        with pytest.raises(ValueError):
+            SetFitTrainer(warmup_proportion=1.1)
+
+        with pytest.raises(ValueError):
+            SetFitTrainer(warmup_proportion=-0.1)
+
 
 @require_optuna
 class TrainerHyperParameterOptunaIntegrationTest(TestCase):
