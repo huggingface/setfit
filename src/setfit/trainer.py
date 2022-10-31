@@ -55,6 +55,8 @@ class SetFitTrainer:
             [`~SetTrainer.model_init`] function to instantiate the model if it has some randomly initialized parameters.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
+        use_amp (`bool`, *optional*, defaults to `False`):
+            Use Automatic Mixed Precision (AMP). Only for Pytorch >= 1.6.0
         warmup_proportion (`float`, *optional*, defaults to `0.1`):
             Proportion of the warmup in the total training steps.
             Must be greater than or equal to 0.0 and less than or equal to 1.0.
@@ -74,6 +76,7 @@ class SetFitTrainer:
         batch_size: int = 16,
         seed: int = 42,
         column_mapping: Dict[str, str] = None,
+        use_amp: bool = False,
         warmup_proportion: float = 0.1,
     ):
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
@@ -91,6 +94,7 @@ class SetFitTrainer:
         self.batch_size = batch_size
         self.seed = seed
         self.column_mapping = column_mapping
+        self.use_amp = use_amp
         self.warmup_proportion = warmup_proportion
 
         if model is None:
@@ -289,6 +293,7 @@ class SetFitTrainer:
             optimizer_params={"lr": self.learning_rate},
             warmup_steps=warmup_steps,
             show_progress_bar=True,
+            use_amp=self.use_amp,
         )
 
         # Train the final classifier
