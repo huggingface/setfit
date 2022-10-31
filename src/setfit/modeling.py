@@ -59,8 +59,7 @@ class SetFitModel(PyTorchModelHubMixin):
         return self.model_head.predict_proba(embeddings)
 
     def __call__(self, inputs):
-        embeddings = self.model_body.encode(inputs)
-        return self.model_head.predict(embeddings)
+        return self.predict(inputs)
 
     def _save_pretrained(self, save_directory):
         self.model_body.save(path=save_directory)
