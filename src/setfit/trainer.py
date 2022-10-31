@@ -264,7 +264,7 @@ class SetFitTrainer:
 
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)
             train_loss = self.loss_class(self.model.model_body)
-            train_steps = len(train_dataloader)
+            train_steps = len(train_dataloader) * self.num_epochs
 
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {len(train_examples)}")
