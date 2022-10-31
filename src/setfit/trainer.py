@@ -57,6 +57,9 @@ class SetFitTrainer:
             A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
         use_amp (`bool`, *optional*, defaults to `False`):
             Use Automatic Mixed Precision (AMP). Only for Pytorch >= 1.6.0
+        warmup_proportion (`float`, *optional*, defaults to `0.1`):
+            Proportion of the warmup in the total training steps.
+            Must be greater than or equal to 0.0 and less than or equal to 1.0.
     """
 
     def __init__(
@@ -74,7 +77,12 @@ class SetFitTrainer:
         seed: int = 42,
         column_mapping: Dict[str, str] = None,
         use_amp: bool = False,
+        warmup_proportion: float = 0.1,
     ):
+        if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
+            raise ValueError(
+                f"warmup_proportion must be greater than or equal to 0.0 and less than or equal to 1.0! But it was: {warmup_proportion}"
+            )
 
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
@@ -87,6 +95,7 @@ class SetFitTrainer:
         self.seed = seed
         self.column_mapping = column_mapping
         self.use_amp = use_amp
+        self.warmup_proportion = warmup_proportion
 
         if model is None:
             if model_init is not None:
@@ -276,7 +285,7 @@ class SetFitTrainer:
         logger.info(f"  Total optimization steps = {train_steps}")
         logger.info(f"  Total train batch size = {batch_size}")
 
-        warmup_steps = math.ceil(train_steps * 0.1)
+        warmup_steps = math.ceil(train_steps * self.warmup_proportion)
         self.model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
             epochs=self.num_epochs,
