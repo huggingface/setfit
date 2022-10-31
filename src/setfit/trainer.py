@@ -74,7 +74,7 @@ class SetFitTrainer:
         batch_size: int = 16,
         seed: int = 42,
         column_mapping: Dict[str, str] = None,
-        warmup_proportion=0.1,
+        warmup_proportion: float=0.1,
     ):
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
             raise ValueError(f"warmup_proportion must be greater than or equal to 0.0 and less than or equal to 1.0! But it was: {warmup_proportion}")
