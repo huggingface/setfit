@@ -159,7 +159,7 @@ class SetFitHead(models.Dense):
         Returns:
         [`Dict[str, torch.Tensor]` or `torch.Tensor`]
         """
-        is_dict = False  # whether `features` is dict or not
+        is_features_dict = False  # whether `features` is dict or not
         if isinstance(features, dict):
             assert "sentence_embedding" in features
             is_features_dict = True
