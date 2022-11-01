@@ -162,7 +162,7 @@ class SetFitHead(models.Dense):
         is_dict = False  # whether `features` is dict or not
         if isinstance(features, dict):
             assert "sentence_embedding" in features
-            is_dict = True
+            is_features_dict = True
 
         x = features["sentence_embedding"] if is_dict else features
         logits = self.linear(x)
