@@ -137,6 +137,67 @@ def create_fewshot_splits_multilabel(dataset: Dataset, sample_sizes: List[int]) 
     return splits_ds
 
 
+def add_templated_examples(
+    dataset: Dataset,
+    candidate_labels: List[str],
+    template: str = "This sentence is {}",
+    sample_size: int = 2,
+    text_column: str = "text",
+    label_column: str = "label",
+) -> Dataset:
+    """Adds templated examples to a Dataset.
+
+    The Dataset is assumed to have a text column with the name `text_column` and a
+    label column with the name `label_column`, which contains one-hot or multi-hot
+    encoded label sequences.
+
+    Args:
+        dataset (`Dataset`): The Dataset to add templated examples to.
+        candidate_labels (`List[str]`): This list of candidate labels to be fed into
+            the template to construct examples. This should align with the
+            `label_column_name` column of `dataset`.
+        template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
+            used to turn each label into a synthetic training example. This template
+            must include a {} for the candidate label to be inserted into the template.
+            For example, the default template is "This sentence is {}." With the
+            candidate label "sports", this would produce an example
+            "This sentence is sports".
+        sample_size (`int`, *optional*, defaults to 2): The number of examples to
+            make for each candidate label.
+        text_column (`str`, *optional*, defaults to `"text"`): The name of the column
+            containing the text of the examples.
+        label_column (`str`, *optional*, defaults to `"label"`): The name of the column
+            containing the labels of the examples.
+
+    Returns:
+        `Dataset`: A copy of the input Dataset with templated examples added.
+
+    Raises:
+        `ValueError`: If the input Dataset is not empty and one or both of the
+            provided column names are missing.
+    """
+    required_columns = {text_column, label_column}
+    column_names = set(dataset.column_names)
+    if column_names:
+        missing_columns = required_columns.difference(column_names)
+        if missing_columns:
+            raise ValueError(f"The following columns are missing from the input dataset: {missing_columns}.")
+
+    empty_label_vector = [0] * len(candidate_labels)
+
+    for label_id, label_name in enumerate(candidate_labels):
+        label_vector = empty_label_vector
+        label_vector[label_id] = 1
+        example = {
+            text_column: template.format(label_name),
+            label_column: label_vector,
+        }
+        for _ in range(sample_size):
+            dataset = dataset.add_item(example)
+
+    return dataset
+
+
 class SetFitDataset(TorchDataset):
     """SetFitDataset
 
