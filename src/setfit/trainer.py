@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
+import torch
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -111,6 +112,7 @@ class SetFitTrainer:
 
         self.model = model
         self.hp_search_backend = None
+        self._freeze = True  # If True, will train the body only; otherwise, train the body and head
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
@@ -208,11 +210,63 @@ class SetFitTrainer:
 
         return model
 
-    def train(self, trial: Union["optuna.Trial", Dict[str, Any]] = None):
+    def freeze(self):
+        """
+        Freeze SetFitModel's differentiable head.
+        Note: call this function only when using the differentiable head.
+        """
+        if not isinstance(self.model.model_head, torch.nn.Module):
+            raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
+
+        self._freeze = True  # Currently use self._freeze as a switch
+        self.model.freeze("head")
+
+    def unfreeze(self, keep_body_frozen: bool = False):
+        """
+        Unfreeze SetFitModel's differentiable head.
+        Note: call this function only when using the differentiable head.
+
+        Args:
+            keep_body_frozen (`bool`, *optional*, defaults to `False`):
+                Whether to freeze the body when unfreeze the head.
+        """
+        if not isinstance(self.model.model_head, torch.nn.Module):
+            raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
+
+        self._freeze = False  # Currently use self._freeze as a switch
+        self.model.unfreeze("head")
+        if keep_body_frozen:
+            self.model.freeze("body")
+        else:  # ensure to unfreeze the body
+            self.model.unfreeze("body")
+
+    def train(
+        self,
+        num_epochs: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        learning_rate: Optional[float] = None,
+        body_learning_rate: Optional[float] = None,
+        l2_weight: Optional[float] = None,
+        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+    ):
         """
         Main training entry point.
 
         Args:
+            num_epochs (int, *optional*):
+                Temporary change the number of epochs to train the Sentence Transformer body/head for.
+                If ignore, will use the value given in initialization.
+            batch_size (int, *optional*):
+                Temporary change the batch size to use for contrastive training or logistic regression.
+                If ignore, will use the value given in initialization.
+            learning_rate (float, *optional*):
+                Temporary change the learning rate to use for contrastive training or SetFitModel's head in logistic regression.
+                If ignore, will use the value given in initialization.
+            body_learning_rate (float, *optional*):
+                Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
+                If ignore, will be the same as `learning_rate`.
+            l2_weight (float, *optional*):
+                Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
         """
@@ -228,76 +282,95 @@ class SetFitTrainer:
         if self.column_mapping is not None:
             logger.info("Applying column mapping to training dataset")
             train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
-
         if self.loss_class is None:
             return
 
-        # sentence-transformers adaptation
-        batch_size = self.batch_size
-        if self.loss_class in [
-            losses.BatchAllTripletLoss,
-            losses.BatchHardTripletLoss,
-            losses.BatchSemiHardTripletLoss,
-            losses.BatchHardSoftMarginTripletLoss,
-            SupConLoss,
-        ]:
-            train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-            train_data_sampler = SentenceLabelDataset(train_examples)
+        num_epochs = num_epochs or self.num_epochs
+        batch_size = batch_size or self.batch_size
+        learning_rate = learning_rate or self.learning_rate
+        batch_size = batch_size or self.batch_size
+        is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
-            batch_size = min(self.batch_size, len(train_data_sampler))
-            train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
+        if not is_differentiable_head or self._freeze:
+            # sentence-transformers adaptation
+            if self.loss_class in [
+                losses.BatchAllTripletLoss,
+                losses.BatchHardTripletLoss,
+                losses.BatchSemiHardTripletLoss,
+                losses.BatchHardSoftMarginTripletLoss,
+                SupConLoss,
+            ]:
+                train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
+                train_data_sampler = SentenceLabelDataset(train_examples)
 
-            if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = self.loss_class(
-                    model=self.model,
-                    distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-                )
-            elif self.loss_class is SupConLoss:
-                train_loss = self.loss_class(model=self.model)
-            else:
-                train_loss = self.loss_class(
-                    model=self.model,
-                    distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-                    margin=0.25,
-                )
+                batch_size = min(batch_size, len(train_data_sampler))
+                train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
-            train_steps = len(train_dataloader) * self.num_epochs
-        else:
-            train_examples = []
-
-            for _ in range(self.num_iterations):
-                if self.model.multi_target_strategy is not None:
-                    train_examples = sentence_pairs_generation_multilabel(
-                        np.array(x_train), np.array(y_train), train_examples
+                if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
+                    train_loss = self.loss_class(
+                        model=self.model,
+                        distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
                     )
+                elif self.loss_class is SupConLoss:
+                    train_loss = self.loss_class(model=self.model)
                 else:
-                    train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
 
-            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=self.batch_size)
-            train_loss = self.loss_class(self.model.model_body)
-            train_steps = len(train_dataloader) * self.num_epochs
+                    train_loss = self.loss_class(
+                        model=self.model,
+                        distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+                        margin=0.25,
+                    )
 
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_examples)}")
-        logger.info(f"  Num epochs = {self.num_epochs}")
-        logger.info(f"  Total optimization steps = {train_steps}")
-        logger.info(f"  Total train batch size = {batch_size}")
+                train_steps = len(train_dataloader) * self.num_epochs
+            else:
+                train_examples = []
 
-        warmup_steps = math.ceil(train_steps * self.warmup_proportion)
-        self.model.model_body.fit(
-            train_objectives=[(train_dataloader, train_loss)],
-            epochs=self.num_epochs,
-            steps_per_epoch=train_steps,
-            optimizer_params={"lr": self.learning_rate},
-            warmup_steps=warmup_steps,
-            show_progress_bar=True,
-            use_amp=self.use_amp,
-        )
+                for _ in range(self.num_iterations):
+                    if self.model.multi_target_strategy is not None:
+                        train_examples = sentence_pairs_generation_multilabel(
+                            np.array(x_train), np.array(y_train), train_examples
+                        )
+                    else:
+                        train_examples = sentence_pairs_generation(
+                            np.array(x_train), np.array(y_train), train_examples
+                        )
 
-        # Train the final classifier
-        self.model.fit(x_train, y_train)
+                train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+                train_loss = self.loss_class(self.model.model_body)
+                train_steps = len(train_dataloader) * num_epochs
+
+            logger.info("***** Running training *****")
+            logger.info(f"  Num examples = {len(train_examples)}")
+            logger.info(f"  Num epochs = {num_epochs}")
+            logger.info(f"  Total optimization steps = {train_steps}")
+            logger.info(f"  Total train batch size = {batch_size}")
+
+            warmup_steps = math.ceil(train_steps * self.warmup_proportion)
+            self.model.model_body.fit(
+                train_objectives=[(train_dataloader, train_loss)],
+                epochs=num_epochs,
+                steps_per_epoch=train_steps,
+                optimizer_params={"lr": learning_rate},
+                warmup_steps=warmup_steps,
+                show_progress_bar=True,
+                use_amp=self.use_amp,
+            )
+
+        if not is_differentiable_head or not self._freeze:
+            # Train the final classifier
+            self.model.fit(
+                x_train,
+                y_train,
+                num_epochs=num_epochs,
+                batch_size=batch_size,
+                learning_rate=learning_rate,
+                body_learning_rate=body_learning_rate,
+                l2_weight=l2_weight,
+                show_progress_bar=True,
+            )
 
     def evaluate(self):
         """Computes the metrics for a given classifier."""
