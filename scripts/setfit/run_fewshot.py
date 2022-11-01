@@ -136,7 +136,7 @@ def main():
                 trainer.train(
                     num_epochs=25,
                     body_learning_rate=1e-5,
-                    learning_rate=args.lr,  # recommand: 1e-2
+                    learning_rate=args.lr,  # recommend: 1e-2
                     l2_weight=0.0,
                     batch_size=args.batch_size,
                 )
