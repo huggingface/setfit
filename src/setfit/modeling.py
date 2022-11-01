@@ -172,7 +172,7 @@ class SetFitHead(models.Dense):
             temperature = temperature or self.temperature
             outputs = nn.functional.softmax(logits / temperature, dim=-1)
 
-        if is_dict:
+        if is_features_dict:
             features.update({"prediction": outputs})
             return features
 
