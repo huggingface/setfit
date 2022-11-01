@@ -293,9 +293,8 @@ class SetFitModel(PyTorchModelHubMixin):
         embeddings = self.model_body.encode(x_test)
         return self.model_head.predict_proba(embeddings)
 
-    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
-        embeddings = self.model_body.encode(inputs)
-        return self.model_head.predict(embeddings)
+    def __call__(self, inputs):
+        return self.predict(inputs)
 
     def _save_pretrained(self, save_directory: str) -> None:
         self.model_body.save(path=save_directory)
