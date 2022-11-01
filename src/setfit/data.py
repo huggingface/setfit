@@ -1,9 +1,16 @@
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List, Tuple
 
 import pandas as pd
+import torch
 from datasets import Dataset, DatasetDict
+from torch.utils.data import Dataset as TorchDataset
 
 
+if TYPE_CHECKING:
+    from transformers import PreTrainedTokenizerBase
+
+
+TokenizerOutput = Dict[str, List[int]]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
@@ -189,3 +196,71 @@ def add_templated_examples(
             dataset = dataset.add_item(example)
 
     return dataset
+
+
+class SetFitDataset(TorchDataset):
+    """SetFitDataset
+
+    A dataset for training the differentiable head on text classification.
+
+    Args:
+        x (`List[str]`):
+            A list of input data as texts that will be fed into `SetFitModel`.
+        y (`List[int]`):
+            A list of input data's labels.
+        tokenizer (`PreTrainedTokenizerBase`):
+            The tokenizer from `SetFitModel`'s body.
+        max_length (`int`, defaults to `32`):
+            The maximum token length a tokenizer can generate.
+            Will pad or truncate tokens when the number of tokens for a text is either smaller or larger than this value.
+    """
+
+    def __init__(
+        self,
+        x: List[str],
+        y: List[int],
+        tokenizer: "PreTrainedTokenizerBase",
+        max_length: int = 32,
+    ) -> None:
+        assert len(x) == len(y)
+
+        self.x = x
+        self.y = y
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __len__(self) -> int:
+        return len(self.x)
+
+    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
+        feature = self.tokenizer(
+            self.x[idx],
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            return_token_type_ids=True,
+        )
+        label = self.y[idx]
+
+        return feature, label
+
+    @staticmethod
+    def collate_fn(batch):
+        features = {
+            "input_ids": [],
+            "attention_mask": [],
+            "token_type_ids": [],
+        }
+        labels = []
+        for feature, label in batch:
+            features["input_ids"].append(feature["input_ids"])
+            features["attention_mask"].append(feature["attention_mask"])
+            features["token_type_ids"].append(feature["token_type_ids"])
+            labels.append(label)
+
+        # convert to tensors
+        features = {k: torch.Tensor(v).int() for k, v in features.items()}
+        labels = torch.Tensor(labels).long()
+
+        return features, labels
