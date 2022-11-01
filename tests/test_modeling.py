@@ -151,6 +151,7 @@ class SetFitModelDifferentiableHeadTest(TestCase):
             assert not param.grad.isnan().any().item(), f"Gradients of {name} in the model body have NaN."
             assert not param.grad.isinf().any().item(), f"Gradients of {name} in the model body have Inf."
 
+
 def test_setfit_from_pretrained_local_model_without_head(tmp_path):
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
     model.save_pretrained(str(tmp_path.absolute()))

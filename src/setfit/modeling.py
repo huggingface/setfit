@@ -1,7 +1,8 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Union
 
 import joblib
 import numpy as np
@@ -13,75 +14,21 @@ from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from pathlib import Path
 
 from . import logging
+from .data import SetFitDataset
 
 
 if TYPE_CHECKING:
     from numpy import ndarray
-    from transformers import PreTrainedTokenizerBase
 
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
-TokenizerOutput = Dict[str, List[int]]
 MODEL_HEAD_NAME = "model_head.pkl"
-
-
-class SetFitDataset(Dataset):
-    def __init__(
-        self,
-        x: List[str],
-        y: List[int],
-        tokenizer: "PreTrainedTokenizerBase",
-        max_length: int = 32,
-    ) -> None:
-        assert len(x) == len(y)
-
-        self.x = x
-        self.y = y
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-
-    def __len__(self) -> int:
-        return len(self.x)
-
-    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
-        feature = self.tokenizer(
-            self.x[idx],
-            max_length=self.max_length,
-            padding="max_length",
-            truncation=True,
-            return_attention_mask=True,
-            return_token_type_ids=True,
-        )
-        label = self.y[idx]
-
-        return feature, label
-
-    @staticmethod
-    def collate_fn(batch):
-        features = {
-            "input_ids": [],
-            "attention_mask": [],
-            "token_type_ids": [],
-        }
-        labels = []
-        for feature, label in batch:
-            features["input_ids"].append(feature["input_ids"])
-            features["attention_mask"].append(feature["attention_mask"])
-            features["token_type_ids"].append(feature["token_type_ids"])
-            labels.append(label)
-
-        # convert to tensors
-        features = {k: torch.Tensor(v).int() for k, v in features.items()}
-        labels = torch.Tensor(labels).long()
-
-        return features, labels
 
 
 class SetFitBaseModel:
@@ -164,7 +111,7 @@ class SetFitHead(models.Dense):
             assert "sentence_embedding" in features
             is_features_dict = True
 
-        x = features["sentence_embedding"] if is_dict else features
+        x = features["sentence_embedding"] if is_features_dict else features
         logits = self.linear(x)
         if self.out_features == 1:  # only has one target
             outputs = torch.sigmoid(logits)
