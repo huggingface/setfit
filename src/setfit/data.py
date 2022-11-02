@@ -91,16 +91,17 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
             examples.append(subset)
     return pd.concat(examples)
 
-def sample_dataset(dataset: Dataset, label_column: str ="label", num_samples: int =8, seed:int =42) -> Dataset:
+
+def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
     """Samples a Dataset to create an equal number of samples per class (when possible)."""
     shuffled_dataset = dataset.shuffle(seed=seed)
     num_labels = len(dataset.unique(label_column))
     samples = []
     for label in range(num_labels):
         data = shuffled_dataset.filter(lambda example: int(example[label_column]) == label)
-        num_samples = min(len(data)//2, num_samples)
+        num_samples = min(len(data) // 2, num_samples)
         samples.append(data.select([i for i in range(num_samples)]))
-    
+
     all_samples = concatenate_datasets(samples)
     return all_samples.shuffle(seed=seed)
 
