@@ -15,7 +15,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from . import logging
 from .data import SetFitDataset
@@ -214,7 +214,7 @@ class SetFitModel(PyTorchModelHubMixin):
             optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
             for epoch_idx in tqdm(range(num_epochs), desc="Epoch", disable=not show_progress_bar):
-                for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar):
+                for batch in dataloader:
                     features, labels = batch
                     optimizer.zero_grad()
 
