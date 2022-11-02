@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+import evaluate
 import pytest
 from datasets import Dataset
 from transformers.testing_utils import require_optuna
@@ -107,7 +108,7 @@ class SetFitTrainerTest(TestCase):
 
         assert formatted_dataset[1]["text"] == "b"
 
-    def test_trainer_support_evaluate_kwargs_to_handle_multilabel_f1(self):
+    def test_trainer_support_evaluate_kwargs_when_metric_is_str(self):
         dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
         )
@@ -125,6 +126,116 @@ class SetFitTrainerTest(TestCase):
         metrics = trainer.evaluate(average="micro")
 
         self.assertEqual(metrics["f1"], 1.0)
+
+    def test_trainer_support_callable_as_metric(self):
+        dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+
+        f1_metric = evaluate.load("f1")
+        accuracy_metric = evaluate.load("accuracy")
+
+        def compute_metrics(y_pred, y_test):
+            return {
+                "f1": f1_metric.compute(predictions=y_pred, references=y_test, average="micro")["f1"],
+                "accuracy": accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
+            }
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric=compute_metrics,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+        metrics = trainer.evaluate()
+
+        self.assertEqual(
+            {
+                "f1": 1.0,
+                "accuracy": 1.0,
+            },
+            metrics,
+        )
+
+    def test_raise_when_metric_value_is_invalid(self):
+        dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric=42,  # invalid metric value
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+
+        with self.assertRaises(ValueError):
+            trainer.evaluate()
+
+
+class SetFitTrainerMultilabelTest(TestCase):
+    def setUp(self):
+        self.model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
+        )
+        self.num_iterations = 1
+
+    def test_trainer_multilabel_support_evaluate_kwargs_when_metric_is_str(self):
+        dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric="f1",
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+        metrics = trainer.evaluate(average="micro")
+
+        self.assertEqual(metrics["f1"], 1.0)
+
+    def test_trainer_multilabel_support_callable_as_metric(self):
+        dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
+
+        multilabel_f1_metric = evaluate.load("f1", "multilabel")
+        multilabel_accuracy_metric = evaluate.load("accuracy", "multilabel")
+
+        def compute_metrics(y_pred, y_test):
+            return {
+                "f1": multilabel_f1_metric.compute(predictions=y_pred, references=y_test, average="micro")["f1"],
+                "accuracy": multilabel_accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
+            }
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric=compute_metrics,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+        metrics = trainer.evaluate()
+
+        self.assertEqual(
+            {
+                "f1": 1.0,
+                "accuracy": 1.0,
+            },
+            metrics,
+        )
 
 
 @require_optuna

@@ -38,8 +38,9 @@ class SetFitTrainer:
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
             from a new instance of the model as given by this function when a `trial` is passed.
-        metric (`str`, *optional*, defaults to `"accuracy"`):
-            The metric to use for evaluation.
+        metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
+            The metric to use for evaluation. If a string is provided, it must be a key present in the evaluation dataset.
+            If a callable is provided, it must take two arguments (`y_pred`, `y_test`).
         loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
             The loss function to use for contrastive training.
         num_iterations (`int`, *optional*, defaults to `20`):
@@ -63,7 +64,7 @@ class SetFitTrainer:
         train_dataset: "Dataset" = None,
         eval_dataset: "Dataset" = None,
         model_init: Callable[[], "SetFitModel"] = None,
-        metric: str = "accuracy",
+        metric: Union[str, Callable] = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
         num_epochs: int = 1,
@@ -285,12 +286,12 @@ class SetFitTrainer:
         # Train the final classifier
         self.model.fit(x_train, y_train)
 
-    def evaluate(self, **kwargs):
+    def evaluate(self, **evaluate_kwargs):
         """
         Computes the metrics for a given classifier.
 
         Args:
-            **kwargs: Additional keyword arguments passed to the `evaluate` method of the classifier.
+            **evaluate_kwargs: Keyword arguments to be passed to the `evaluate` method of the classifier.
         """
 
         self._validate_column_mapping(self.eval_dataset)
@@ -300,16 +301,22 @@ class SetFitTrainer:
             logger.info("Applying column mapping to evaluation dataset")
             eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
 
-        metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
-        metric_fn = evaluate.load(self.metric, config_name=metric_config)
-
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
 
-        return metric_fn.compute(predictions=y_pred, references=y_test, **kwargs)
+        if isinstance(self.metric, str):
+            metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
+            metric_fn = evaluate.load(self.metric, config_name=metric_config)
+
+            return metric_fn.compute(predictions=y_pred, references=y_test, **evaluate_kwargs)
+
+        if callable(self.metric):
+            return self.metric(y_pred, y_test)
+
+        raise ValueError("metric must be a string or a callable")
 
     def hyperparameter_search(
         self,
