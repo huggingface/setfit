@@ -179,7 +179,7 @@ class SetFitTrainerTest(TestCase):
 
         with self.assertRaises(ValueError):
             trainer.evaluate()
-            
+
     def test_trainer_raises_error_with_wrong_warmup_proportion(self):
         # warmup_proportion must not be > 1.0
         with pytest.raises(ValueError):
