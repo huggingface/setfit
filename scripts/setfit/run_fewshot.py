@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument("--is_dev_set", type=bool, default=False)
     parser.add_argument("--is_test_set", type=bool, default=False)
     parser.add_argument("--override_results", default=False, action="store_true")
+    parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
 
     args = parser.parse_args()
@@ -105,7 +106,14 @@ def main():
                 continue
 
             # Load model
-            model = SetFitModel.from_pretrained(args.model)
+            if args.classifier == "pytorch":
+                model = SetFitModel.from_pretrained(
+                    args.model,
+                    use_differentiable_head=True,
+                    head_params={"out_features": len(set(train_data["label"]))},
+                )
+            else:
+                model = SetFitModel.from_pretrained(args.model)
             model.model_body.max_seq_length = args.max_seq_length
             if args.add_normalization_layer:
                 model.model_body._modules["2"] = models.Normalize()
@@ -121,7 +129,19 @@ def main():
                 num_epochs=args.num_epochs,
                 num_iterations=args.num_iterations,
             )
-            trainer.train()
+            if args.classifier == "pytorch":
+                trainer.freeze()
+                trainer.train()
+                trainer.unfreeze(keep_body_frozen=args.keep_body_frozen)
+                trainer.train(
+                    num_epochs=25,
+                    body_learning_rate=1e-5,
+                    learning_rate=args.lr,  # recommend: 1e-2
+                    l2_weight=0.0,
+                    batch_size=args.batch_size,
+                )
+            else:
+                trainer.train()
 
             # Evaluate the model on the test data
             metrics = trainer.evaluate()

@@ -1,9 +1,16 @@
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List, Tuple
 
 import pandas as pd
+import torch
 from datasets import Dataset, DatasetDict
+from torch.utils.data import Dataset as TorchDataset
 
 
+if TYPE_CHECKING:
+    from transformers import PreTrainedTokenizerBase
+
+
+TokenizerOutput = Dict[str, List[int]]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
@@ -128,3 +135,132 @@ def create_fewshot_splits_multilabel(dataset: Dataset, sample_sizes: List[int]) 
             split_df = create_samples_multilabel(df, sample_size, seed)
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
     return splits_ds
+
+
+def add_templated_examples(
+    dataset: Dataset,
+    candidate_labels: List[str],
+    template: str = "This sentence is {}",
+    sample_size: int = 2,
+    text_column: str = "text",
+    label_column: str = "label",
+) -> Dataset:
+    """Adds templated examples to a Dataset.
+
+    The Dataset is assumed to have a text column with the name `text_column` and a
+    label column with the name `label_column`, which contains one-hot or multi-hot
+    encoded label sequences.
+
+    Args:
+        dataset (`Dataset`): The Dataset to add templated examples to.
+        candidate_labels (`List[str]`): This list of candidate labels to be fed into
+            the template to construct examples. This should align with the
+            `label_column_name` column of `dataset`.
+        template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
+            used to turn each label into a synthetic training example. This template
+            must include a {} for the candidate label to be inserted into the template.
+            For example, the default template is "This sentence is {}." With the
+            candidate label "sports", this would produce an example
+            "This sentence is sports".
+        sample_size (`int`, *optional*, defaults to 2): The number of examples to
+            make for each candidate label.
+        text_column (`str`, *optional*, defaults to `"text"`): The name of the column
+            containing the text of the examples.
+        label_column (`str`, *optional*, defaults to `"label"`): The name of the column
+            containing the labels of the examples.
+
+    Returns:
+        `Dataset`: A copy of the input Dataset with templated examples added.
+
+    Raises:
+        `ValueError`: If the input Dataset is not empty and one or both of the
+            provided column names are missing.
+    """
+    required_columns = {text_column, label_column}
+    column_names = set(dataset.column_names)
+    if column_names:
+        missing_columns = required_columns.difference(column_names)
+        if missing_columns:
+            raise ValueError(f"The following columns are missing from the input dataset: {missing_columns}.")
+
+    empty_label_vector = [0] * len(candidate_labels)
+
+    for label_id, label_name in enumerate(candidate_labels):
+        label_vector = empty_label_vector
+        label_vector[label_id] = 1
+        example = {
+            text_column: template.format(label_name),
+            label_column: label_vector,
+        }
+        for _ in range(sample_size):
+            dataset = dataset.add_item(example)
+
+    return dataset
+
+
+class SetFitDataset(TorchDataset):
+    """SetFitDataset
+
+    A dataset for training the differentiable head on text classification.
+
+    Args:
+        x (`List[str]`):
+            A list of input data as texts that will be fed into `SetFitModel`.
+        y (`List[int]`):
+            A list of input data's labels.
+        tokenizer (`PreTrainedTokenizerBase`):
+            The tokenizer from `SetFitModel`'s body.
+        max_length (`int`, defaults to `32`):
+            The maximum token length a tokenizer can generate.
+            Will pad or truncate tokens when the number of tokens for a text is either smaller or larger than this value.
+    """
+
+    def __init__(
+        self,
+        x: List[str],
+        y: List[int],
+        tokenizer: "PreTrainedTokenizerBase",
+        max_length: int = 32,
+    ) -> None:
+        assert len(x) == len(y)
+
+        self.x = x
+        self.y = y
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __len__(self) -> int:
+        return len(self.x)
+
+    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
+        feature = self.tokenizer(
+            self.x[idx],
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            return_token_type_ids=True,
+        )
+        label = self.y[idx]
+
+        return feature, label
+
+    @staticmethod
+    def collate_fn(batch):
+        features = {
+            "input_ids": [],
+            "attention_mask": [],
+            "token_type_ids": [],
+        }
+        labels = []
+        for feature, label in batch:
+            features["input_ids"].append(feature["input_ids"])
+            features["attention_mask"].append(feature["attention_mask"])
+            features["token_type_ids"].append(feature["token_type_ids"])
+            labels.append(label)
+
+        # convert to tensors
+        features = {k: torch.Tensor(v).int() for k, v in features.items()}
+        labels = torch.Tensor(labels).long()
+
+        return features, labels
