@@ -158,7 +158,7 @@ class SetFitTrainerTest(TestCase):
 
         trainer.train()
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(FileNotFoundError):
             trainer.evaluate()
 
     def test_trainer_raises_error_with_wrong_warmup_proportion(self):
