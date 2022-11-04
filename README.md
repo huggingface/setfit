@@ -35,7 +35,7 @@ The examples below provide a quick overview on the various features supported in
 * `SetFitModel`: a wrapper that combines a pretrained body from `sentence_transformers` and a classification head from [`scikit-learn`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) or [`SetFitHead`](https://github.com/huggingface/setfit/blob/main/src/setfit/modeling.py) (a differentiable head built upon `PyTorch` with similar APIs to `sentence_transformers`).
 * `SetFitTrainer`: a helper class that wraps the fine-tuning process of SetFit.
 
-Here is an end-to-end example using `scikit-learn`:
+Here is an end-to-end example using a classification head from `scikit-learn`:
 
 
 ```python
