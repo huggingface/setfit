@@ -376,7 +376,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
                     model_head = multilabel_classifier
                 else:
-                    model_head = LogisticRegression()
+                    model_head = clf
 
         return SetFitModel(model_body=model_body, model_head=model_head, multi_target_strategy=multi_target_strategy)
 

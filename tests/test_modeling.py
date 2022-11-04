@@ -53,6 +53,24 @@ def test_setfit_default_model_head():
     assert type(model.model_head) is LogisticRegression
 
 
+def test_setfit_model_head_params():
+    params = {
+        "head_params": {
+            "max_iter": 200,
+            "solver": "newton-cg",
+        }
+    }
+
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", **params)
+
+    assert type(model.model_head) is LogisticRegression
+    assert params["head_params"] == {
+        parameter: value
+        for parameter, value in model.model_head.get_params(deep=False).items()
+        if parameter in params["head_params"]
+    }
+
+
 def test_setfit_multilabel_one_vs_rest_model_head():
     model = SetFitModel.from_pretrained(
         "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
