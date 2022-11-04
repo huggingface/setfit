@@ -40,7 +40,7 @@ class SetFitTrainer:
             A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
             from a new instance of the model as given by this function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
-            The metric to use for evaluation. If a string is provided, it must be a key present in the evaluation dataset.
+            The metric to use for evaluation. If a string is provided, we treat it as the metric name and load it with default settings.
             If a callable is provided, it must take two arguments (`y_pred`, `y_test`).
         loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
             The loss function to use for contrastive training.
