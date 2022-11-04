@@ -186,7 +186,7 @@ def add_templated_examples(
     empty_label_vector = [0] * len(candidate_labels)
 
     for label_id, label_name in enumerate(candidate_labels):
-        label_vector = empty_label_vector
+        label_vector = empty_label_vector.copy()
         label_vector[label_id] = 1
         example = {
             text_column: template.format(label_name),

@@ -29,7 +29,7 @@ def test_add_to_empty_dataset_defaults(empty_dataset):
             "This sentence is label-1",
             "This sentence is label-1",
         ],
-        "label": [[1, 0], [1, 0], [1, 1], [1, 1]],
+        "label": [[1, 0], [1, 0], [0, 1], [0, 1]],
     }
 
 
@@ -45,7 +45,7 @@ def test_add_to_dataset_defaults(dataset):
             "This sentence is label-1",
             "This sentence is label-1",
         ],
-        "label": [[1, 0], [0, 1], [1, 0], [1, 0], [1, 1], [1, 1]],
+        "label": [[1, 0], [0, 1], [1, 0], [1, 0], [0, 1], [0, 1]],
     }
 
 
