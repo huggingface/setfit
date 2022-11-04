@@ -148,7 +148,7 @@ model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
 preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
 ```
 
-Based on the experiments, `SetFitHead` can achieve similar performance as using `sklearn`'s head. We use `AdamW` as the optimizer and scale down learning rates by 0.5 every 5 epochs. For more details about the experiments, please check out [here](https://github.com/huggingface/setfit/pull/112#issuecomment-1295773537). We recommend using a large learning rate (e.g. `1e-2`) for `SetFitHead` and a small learning rate (e.g. `1e-5`) for the body in your first attempt.
+Based on our experiments, `SetFitHead` can achieve similar performance as using a `scikit-learn` head. We use `AdamW` as the optimizer and scale down learning rates by 0.5 every 5 epochs. For more details about the experiments, please check out [here](https://github.com/huggingface/setfit/pull/112#issuecomment-1295773537). We recommend using a large learning rate (e.g. `1e-2`) for `SetFitHead` and a small learning rate (e.g. `1e-5`) for the body in your first attempt.
 
 ### Training on multilabel datasets
 
