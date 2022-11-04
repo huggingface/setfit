@@ -108,25 +108,6 @@ class SetFitTrainerTest(TestCase):
 
         assert formatted_dataset[1]["text"] == "b"
 
-    def test_trainer_support_evaluate_kwargs_when_metric_is_str(self):
-        dataset = Dataset.from_dict(
-            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
-        )
-
-        trainer = SetFitTrainer(
-            model=self.model,
-            train_dataset=dataset,
-            eval_dataset=dataset,
-            metric="f1",
-            num_iterations=self.num_iterations,
-            column_mapping={"text_new": "text", "label_new": "label"},
-        )
-
-        trainer.train()
-        metrics = trainer.evaluate(average="micro")
-
-        self.assertEqual(metrics["f1"], 1.0)
-
     def test_trainer_support_callable_as_metric(self):
         dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
@@ -196,23 +177,6 @@ class SetFitTrainerMultilabelTest(TestCase):
             "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
         )
         self.num_iterations = 1
-
-    def test_trainer_multilabel_support_evaluate_kwargs_when_metric_is_str(self):
-        dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
-
-        trainer = SetFitTrainer(
-            model=self.model,
-            train_dataset=dataset,
-            eval_dataset=dataset,
-            metric="f1",
-            num_iterations=self.num_iterations,
-            column_mapping={"text_new": "text", "label_new": "label"},
-        )
-
-        trainer.train()
-        metrics = trainer.evaluate(average="micro")
-
-        self.assertEqual(metrics["f1"], 1.0)
 
     def test_trainer_multilabel_support_callable_as_metric(self):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
