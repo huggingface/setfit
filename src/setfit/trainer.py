@@ -70,7 +70,7 @@ class SetFitTrainer:
         train_dataset: "Dataset" = None,
         eval_dataset: "Dataset" = None,
         model_init: Callable[[], "SetFitModel"] = None,
-        metric: Union[str, Callable] = "accuracy",
+        metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
         num_epochs: int = 1,
@@ -373,12 +373,12 @@ class SetFitTrainer:
                 show_progress_bar=True,
             )
 
-    def evaluate(self, **evaluate_kwargs):
+    def evaluate(self):
         """
         Computes the metrics for a given classifier.
 
-        Args:
-            **evaluate_kwargs: Keyword arguments to be passed to the `evaluate` method of the classifier.
+        Returns:
+            `Dict[str, float]`: The evaluation metrics.
         """
 
         self._validate_column_mapping(self.eval_dataset)
@@ -398,12 +398,13 @@ class SetFitTrainer:
             metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
             metric_fn = evaluate.load(self.metric, config_name=metric_config)
 
-            return metric_fn.compute(predictions=y_pred, references=y_test, **evaluate_kwargs)
+            return metric_fn.compute(predictions=y_pred, references=y_test)
 
-        if callable(self.metric):
+        elif callable(self.metric):
             return self.metric(y_pred, y_test)
 
-        raise ValueError("metric must be a string or a callable")
+        else:
+            raise ValueError("metric must be a string or a callable")
 
     def hyperparameter_search(
         self,
