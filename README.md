@@ -32,10 +32,10 @@ The examples below provide a quick overview on the various features supported in
 
 `setfit` is integrated with the [Hugging Face Hub](https://huggingface.co/) and provides two main classes:
 
-* `SetFitModel`: a wrapper that combines a pretrained body from `sentence_transformers` and a classification head from `scikit-learn`
+* `SetFitModel`: a wrapper that combines a pretrained body from `sentence_transformers` and a classification head from [`scikit-learn`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) or [`SetFitHead`](https://github.com/huggingface/setfit/blob/main/src/setfit/modeling.py) (a differentiable head built upon `PyTorch` with similar APIs to `sentence_transformers`).
 * `SetFitTrainer`: a helper class that wraps the fine-tuning process of SetFit.
 
-Here is an end-to-end example:
+Here is an end-to-end example using `scikit-learn`:
 
 
 ```python
@@ -81,6 +81,74 @@ model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
 # Run inference
 preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
 ```
+
+Here is an end-to-end example using `SetFitHead`:
+
+
+```python
+from datasets import load_dataset
+from sentence_transformers.losses import CosineSimilarityLoss
+
+from setfit import SetFitModel, SetFitTrainer
+
+
+# Load a dataset from the Hugging Face Hub
+dataset = load_dataset("sst2")
+
+# Simulate the few-shot regime by sampling 8 examples per class
+num_classes = 2
+train_dataset = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
+eval_dataset = dataset["validation"]
+
+# Load a SetFit model from Hub
+model = SetFitModel.from_pretrained(
+    "sentence-transformers/paraphrase-mpnet-base-v2",
+    use_differentiable_head=True,
+    head_params={"out_features": num_classes},
+)
+
+# Create trainer
+trainer = SetFitTrainer(
+    model=model,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    loss_class=CosineSimilarityLoss,
+    metric="accuracy",
+    batch_size=16,
+    num_iterations=20, # The number of text pairs to generate for contrastive learning
+    num_epochs=1, # The number of epochs to use for constrastive learning
+    column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
+)
+
+# Train and evaluate
+trainer.freeze() # Freeze the head
+trainer.train() # Train only the body
+
+# Unfreeze the head and freeze the body -> head-only training
+trainer.unfreeze(keep_body_frozen=True)
+# or
+# Unfreeze the head and unfreeze the body -> end-to-end training
+trainer.unfreeze(keep_body_frozen=False)
+
+trainer.train(
+    num_epochs=25, # The number of epochs to train the head or the whole model (body and head)
+    batch_size=16,
+    body_learning_rate=1e-5, # The body's learning rate
+    learning_rate=1e-2, # The head's learning rate
+    l2_weight=0.0, # Weight decay on **both** the body and head. If `None`, will use 0.01.
+)
+metrics = trainer.evaluate()
+
+# Push model to the Hub
+trainer.push_to_hub("my-awesome-setfit-model")
+
+# Download from Hub and run inference
+model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
+# Run inference
+preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
+```
+
+Based on the experiments, `SetFitHead` can achieve similar performance as using `sklearn`'s head. We use `AdamW` as the optimizer and scale down learning rates by 0.5 every 5 epochs. For more details about the experiments, please check out [here](https://github.com/huggingface/setfit/pull/112#issuecomment-1295773537). We recommend using a large learning rate (e.g. `1e-2`) for `SetFitHead` and a small learning rate (e.g. `1e-5`) for the body in your first attempt.
 
 ### Training on multilabel datasets
 
