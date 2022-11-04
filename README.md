@@ -168,6 +168,7 @@ This will initialise a multilabel classification head from `sklearn` - the follo
 
 From here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.
 
+**Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.
 
 ### Running hyperparameter search
 
