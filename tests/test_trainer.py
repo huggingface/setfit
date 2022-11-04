@@ -151,7 +151,7 @@ class SetFitTrainerTest(TestCase):
             model=self.model,
             train_dataset=dataset,
             eval_dataset=dataset,
-            metric=42,  # invalid metric value
+            metric="this-metric-does-not-exist",  # invalid metric value
             num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
