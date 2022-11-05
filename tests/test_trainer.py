@@ -1,4 +1,3 @@
-import math
 from unittest import TestCase
 
 import evaluate
