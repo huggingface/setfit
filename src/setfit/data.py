@@ -283,7 +283,6 @@ class SetFitDataset(TorchDataset):
 
 
 class NoDuplicateClassesDataLoader:
-
     def __init__(self, train_examples, batch_size):
         self.batch_size = batch_size
         self.collate_fn = None
