@@ -102,7 +102,7 @@ class SetFitHead(models.Dense):
                 and the outputs will be under the key: 'prediction'.
             temperature (`float`, *optional*):
                 A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
-                Will override the temerature given during initialization.
+                Will override the temperature given during initialization.
         Returns:
         [`Dict[str, torch.Tensor]` or `torch.Tensor`]
         """
