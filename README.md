@@ -23,6 +23,12 @@ Download and install `setfit` by running:
 python -m pip install setfit
 ```
 
+If you want the bleeding-edge version, install from source by running:
+
+```bash
+python -m pip install git+https://github.com/huggingface/setfit.git
+```
+
 ## Usage
 
 The examples below provide a quick overview on the various features supported in `setfit`. For more examples, check out the [`notebooks`](https://github.com/huggingface/setfit/tree/main/notebooks) folder.
@@ -42,15 +48,14 @@ Here is an end-to-end example using a classification head from `scikit-learn`:
 from datasets import load_dataset
 from sentence_transformers.losses import CosineSimilarityLoss
 
-from setfit import SetFitModel, SetFitTrainer
+from setfit import SetFitModel, SetFitTrainer, sample_dataset
 
 
 # Load a dataset from the Hugging Face Hub
 dataset = load_dataset("sst2")
 
 # Simulate the few-shot regime by sampling 8 examples per class
-num_classes = 2
-train_dataset = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
 eval_dataset = dataset["validation"]
 
 # Load a SetFit model from Hub

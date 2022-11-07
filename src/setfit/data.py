@@ -158,6 +158,7 @@ def add_templated_examples(
     sample_size: int = 2,
     text_column: str = "text",
     label_column: str = "label",
+    multi_label: bool = False,
 ) -> Dataset:
     """Adds templated examples to a Dataset.
 
@@ -182,6 +183,7 @@ def add_templated_examples(
             containing the text of the examples.
         label_column (`str`, *optional*, defaults to `"label"`): The name of the column
             containing the labels of the examples.
+        multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple candidate labels can be true.
 
     Returns:
         `Dataset`: A copy of the input Dataset with templated examples added.
@@ -204,7 +206,7 @@ def add_templated_examples(
         label_vector[label_id] = 1
         example = {
             text_column: template.format(label_name),
-            label_column: label_vector,
+            label_column: label_vector if multi_label else label_id,
         }
         for _ in range(sample_size):
             dataset = dataset.add_item(example)

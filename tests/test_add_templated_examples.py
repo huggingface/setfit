@@ -20,7 +20,9 @@ def dataset():
 
 
 def test_add_to_empty_dataset_defaults(empty_dataset):
-    augmented_dataset = add_templated_examples(empty_dataset, candidate_labels=["label-0", "label-1"])
+    augmented_dataset = add_templated_examples(
+        empty_dataset, candidate_labels=["label-0", "label-1"], multi_label=True
+    )
 
     assert augmented_dataset[:] == {
         "text": [
@@ -34,7 +36,7 @@ def test_add_to_empty_dataset_defaults(empty_dataset):
 
 
 def test_add_to_dataset_defaults(dataset):
-    augmented_dataset = add_templated_examples(dataset, candidate_labels=["label-0", "label-1"])
+    augmented_dataset = add_templated_examples(dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
 
     assert augmented_dataset[:] == {
         "text": [
