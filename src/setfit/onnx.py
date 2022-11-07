@@ -1,5 +1,6 @@
 from pathlib import Path
-from .modeling import SetFitModel, SetFitHead
+from .modeling import SetFitModel
+from sentence_transformers import models
 from transformers.convert_graph_to_onnx import convert_pytorch
 from transformers import pipeline
 import numpy as np
@@ -84,7 +85,7 @@ def export_onnx(
     model = SetFitModel.from_pretrained(model_name)
 
     # Check to see if the model uses a sklearn head or a torch dense layer.
-    if isinstance(model.model_head, SetFitHead):
+    if issubclass(type(model.model_head), models.Dense):
         # TODO:: Combine the dense layer on top of the normal model and export as onnx.
         raise (
             NotImplementedError(
@@ -124,7 +125,7 @@ def export_onnx(
         convert_pytorch(nlp, min_opset, output, use_external_format)
         onnx_body = onnx.load(output)
 
-        # Assign attention_mask as an output so we can use it as an input to the mean pooling onnx graph.
+        # Assign attention_mask as an output so we can use it as an input to the mean pooling.
         intermediate_layer_value_info = onnx.helper.ValueInfoProto()
         intermediate_layer_value_info.name = "attention_mask"
         onnx_body.graph.output.extend([intermediate_layer_value_info])
@@ -159,7 +160,6 @@ def export_onnx(
             ],
         )
 
-        # Attach the sklearn head to the model body through the mean pooling layer.
         combined_model = onnx.compose.merge_models(
             onnx_body_with_mean_pooling,
             onnx_head,
