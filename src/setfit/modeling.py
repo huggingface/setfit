@@ -497,9 +497,9 @@ def sentence_pairs_generation(sentences, labels, pairs):
 
         negative_idx = np.where(labels != label)[0]
         negative_sentence = sentences[np.random.choice(negative_idx)]
-        # Prepare a negative pair of images and update our lists
+        # Prepare a negative pair of sentences and update our lists
         pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our image pairs and labels
+    # Return a 2-tuple of our sentence pairs and labels
     return pairs
 
 
@@ -524,9 +524,9 @@ def sentence_pairs_generation_multilabel(sentences, labels, pairs):
             # sentence
             negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
             negative_sentence = sentences[np.random.choice(negative_idx)]
-            # Prepare a negative pair of images and update our lists
+            # Prepare a negative pair of sentences and update our lists
             pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our image pairs and labels
+    # Return a 2-tuple of our sentence pairs and labels
     return pairs
 
 
