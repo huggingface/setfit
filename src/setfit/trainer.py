@@ -317,14 +317,14 @@ class SetFitTrainer:
                 if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
                     train_loss = self.loss_class(
                         model=self.model.model_body,
-                        distance_metric=distance_metric,
+                        distance_metric=self.distance_metric,
                     )
                 elif self.loss_class is SupConLoss:
                     train_loss = self.loss_class(model=self.model.model_body)
                 else:
                     train_loss = self.loss_class(
                         model=self.model.model_body,
-                        distance_metric=distance_metric,
+                        distance_metric=self.distance_metric,
                         margin=self.margin,
                     )
 
