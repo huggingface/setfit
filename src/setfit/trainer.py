@@ -80,6 +80,8 @@ class SetFitTrainer:
         column_mapping: Dict[str, str] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
+        distance_metric: Optional[Callable] = None,
+        margin: float = 0.25,
     ):
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
             raise ValueError(
@@ -98,6 +100,8 @@ class SetFitTrainer:
         self.column_mapping = column_mapping
         self.use_amp = use_amp
         self.warmup_proportion = warmup_proportion
+        self.distance_metric = distance_metric
+        self.margin = margin
 
         if model is None:
             if model_init is not None:
@@ -310,19 +314,20 @@ class SetFitTrainer:
                 batch_size = min(batch_size, len(train_data_sampler))
                 train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
+                distance_metric = self.distance_metric or BatchHardTripletLossDistanceFunction.cosine_distance
+
                 if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
                     train_loss = self.loss_class(
                         model=self.model.model_body,
-                        distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
+                        distance_metric=distance_metric,
                     )
                 elif self.loss_class is SupConLoss:
                     train_loss = self.loss_class(model=self.model.model_body)
                 else:
-
                     train_loss = self.loss_class(
                         model=self.model.model_body,
-                        distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-                        margin=0.25,
+                        distance_metric=distance_metric,
+                        margin=self.margin,
                     )
 
                 train_steps = len(train_dataloader) * self.num_epochs
