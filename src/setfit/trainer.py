@@ -39,8 +39,9 @@ class SetFitTrainer:
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
             from a new instance of the model as given by this function when a `trial` is passed.
-        metric (`str`, *optional*, defaults to `"accuracy"`):
-            The metric to use for evaluation.
+        metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
+            The metric to use for evaluation. If a string is provided, we treat it as the metric name and load it with default settings.
+            If a callable is provided, it must take two arguments (`y_pred`, `y_test`).
         loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
             The loss function to use for contrastive training.
         num_iterations (`int`, *optional*, defaults to `20`):
@@ -69,7 +70,7 @@ class SetFitTrainer:
         train_dataset: "Dataset" = None,
         eval_dataset: "Dataset" = None,
         model_init: Callable[[], "SetFitModel"] = None,
-        metric: str = "accuracy",
+        metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
         num_epochs: int = 1,
@@ -311,15 +312,15 @@ class SetFitTrainer:
 
                 if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
                     train_loss = self.loss_class(
-                        model=self.model,
+                        model=self.model.model_body,
                         distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
                     )
                 elif self.loss_class is SupConLoss:
-                    train_loss = self.loss_class(model=self.model)
+                    train_loss = self.loss_class(model=self.model.model_body)
                 else:
 
                     train_loss = self.loss_class(
-                        model=self.model,
+                        model=self.model.model_body,
                         distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
                         margin=0.25,
                     )
@@ -373,21 +374,37 @@ class SetFitTrainer:
             )
 
     def evaluate(self):
-        """Computes the metrics for a given classifier."""
+        """
+        Computes the metrics for a given classifier.
+
+        Returns:
+            `Dict[str, float]`: The evaluation metrics.
+        """
+
         self._validate_column_mapping(self.eval_dataset)
         eval_dataset = self.eval_dataset
+
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
             eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
-        metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
-        metric_fn = evaluate.load(self.metric, config_name=metric_config)
+
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
 
-        return metric_fn.compute(predictions=y_pred, references=y_test)
+        if isinstance(self.metric, str):
+            metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
+            metric_fn = evaluate.load(self.metric, config_name=metric_config)
+
+            return metric_fn.compute(predictions=y_pred, references=y_test)
+
+        elif callable(self.metric):
+            return self.metric(y_pred, y_test)
+
+        else:
+            raise ValueError("metric must be a string or a callable")
 
     def hyperparameter_search(
         self,

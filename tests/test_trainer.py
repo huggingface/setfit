@@ -1,11 +1,13 @@
 from unittest import TestCase
 
+import evaluate
 import pytest
 from datasets import Dataset
+from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
-from setfit.modeling import SetFitModel
+from setfit.modeling import SetFitModel, SupConLoss
 from setfit.trainer import SetFitTrainer
 from setfit.utils import BestRun
 
@@ -107,6 +109,59 @@ class SetFitTrainerTest(TestCase):
 
         assert formatted_dataset[1]["text"] == "b"
 
+    def test_trainer_support_callable_as_metric(self):
+        dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+
+        f1_metric = evaluate.load("f1")
+        accuracy_metric = evaluate.load("accuracy")
+
+        def compute_metrics(y_pred, y_test):
+            return {
+                "f1": f1_metric.compute(predictions=y_pred, references=y_test, average="micro")["f1"],
+                "accuracy": accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
+            }
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric=compute_metrics,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+        metrics = trainer.evaluate()
+
+        self.assertEqual(
+            {
+                "f1": 1.0,
+                "accuracy": 1.0,
+            },
+            metrics,
+        )
+
+    def test_raise_when_metric_value_is_invalid(self):
+        dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric="this-metric-does-not-exist",  # invalid metric value
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+
+        with self.assertRaises(FileNotFoundError):
+            trainer.evaluate()
+
     def test_trainer_raises_error_with_wrong_warmup_proportion(self):
         # warmup_proportion must not be > 1.0
         with pytest.raises(ValueError):
@@ -115,6 +170,46 @@ class SetFitTrainerTest(TestCase):
         # warmup_proportion must not be < 0.0
         with pytest.raises(ValueError):
             SetFitTrainer(warmup_proportion=-0.1)
+
+
+class SetFitTrainerMultilabelTest(TestCase):
+    def setUp(self):
+        self.model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
+        )
+        self.num_iterations = 1
+
+    def test_trainer_multilabel_support_callable_as_metric(self):
+        dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
+
+        multilabel_f1_metric = evaluate.load("f1", "multilabel")
+        multilabel_accuracy_metric = evaluate.load("accuracy", "multilabel")
+
+        def compute_metrics(y_pred, y_test):
+            return {
+                "f1": multilabel_f1_metric.compute(predictions=y_pred, references=y_test, average="micro")["f1"],
+                "accuracy": multilabel_accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
+            }
+
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric=compute_metrics,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+        metrics = trainer.evaluate()
+
+        self.assertEqual(
+            {
+                "f1": 1.0,
+                "accuracy": 1.0,
+            },
+            metrics,
+        )
 
 
 @require_optuna
@@ -162,3 +257,28 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
         result = trainer.hyperparameter_search(direction="minimize", hp_space=hp_space, hp_name=hp_name, n_trials=4)
         assert isinstance(result, BestRun)
         assert result.hyperparameters.keys() == {"learning_rate", "batch_size", "max_iter", "solver"}
+
+
+# regression test for https://github.com/huggingface/setfit/issues/153
+@pytest.mark.parametrize(
+    "loss_class",
+    [
+        losses.BatchAllTripletLoss,
+        losses.BatchHardTripletLoss,
+        losses.BatchSemiHardTripletLoss,
+        losses.BatchHardSoftMarginTripletLoss,
+        SupConLoss,
+    ],
+)
+def test_trainer_works_with_non_default_loss_class(loss_class):
+    dataset = Dataset.from_dict({"text": ["a 1", "b 1", "c 1", "a 2", "b 2", "c 2"], "label": [0, 1, 2, 0, 1, 2]})
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        num_iterations=1,
+        loss_class=loss_class,
+    )
+    trainer.train()
+    # no asserts here because this is a regression test - we only test if an exception is raised
