@@ -3,10 +3,11 @@ from unittest import TestCase
 import evaluate
 import pytest
 from datasets import Dataset
+from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
-from setfit.modeling import SetFitModel
+from setfit.modeling import SetFitModel, SupConLoss
 from setfit.trainer import SetFitTrainer
 from setfit.utils import BestRun
 
@@ -256,3 +257,28 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
         result = trainer.hyperparameter_search(direction="minimize", hp_space=hp_space, hp_name=hp_name, n_trials=4)
         assert isinstance(result, BestRun)
         assert result.hyperparameters.keys() == {"learning_rate", "batch_size", "max_iter", "solver"}
+
+
+# regression test for https://github.com/huggingface/setfit/issues/153
+@pytest.mark.parametrize(
+    "loss_class",
+    [
+        losses.BatchAllTripletLoss,
+        losses.BatchHardTripletLoss,
+        losses.BatchSemiHardTripletLoss,
+        losses.BatchHardSoftMarginTripletLoss,
+        SupConLoss,
+    ],
+)
+def test_trainer_works_with_non_default_loss_class(loss_class):
+    dataset = Dataset.from_dict({"text": ["a 1", "b 1", "c 1", "a 2", "b 2", "c 2"], "label": [0, 1, 2, 0, 1, 2]})
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        num_iterations=1,
+        loss_class=loss_class,
+    )
+    trainer.train()
+    # no asserts here because this is a regression test - we only test if an exception is raised
