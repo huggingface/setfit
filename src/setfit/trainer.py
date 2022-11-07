@@ -64,7 +64,8 @@ class SetFitTrainer:
             Must be greater than or equal to 0.0 and less than or equal to 1.0.
         distance_metric (`Callable`, defaults to `BatchHardTripletLossDistanceFunction.cosine_distance`):
             Function that returns a distance between two embeddings.
-            This is ignored for `CosineSimilarityLoss` and `SupConLoss`.
+            It is set for the triplet loss and
+            is ignored for `CosineSimilarityLoss` and `SupConLoss`.
         margin (`float`, defaults to `0.25`): Margin for the triplet loss.
             Negative samples should be at least margin further apart from the anchor than the positive.
             This is ignored for `CosineSimilarityLoss`, `BatchHardSoftMarginTripletLoss` and `SupConLoss`.
