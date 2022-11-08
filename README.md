@@ -23,6 +23,12 @@ Download and install `setfit` by running:
 python -m pip install setfit
 ```
 
+If you want the bleeding-edge version, install from source by running:
+
+```bash
+python -m pip install git+https://github.com/huggingface/setfit.git
+```
+
 ## Usage
 
 The examples below provide a quick overview on the various features supported in `setfit`. For more examples, check out the [`notebooks`](https://github.com/huggingface/setfit/tree/main/notebooks) folder.
@@ -42,15 +48,14 @@ Here is an end-to-end example using a classification head from `scikit-learn`:
 from datasets import load_dataset
 from sentence_transformers.losses import CosineSimilarityLoss
 
-from setfit import SetFitModel, SetFitTrainer
+from setfit import SetFitModel, SetFitTrainer, sample_dataset
 
 
 # Load a dataset from the Hugging Face Hub
 dataset = load_dataset("sst2")
 
 # Simulate the few-shot regime by sampling 8 examples per class
-num_classes = 2
-train_dataset = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
 eval_dataset = dataset["validation"]
 
 # Load a SetFit model from Hub
@@ -169,6 +174,35 @@ This will initialise a multilabel classification head from `sklearn` - the follo
 From here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.
 
 **Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.
+
+### Training on unlabeled datasets
+
+SetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:
+
+```python
+from datasets import Dataset
+from setfit import add_templated_examples
+
+candidate_labels = ["negative", "positive"]
+dummy_dataset = Dataset.from_dict({})
+train_dataset = add_templated_examples(dummy_dataset, candidate_labels=candidate_labels, sample_size=8)
+```
+
+This will create examples of the form `"This sentence is {}"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:
+
+```python
+from setfit import SetFitModel, SetFitTrainer
+
+model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
+trainer = SetFitTrainer(
+    model=model,
+    train_dataset=train_dataset
+)
+trainer.train()
+```
+
+We find this approach typically outperforms the [zero-shot pipeline](https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline) in 🤗 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.
+
 
 ### Running hyperparameter search
 

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Dict, List, Tuple
 
 import pandas as pd
 import torch
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, concatenate_datasets
 from torch.utils.data import Dataset as TorchDataset
 
 
@@ -92,6 +92,20 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
     return pd.concat(examples)
 
 
+def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
+    """Samples a Dataset to create an equal number of samples per class (when possible)."""
+    shuffled_dataset = dataset.shuffle(seed=seed)
+    num_labels = len(dataset.unique(label_column))
+    samples = []
+    for label in range(num_labels):
+        data = shuffled_dataset.filter(lambda example: int(example[label_column]) == label)
+        num_samples = min(len(data) // 2, num_samples)
+        samples.append(data.select([i for i in range(num_samples)]))
+
+    all_samples = concatenate_datasets(samples)
+    return all_samples.shuffle(seed=seed)
+
+
 def create_fewshot_splits(
     dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: str = None
 ) -> DatasetDict:
@@ -144,6 +158,7 @@ def add_templated_examples(
     sample_size: int = 2,
     text_column: str = "text",
     label_column: str = "label",
+    multi_label: bool = False,
 ) -> Dataset:
     """Adds templated examples to a Dataset.
 
@@ -168,6 +183,7 @@ def add_templated_examples(
             containing the text of the examples.
         label_column (`str`, *optional*, defaults to `"label"`): The name of the column
             containing the labels of the examples.
+        multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple candidate labels can be true.
 
     Returns:
         `Dataset`: A copy of the input Dataset with templated examples added.
@@ -190,7 +206,7 @@ def add_templated_examples(
         label_vector[label_id] = 1
         example = {
             text_column: template.format(label_name),
-            label_column: label_vector,
+            label_column: label_vector if multi_label else label_id,
         }
         for _ in range(sample_size):
             dataset = dataset.add_item(example)
