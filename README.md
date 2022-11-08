@@ -175,7 +175,7 @@ From here, you can instantiate a `SetFitTrainer` using the same example above, a
 
 **Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.
 
-### Training on unlabeled datasets
+### Zero-shot text classification
 
 SetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:
 

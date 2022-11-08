@@ -5,6 +5,7 @@ GITHUB_PATH_PREFIX = "huggingface/setfit/blob/main/notebooks/"
 CHAPTER_TO_NB = {
     "Text Classification (Multiclass)": "text-classification",
     "Text Classification (Multilabel)": "text-classification_multilabel",
+    "Zero-Shot Text Classification": "zero-shot-classification",
     "Hyperparameter search": "text-classification_hyperparameter-search",
 }
 
