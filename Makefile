@@ -1,3 +1,5 @@
+.PHONY: notebooks
+
 # make sure to test the local checkout in scripts and not the pre-installed one (don't use quotes!)
 export PYTHONPATH = src
 
@@ -17,6 +19,9 @@ test:
 
 coverage:
 	python -m pytest --cov=src --cov-report=term-missing -sv tests/
+
+notebooks:
+	python utils/create_notebook_table.py
 
 # Release stuff
 
