@@ -193,7 +193,7 @@ This will create examples of the form `"This sentence is {}"`, where the `{}` is
 ```python
 from setfit import SetFitModel, SetFitTrainer
 
-model = SetFitModel.from_pretrained(model_id)
+model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
 trainer = SetFitTrainer(
     model=model,
     train_dataset=train_dataset
@@ -201,7 +201,7 @@ trainer = SetFitTrainer(
 trainer.train()
 ```
 
-We find this approach typically outperforms the zero-shot pipeline in 🤗 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.
+We find this approach typically outperforms the [zero-shot pipeline](https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline) in 🤗 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.
 
 
 ### Running hyperparameter search
