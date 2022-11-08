@@ -2,7 +2,14 @@ import copy
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+
+# Google Colab runs on Python 3.7, so we need this to be compatible
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import joblib
 import numpy as np
