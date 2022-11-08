@@ -18,9 +18,12 @@ from evaluate import load
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
+from sentence_transformers import InputExample, losses, util
+from sentence_transformers.losses import CosineSimilarityLoss
+
 
 from setfit.modeling import (
-    LOSS_NAME_TO_CLASS,
+    #LOSS_NAME_TO_CLASS,
     SetFitBaseModel,
     SKLearnWrapper,
     sentence_pairs_generation,
@@ -143,8 +146,10 @@ class RunFewShotDistill:
             self.dataset_to_metric = {dataset: "accuracy" for dataset in args.datasets}
 
         # Configure loss function
-        self.loss_class = LOSS_NAME_TO_CLASS[args.loss]
-
+        #self.loss_class = LOSS_NAME_TO_CLASS[args.loss]
+        self.loss_class=losses.CosineSimilarityLoss
+       
+        
         # Load SetFit Model
         self.model_wrapper = SetFitBaseModel(
             # self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
@@ -232,7 +237,7 @@ class RunFewShotDistill:
                 )
                 self.student_train_ds = fewshot_ds
 
-                # for training baseline student use the same data that was used for training setfit student
+            # for training baseline student use the same data that was used for training setfit student
             if self.mode == self.BASELINE_STUDENT:
                 fewshot_ds = self.student_train_ds
                 num_classes = len(train_ds.unique("label"))
@@ -309,22 +314,16 @@ class RunFewShotDistill:
             y_train = self.trained_teacher_model.clf.predict(x_train_embd_student)
 
             # setfit student uses cosine similarity between pairs for training
-            cos_sim_matrix = [[0 for j in range(len(x_train))] for i in range(len(x_train))]
-            for first_idx in range(len(x_train)):
-                for second_idx in range(len(x_train)):
-                    cos_sim_matrix[first_idx][second_idx] = float(
-                        cosine_similarity(
-                            x_train_embd_student[first_idx].reshape(1, -1),
-                            x_train_embd_student[second_idx].reshape(1, -1),
-                        )
-                    )
-
+            cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
+           
             train_examples = []
             for x in range(num_epochs):
                 train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
 
         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-        train_loss = loss_class(self.model)
+        # train_loss = self.loss_class(self.model.model_body)
+        #train_loss = loss_class(self.model)
+        train_loss = self.loss_class
         train_steps = len(train_dataloader)
 
         print(f"{len(x_train)} train samples in total, {train_steps} train steps with batch size {batch_size}")
