@@ -175,6 +175,35 @@ From here, you can instantiate a `SetFitTrainer` using the same example above, a
 
 **Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.
 
+### Training on unlabeled datasets
+
+SetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:
+
+```python
+from datasets import Dataset
+from setfit import add_templated_examples
+
+candidate_labels = ["negative", "positive"]
+dummy_dataset = Dataset.from_dict({})
+train_dataset = add_templated_examples(dummy_dataset, candidate_labels=candidate_labels, sample_size=8)
+```
+
+This will create examples of the form `"This sentence is {}"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:
+
+```python
+from setfit import SetFitModel, SetFitTrainer
+
+model = SetFitModel.from_pretrained(model_id)
+trainer = SetFitTrainer(
+    model=model,
+    train_dataset=train_dataset
+)
+trainer.train()
+```
+
+We find this approach typically outperforms the zero-shot pipeline in 🤗 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.
+
+
 ### Running hyperparameter search
 
 `SetFitTrainer` provides a `hyperparameter_search()` method that you can use to find good hyperparameters for your data. To use this feature, first install the `optuna` backend:
