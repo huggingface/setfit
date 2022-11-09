@@ -7,9 +7,10 @@ import torch
 from sentence_transformers import InputExample, losses, util
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
-from sklearn.metrics.pairwise import cosine_similarity
+
 from setfit import SetFitTrainer
 
 from . import logging
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
+
 
 class DistilSetFitTrainer(SetFitTrainer):
     """Trainer to train a distilled SetFit model (student) model.
@@ -69,7 +71,7 @@ class DistilSetFitTrainer(SetFitTrainer):
 
     def __init__(
         self,
-        teacher_model:  "SetFitModel" = None,
+        teacher_model: "SetFitModel" = None,
         model: "SetFitModel" = None,
         train_dataset: "Dataset" = None,
         eval_dataset: "Dataset" = None,
@@ -84,25 +86,25 @@ class DistilSetFitTrainer(SetFitTrainer):
         column_mapping: Dict[str, str] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
-    )->None:
+    ) -> None:
         super(DistilSetFitTrainer, self).__init__(
-        model,
-        train_dataset,
-        eval_dataset,
-        model_init,
-        metric,
-        loss_class,
-        num_iterations,
-        num_epochs,
-        learning_rate,
-        batch_size,
-        seed,
-        column_mapping,
-        use_amp,
-        warmup_proportion)
+            model,
+            train_dataset,
+            eval_dataset,
+            model_init,
+            metric,
+            loss_class,
+            num_iterations,
+            num_epochs,
+            learning_rate,
+            batch_size,
+            seed,
+            column_mapping,
+            use_amp,
+            warmup_proportion,
+        )
 
         self.teacher_model = teacher_model
-       
 
     def train(
         self,
@@ -192,17 +194,19 @@ class DistilSetFitTrainer(SetFitTrainer):
             else:
                 train_examples = []
 
-                #**************** student training ****************
+                # **************** student training ****************
                 x_train_embd_student = self.teacher_model.model_body.encode(x_train)
                 y_train = self.teacher_model.model_head.predict(x_train_embd_student)
 
                 cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
 
                 train_examples = []
-                for _ in range(self.num_iterations):    
-                    train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
+                for _ in range(self.num_iterations):
+                    train_examples = sentence_pairs_generation_cos_sim(
+                        np.array(x_train), train_examples, cos_sim_matrix
+                    )
 
-                #**************** student training END ****************
+                # **************** student training END ****************
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
@@ -237,5 +241,3 @@ class DistilSetFitTrainer(SetFitTrainer):
                 l2_weight=l2_weight,
                 show_progress_bar=True,
             )
-
-    
