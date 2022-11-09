@@ -1,7 +1,6 @@
 import math
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
-import evaluate
 import numpy as np
 import torch
 from sentence_transformers import InputExample, losses, util
