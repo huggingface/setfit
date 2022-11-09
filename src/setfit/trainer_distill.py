@@ -8,6 +8,7 @@ from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
 from transformers.trainer_utils import set_seed
+
 from setfit import SetFitTrainer
 
 from . import logging
