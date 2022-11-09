@@ -8,7 +8,7 @@ import torch
 from sklearn.linear_model import LogisticRegression
 
 
-class ONNXSetFitModel(nn.Module):
+class ONNXSetFitModel(torch.nn.Module):
     def __init__(self, model_body, pooler, model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None):
         super().__init__()
 
@@ -48,7 +48,7 @@ def sklearn_head_to_onnx(model: SetFitModel, opset: int):
         import onnxconverter_common
         from skl2onnx.sklapi import CastTransformer
         from sklearn.pipeline import Pipeline
-    except ImportError as e:
+    except ImportError:
         msg = "skl2onnx must be installed in order to convert a model with an sklearn head."
         raise ImportError(msg)
 
@@ -67,7 +67,7 @@ def sklearn_head_to_onnx(model: SetFitModel, opset: int):
     # from the setfit model to doubles for compatibility inside of ONNX.
     if type(dtype) == onnxconverter_common.data_types.DoubleTensorType:
         # TODO:: TALK ABOUT FLOAT CONVERSION ISSUES.
-        sk_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model.model_head),])
+        sk_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model.model_head)])
     else:
         sk_model = model.model_head
 
