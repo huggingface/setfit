@@ -6,16 +6,12 @@ import torch
 from sentence_transformers import InputExample, losses, util
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
-from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
-from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
-
+from transformers.trainer_utils import set_seed
 from setfit import SetFitTrainer
 
 from . import logging
-from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .modeling import SupConLoss, sentence_pairs_generation_cos_sim
-from .utils import BestRun, default_hp_space_optuna
 
 
 if TYPE_CHECKING:
