@@ -12,7 +12,7 @@ from xmlrpc.client import Boolean
 
 import numpy as np
 import pandas as pd
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, load_dataset, concatenate_datasets
 from distillation_baseline import BaselineDistillation
 from evaluate import load
 from sklearn.linear_model import LogisticRegression
@@ -20,6 +20,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from torch.utils.data import DataLoader
 from sentence_transformers import InputExample, losses, util
 from sentence_transformers.losses import CosineSimilarityLoss
+from setfit import SetFitModel, SetFitTrainer
+from setfit.trainer_distill import DistilSetFitTrainer
 
 
 from setfit.modeling import (
@@ -37,7 +39,6 @@ STUDENT_SEEDS = [1]
 # STUDENT_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
-
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -87,7 +88,7 @@ def parse_args():
 
 
 class RunFewShotDistill:
-    def __init__(self, args, mode, trained_teacher_model, x_train_teacher, student_train_ds) -> None:
+    def __init__(self, args, mode, trained_teacher_model, treacher_train_data, student_train_ds) -> None:
         # Prepare directory for results
         self.args = args
 
@@ -105,14 +106,14 @@ class RunFewShotDistill:
             model = args.student_model
             path_prefix = f"setfit_student_{args.student_model.replace('/', '-')}"
             self.trained_teacher_model = trained_teacher_model
-            self.x_train_teacher = x_train_teacher
+            self.treacher_train_data = treacher_train_data
             self.mode = self.SETFIT_STUDENT
 
         if mode == self.BASELINE_STUDENT:
             model = args.baseline_student_model
             path_prefix = f"baseline_student_{args.student_model.replace('/', '-')}"
             self.trained_teacher_model = trained_teacher_model
-            self.x_train_teacher = x_train_teacher
+            self.treacher_train_data = treacher_train_data
             self.student_train_ds = student_train_ds
             self.mode = self.BASELINE_STUDENT
             self.bl_stdnt_distill = BaselineDistillation(
@@ -149,7 +150,7 @@ class RunFewShotDistill:
         #self.loss_class = LOSS_NAME_TO_CLASS[args.loss]
         self.loss_class=losses.CosineSimilarityLoss
        
-        
+        self.model_name = model
         # Load SetFit Model
         self.model_wrapper = SetFitBaseModel(
             # self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
@@ -192,10 +193,6 @@ class RunFewShotDistill:
         # Define metrics
         metric_fn = load(metric)
 
-        # clf = self.get_classifier(self.model)
-        # clf.fit(x_train, y_train)
-        # y_pred = clf.predict(x_test)
-
         metrics = metric_fn.compute(predictions=y_pred, references=y_test)
         print(f"{metric} -- {metrics[metric]:.4f}")
 
@@ -205,6 +202,7 @@ class RunFewShotDistill:
         if self.args.classifier == "logistic_regression":
             return SKLearnWrapper(sbert_model, LogisticRegression())
 
+    
     def train(self):
         for dataset, metric in self.dataset_to_metric.items():
             if self.mode == self.TEACHER:
@@ -216,8 +214,10 @@ class RunFewShotDistill:
             print(f"\n\n\n============== {dataset} ============")
             # Load one of the SetFit training sets from the Hugging Face Hub
             train_ds = load_dataset(f"SetFit/{dataset}", split="train")
-            test_dataset = load_dataset(f"SetFit/{dataset}", split="test")
-            print(f"Test set: {len(test_dataset)}")
+
+            
+            eval_dataset = load_dataset(f"SetFit/{dataset}", split="test")
+            print(f"Test set: {len(eval_dataset)}")
 
             # if teacher training use only 1 split (send only 1 seed. seed= 0)
             if self.mode == self.TEACHER:
@@ -250,18 +250,60 @@ class RunFewShotDistill:
                 # if os.path.exists(results_path):
                 #     continue
 
-                if (self.mode == self.TEACHER) or (self.mode == self.SETFIT_STUDENT):
-                    self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
-                    metrics = self.train_eval_setfit(
-                        fewshot_ds[name],
-                        test_dataset,
-                        self.loss_class,
-                        self.args.num_epochs,
-                        metric,
+                if self.mode == self.TEACHER:
+                    # self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
+                    fewshot_ds[name].rename_column("text","sentence")     # Map dataset columns to sentence/label expected by trainer
+                    teacher_model = SetFitModel.from_pretrained(self.model_name)
+                    teacher_trainer = SetFitTrainer(
+                        model=teacher_model,                
+                        train_dataset=fewshot_ds[name],
+                        eval_dataset=eval_dataset,
+                        loss_class=CosineSimilarityLoss,
+                        metric=metric,
+                        batch_size=self.args.batch_size,
+                        num_iterations=20, # The number of text pairs to generate for contrastive learning
+                        num_epochs=1 # The number of epochs to use for constrastive learning
+
                     )
+                    teacher_trainer.train()
+
+                    # Evaluate the model on the test data
+                    metrics = teacher_trainer.evaluate()
+                    print(f"\n**************************")
+                    print(f"Teacher metrics: {metrics}")
+                    print(f"**************************\n")
+
+                    self.treacher_train_data = fewshot_ds[name] # save teacher training data
+                    self.trained_teacher_model = teacher_trainer.model
+
+                if self.mode == self.SETFIT_STUDENT:    
+                                   
+                    # student train data = teacher train data + unlabeled data
+                    student_train_dataset = concatenate_datasets([self.treacher_train_data, fewshot_ds[name]])
+                    student_train_dataset.rename_column("text","sentence")     # Map dataset columns to sentence/label expected by trainer 
+                    student_model = SetFitModel.from_pretrained(self.model_name)
+                    student_trainer = DistilSetFitTrainer(
+                        teacher_model = self.trained_teacher_model,
+                        model=student_model,
+                        train_dataset=student_train_dataset,
+                        eval_dataset=eval_dataset,
+                        loss_class=CosineSimilarityLoss,
+                        metric="accuracy",
+                        batch_size=16,
+                        num_iterations=20, # The number of text pairs to generate for contrastive learning
+                        num_epochs=1 # The number of epochs to use for constrastive learning
+                        #column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
+                    )
+                     # Student Train and evaluate
+                    student_trainer.train()
+                    metrics = student_trainer.evaluate()
+                    print(f"\n**************************")
+                    print("Student results: ", metrics)
+                    print(f"**************************\n")
 
                 if self.mode == self.BASELINE_STUDENT:
-                    metrics = self.train_baseline_student(fewshot_ds[name], test_dataset, num_classes)
+                    student_train_dataset = concatenate_datasets([self.treacher_train_data, fewshot_ds[name]])
+                    metrics = self.train_baseline_student(student_train_dataset, eval_dataset, num_classes)
                     print("Baseline model score: ", round(metrics[metric] * 100, 3))
 
                 with open(results_path, "w") as f_out:
@@ -271,82 +313,25 @@ class RunFewShotDistill:
                         sort_keys=True,
                     )
 
+
     def train_baseline_student(self, train_data, test_data, num_classes):
         x_train = train_data["text"]
         x_test = test_data["text"]
         y_test = test_data["label"]
 
-        x_train = self.x_train_teacher + x_train
-        x_train_embd_student = self.trained_teacher_model.sbert_model.encode(x_train)
+        #x_train_embd_student = self.trained_teacher_model.sbert_model.encode(x_train)
+        x_train_embd_student = self.trained_teacher_model.model_body.encode(x_train)
+
         # baseline student uses teacher probabilities (converted to logits) for training
-        y_train_teacher_pred_prob = self.trained_teacher_model.clf.predict_proba(x_train_embd_student)
+        #y_train_teacher_pred_prob = self.trained_teacher_model.clf.predict_proba(x_train_embd_student)
+        y_train_teacher_pred_prob = self.trained_teacher_model.model_head.predict_proba(x_train_embd_student)
+
+        
         train_raw_student_prob = Dataset.from_dict({"text": x_train, "score": list(y_train_teacher_pred_prob)})
 
         metric = self.bl_stdnt_distill.standard_model_distillation(train_raw_student_prob, x_test, y_test, num_classes)
 
         return metric
-
-    def train_eval_setfit(self, train_data, test_data, loss_class, num_epochs, metric):
-        x_train = train_data["text"]
-        y_train = train_data["label"]
-
-        x_test = test_data["text"]
-        y_test = test_data["label"]
-
-        if loss_class is None:
-            return self.compute_metrics(x_train, y_train, x_test, y_test, metric)
-
-        # sentence-transformers adaptation
-        batch_size = self.args.batch_size
-
-        if self.mode == self.TEACHER:
-            # save teacher train data for student training
-            self.x_train_teacher = x_train
-            train_examples = []
-            for _ in range(num_epochs):
-                train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
-
-        if self.mode == self.SETFIT_STUDENT:
-            # generate student data
-            # student train data = teacher train data + unlabeled data
-            x_train = self.x_train_teacher + x_train
-            x_train_embd_student = self.trained_teacher_model.sbert_model.encode(x_train)
-            y_train = self.trained_teacher_model.clf.predict(x_train_embd_student)
-
-            # setfit student uses cosine similarity between pairs for training
-            cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
-           
-            train_examples = []
-            for x in range(num_epochs):
-                train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
-
-        train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-        # train_loss = self.loss_class(self.model.model_body)
-        #train_loss = loss_class(self.model)
-        train_loss = self.loss_class
-        train_steps = len(train_dataloader)
-
-        print(f"{len(x_train)} train samples in total, {train_steps} train steps with batch size {batch_size}")
-
-        warmup_steps = math.ceil(train_steps * 0.1)
-        # train sentence transformer
-        self.model.fit(
-            train_objectives=[(train_dataloader, train_loss)],
-            epochs=1,
-            steps_per_epoch=train_steps,
-            warmup_steps=warmup_steps,
-            show_progress_bar=False,
-        )
-        # train classification head
-        clf = self.get_classifier(self.model)
-        clf.fit(x_train, y_train)
-        y_pred = clf.predict(x_test)
-
-        if self.mode == self.TEACHER:
-            self.full_setfit_model = clf
-
-        return self.compute_metrics(x_train, y_train, x_test, y_test, y_pred, metric)
-
 
 def main():
     args = parse_args()
@@ -358,7 +343,7 @@ def main():
         args,
         mode=TEACHER,
         trained_teacher_model=None,
-        x_train_teacher=None,
+        treacher_train_data=None,
         student_train_ds=None,
     )
     fewshot_teacher.train()
@@ -367,8 +352,8 @@ def main():
     setfit_student = RunFewShotDistill(
         args,
         mode=SETFIT_STUDENT,
-        trained_teacher_model=fewshot_teacher.full_setfit_model,
-        x_train_teacher=fewshot_teacher.x_train_teacher,
+        trained_teacher_model=fewshot_teacher.trained_teacher_model,
+        treacher_train_data=fewshot_teacher.treacher_train_data,
         student_train_ds=None,
     )
     setfit_student.train()
@@ -377,8 +362,8 @@ def main():
     baseline_student = RunFewShotDistill(
         args,
         mode=BASELINE_STUDENT,
-        trained_teacher_model=fewshot_teacher.full_setfit_model,
-        x_train_teacher=fewshot_teacher.x_train_teacher,
+        trained_teacher_model=fewshot_teacher.trained_teacher_model,
+        treacher_train_data=fewshot_teacher.treacher_train_data,
         student_train_ds=setfit_student.student_train_ds,
     )
     baseline_student.train()
