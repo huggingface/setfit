@@ -108,30 +108,60 @@ def export_onnx(
 
     # Load the model and get all of the parts.
     transformer = model_body_sentence_transformer._modules["0"]
-    model_body = transformer.auto_model
     tokenizer = transformer.tokenizer
     max_length = transformer.max_seq_length
+    model_body = transformer.auto_model
     model_pooler = model_body_sentence_transformer._modules["1"]
+    model_head = model.model_head
     model_body.eval()
 
+
     # Create dummy data to use during onnx export.
-    dummy_sample = "It's a test."
-    dummy_inputs = tokenizer(
-        dummy_sample,
+    tokenizer_kwargs = dict(
         max_length=max_length,
         padding="max_length",
         return_attention_mask=True,
         return_token_type_ids=True,
         return_tensors="pt",
     )
+    dummy_sample = "It's a test."
+    dummy_inputs = tokenizer(
+        dummy_sample,
+        **tokenizer_kwargs
+    )
     symbolic_names = {0: "batch_size", 1: "max_seq_len"}
 
     # Check to see if the model uses a sklearn head or a torch dense layer.
-    if issubclass(type(model.model_head), models.Dense):
-        # TODO:: Combine the dense layer on top of the normal model and export as onnx.
-        raise (NotImplementedError("Full pytorch model conversion is not implemented please use sklearn head."))
+    if issubclass(type(model_head), models.Dense):
+        setfit_model = ONNXSetFitModel(model_body, model_pooler, model_head).cpu()
+        setfit_model.eval()
+        with torch.no_grad():
+            torch.onnx.export(
+                setfit_model,
+                args=tuple(dummy_inputs.values()),
+                f=output,
+                opset_version=opset,
+                input_names=["input_ids", "attention_mask", "token_type_ids"],
+                output_names=["prediction"],
+                dynamic_axes={
+                    'input_ids': symbolic_names,        # variable length axes
+                    'attention_mask': symbolic_names,
+                    'token_type_ids': symbolic_names,
+                    'prediction': {0: 'batch_size'},
+                }
+            )
+        
+        # store meta data of the tokenizer for getting the correct tokenizer during inference
+        onnx_setfit_model = onnx.load(output)
+        meta = onnx_setfit_model.metadata_props.add()
+        meta.key = "model_name"
+        meta.value = model_name
+        for key, value in tokenizer_kwargs.items():
+            meta = onnx_setfit_model.metadata_props.add()  # create a new key-value pair to store
+            meta.key = key
+            meta.value = value
+        onnx.save(onnx_setfit_model, output)
     else:
-
         # TODO:: Make this work for other sklearn models without coef_.
         if not hasattr(model_head, "coef_"):
             raise ValueError("Model head must have coef_ attribute for weights.")
