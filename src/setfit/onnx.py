@@ -9,7 +9,9 @@ from sklearn.linear_model import LogisticRegression
 
 
 class ONNXSetFitModel(torch.nn.Module):
-    def __init__(self, model_body, pooler, model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None):
+    def __init__(
+        self, model_body, pooler, model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None,
+    ):
         super().__init__()
 
         self.model_body = model_body
@@ -28,11 +30,11 @@ class ONNXSetFitModel(torch.nn.Module):
         return out
 
 
-def sklearn_head_to_onnx(model: SetFitModel, opset: int):
+def sklearn_head_to_onnx(model_head: LogisticRegression, opset: int):
     """
     Convert the sklearn head from a SetFitModel to ONNX format.
 
-    :param model: The trained SetFit model with a sklearn model_head.
+    :param model_head: The trained SetFit model_head.
     :param opset: The ONNX opset to use for optimizing this model. The opset is not
         gauranteed and will default to the maximum version possible for the sklearn
         model.
@@ -53,23 +55,23 @@ def sklearn_head_to_onnx(model: SetFitModel, opset: int):
         raise ImportError(msg)
 
     # Check to see that the head has a coef_
-    if not hasattr(model.model_head, "coef_"):
+    if not hasattr(model_head, "coef_"):
         raise ValueError(
             "Head must have coef_ attribute check that this is supported by your model and the model has been fit."
         )
 
     # Determine the initial type and the shape of the output.
-    input_shape = (None, *model.model_head.coef_.shape[1:])
-    dtype = guess_data_type(model.model_head.coef_, shape=input_shape)[0][1]
+    input_shape = (None, *model_head.coef_.shape[1:])
+    dtype = guess_data_type(model_head.coef_, shape=input_shape)[0][1]
     dtype.shape = input_shape
 
     # If the datatype of the model is double we need to cast the outputs
     # from the setfit model to doubles for compatibility inside of ONNX.
     if type(dtype) == onnxconverter_common.data_types.DoubleTensorType:
         # TODO:: TALK ABOUT FLOAT CONVERSION ISSUES.
-        sk_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model.model_head)])
+        sk_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model_head)])
     else:
-        sk_model = model.model_head
+        sk_model = model_head
 
     # Convert sklearn head into ONNX format
     initial_type = [("model_head", dtype)]
@@ -80,13 +82,17 @@ def sklearn_head_to_onnx(model: SetFitModel, opset: int):
     return onx
 
 
-def export_onnx(model_name: str, opset: int, output: str, ignore_ir_version: bool = True):
+def export_onnx(
+    model_body_sentence_transformer, model_head, opset: int, output: str, ignore_ir_version: bool = True,
+):
     """
     Export a PyTorch backed setfit model to ONNX Intermediate Representation.
 
     Args:
-        model: The name of the pretrained setfit model to load and use. It can be a path
-            to a locally trained model.
+        model_body_sentence_transformer: The model_body from a SetFitModel.model_body. This should be a
+            SentenceTransformer.
+        model_head: The model_head from SetFitModel.model_head. This can be either a dense
+            layer SetFitHead or a Sklearn estimator.
         opset: The actual version of the ONNX operator set to use.  The final opset used
             might be lower. ONNX will use the highest version supported by both the
             sklearn head and the model body. If versions can't be rectified an error
@@ -101,13 +107,14 @@ def export_onnx(model_name: str, opset: int, output: str, ignore_ir_version: boo
     """
 
     # Load the model and get all of the parts.
-    model = SetFitModel.from_pretrained(model_name)
+    transformer = model_body_sentence_transformer._modules["0"]
     tokenizer = transformer.tokenizer
     max_length = transformer.max_seq_length
-    transformer = model.model_body._modules["0"]
     model_body = transformer.auto_model
-    model_pooler = model.model_body._modules["1"]
+    model_pooler = model_body_sentence_transformer._modules["1"]
     model_head = model.model_head
+    model_body.eval()
+
 
     # Create dummy data to use during onnx export.
     tokenizer_kwargs = dict(
@@ -161,7 +168,7 @@ def export_onnx(model_name: str, opset: int, output: str, ignore_ir_version: boo
 
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
-        onnx_head = sklearn_head_to_onnx(model, opset)
+        onnx_head = sklearn_head_to_onnx(model_head, opset)
         max_opset = onnx_head.opset_import[0].version
 
         if max_opset != opset:
