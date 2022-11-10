@@ -10,7 +10,10 @@ from sklearn.linear_model import LogisticRegression
 
 class ONNXSetFitModel(torch.nn.Module):
     def __init__(
-        self, model_body, pooler, model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None,
+        self,
+        model_body,
+        pooler,
+        model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None,
     ):
         super().__init__()
 
@@ -51,7 +54,9 @@ def sklearn_head_to_onnx(model_head: LogisticRegression, opset: int):
         from skl2onnx.sklapi import CastTransformer
         from sklearn.pipeline import Pipeline
     except ImportError:
-        msg = "skl2onnx must be installed in order to convert a model with an sklearn head."
+        msg = (
+            "skl2onnx must be installed in order to convert a model with an sklearn head."
+        )
         raise ImportError(msg)
 
     # Check to see that the head has a coef_
@@ -69,21 +74,30 @@ def sklearn_head_to_onnx(model_head: LogisticRegression, opset: int):
     # from the setfit model to doubles for compatibility inside of ONNX.
     if type(dtype) == onnxconverter_common.data_types.DoubleTensorType:
         # TODO:: TALK ABOUT FLOAT CONVERSION ISSUES.
-        sk_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model_head)])
+        sk_model = Pipeline(
+            [("castdouble", CastTransformer(dtype=np.double)), ("head", model_head)]
+        )
     else:
         sk_model = model_head
 
     # Convert sklearn head into ONNX format
     initial_type = [("model_head", dtype)]
     onx = convert_sklearn(
-        sk_model, initial_types=initial_type, target_opset=opset, options={id(sk_model): {"zipmap": False}},
+        sk_model,
+        initial_types=initial_type,
+        target_opset=opset,
+        options={id(sk_model): {"zipmap": False}},
     )
 
     return onx
 
 
 def export_onnx(
-    model_body_sentence_transformer, model_head, opset: int, output: str, ignore_ir_version: bool = True,
+    model_body_sentence_transformer,
+    model_head,
+    opset: int,
+    output: str,
+    ignore_ir_version: bool = True,
 ):
     """
     Export a PyTorch backed setfit model to ONNX Intermediate Representation.
@@ -112,9 +126,7 @@ def export_onnx(
     max_length = transformer.max_seq_length
     model_body = transformer.auto_model
     model_pooler = model_body_sentence_transformer._modules["1"]
-    model_head = model.model_head
     model_body.eval()
-
 
     # Create dummy data to use during onnx export.
     tokenizer_kwargs = dict(
@@ -125,10 +137,7 @@ def export_onnx(
         return_tensors="pt",
     )
     dummy_sample = "It's a test."
-    dummy_inputs = tokenizer(
-        dummy_sample,
-        **tokenizer_kwargs
-    )
+    dummy_inputs = tokenizer(dummy_sample, **tokenizer_kwargs)
     symbolic_names = {0: "batch_size", 1: "max_seq_len"}
 
     # Check to see if the model uses a sklearn head or a torch dense layer.
@@ -144,20 +153,22 @@ def export_onnx(
                 input_names=["input_ids", "attention_mask", "token_type_ids"],
                 output_names=["prediction"],
                 dynamic_axes={
-                    'input_ids': symbolic_names,        # variable length axes
-                    'attention_mask': symbolic_names,
-                    'token_type_ids': symbolic_names,
-                    'prediction': {0: 'batch_size'},
-                }
+                    "input_ids": symbolic_names,  # variable length axes
+                    "attention_mask": symbolic_names,
+                    "token_type_ids": symbolic_names,
+                    "prediction": {0: "batch_size"},
+                },
             )
-        
+
         # store meta data of the tokenizer for getting the correct tokenizer during inference
         onnx_setfit_model = onnx.load(output)
         meta = onnx_setfit_model.metadata_props.add()
         meta.key = "model_name"
         meta.value = model_name
         for key, value in tokenizer_kwargs.items():
-            meta = onnx_setfit_model.metadata_props.add()  # create a new key-value pair to store
+            meta = (
+                onnx_setfit_model.metadata_props.add()
+            )  # create a new key-value pair to store
             meta.key = key
             meta.value = value
         onnx.save(onnx_setfit_model, output)
@@ -207,6 +218,10 @@ def export_onnx(
             raise ValueError(msg)
 
         # Combine the onnx body and head by mapping the pooled output to the input of the sklearn model.
-        combined_model = onnx.compose.merge_models(onnx_body, onnx_head, io_map=[("prediction", "model_head")],)
+        combined_model = onnx.compose.merge_models(
+            onnx_body,
+            onnx_head,
+            io_map=[("prediction", "model_head")],
+        )
 
         onnx.save(combined_model, output)
