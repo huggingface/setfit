@@ -95,9 +95,7 @@ class SetFitHead(models.Dense):
         self.apply(self._init_weight)
 
     def forward(
-        self,
-        features: Union[Dict[str, torch.Tensor], torch.Tensor],
-        temperature: Optional[float] = None,
+        self, features: Union[Dict[str, torch.Tensor], torch.Tensor], temperature: Optional[float] = None,
     ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         """
         SetFitHead can accept embeddings in:
@@ -139,9 +137,7 @@ class SetFitHead(models.Dense):
 
         return self(x_test)
 
-    def predict(
-        self, x_test: Union[torch.Tensor, "ndarray"]
-    ) -> Union[torch.Tensor, "ndarray"]:
+    def predict(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
         is_tensor = isinstance(x_test, torch.Tensor)
         if not is_tensor:  # then assume it's ndarray
             x_test = torch.Tensor(x_test).to(self.device)
@@ -222,13 +218,9 @@ class SetFitModel(PyTorchModelHubMixin):
 
             dataloader = self._prepare_dataloader(x_train, y_train, batch_size)
             criterion = self.model_head.get_loss_fn()
-            optimizer = self._prepare_optimizer(
-                learning_rate, body_learning_rate, l2_weight
-            )
+            optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-            for epoch_idx in tqdm(
-                range(num_epochs), desc="Epoch", disable=not show_progress_bar
-            ):
+            for epoch_idx in tqdm(range(num_epochs), desc="Epoch", disable=not show_progress_bar):
                 for batch in dataloader:
                     features, labels = batch
                     optimizer.zero_grad()
@@ -251,48 +243,26 @@ class SetFitModel(PyTorchModelHubMixin):
             self.model_head.fit(embeddings, y_train)
 
     def _prepare_dataloader(
-        self,
-        x_train: List[str],
-        y_train: List[int],
-        batch_size: int,
-        shuffle: bool = True,
+        self, x_train: List[str], y_train: List[int], batch_size: int, shuffle: bool = True,
     ) -> DataLoader:
         dataset = SetFitDataset(
-            x_train,
-            y_train,
-            tokenizer=self.model_body.tokenizer,
-            max_length=self.model_body.get_max_seq_length(),
+            x_train, y_train, tokenizer=self.model_body.tokenizer, max_length=self.model_body.get_max_seq_length(),
         )
         dataloader = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            collate_fn=SetFitDataset.collate_fn,
-            shuffle=shuffle,
-            pin_memory=True,
+            dataset, batch_size=batch_size, collate_fn=SetFitDataset.collate_fn, shuffle=shuffle, pin_memory=True,
         )
 
         return dataloader
 
     def _prepare_optimizer(
-        self,
-        learning_rate: float,
-        body_learning_rate: Optional[float],
-        l2_weight: float,
+        self, learning_rate: float, body_learning_rate: Optional[float], l2_weight: float,
     ) -> torch.optim.Optimizer:
         body_learning_rate = body_learning_rate or learning_rate
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
-                {
-                    "params": self.model_body.parameters(),
-                    "lr": body_learning_rate,
-                    "weight_decay": l2_weight,
-                },
-                {
-                    "params": self.model_head.parameters(),
-                    "lr": learning_rate,
-                    "weight_decay": l2_weight,
-                },
+                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": l2_weight,},
+                {"params": self.model_head.parameters(), "lr": learning_rate, "weight_decay": l2_weight,},
             ],
         )
 
@@ -385,17 +355,11 @@ class SetFitModel(PyTorchModelHubMixin):
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
                 device = model_body._target_device
                 if "head_params" in model_kwargs.keys():
-                    model_kwargs["head_params"].update(
-                        {"in_features": body_embedding_dim}
-                    )
-                    model_kwargs["head_params"].update(
-                        {"device": device}
-                    )  # follow the model head
+                    model_kwargs["head_params"].update({"in_features": body_embedding_dim})
+                    model_kwargs["head_params"].update({"device": device})  # follow the model head
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitHead(
-                        in_features=body_embedding_dim, device=device
-                    )  # a head for single target
+                    model_head = SetFitHead(in_features=body_embedding_dim, device=device)  # a head for single target
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])
@@ -409,19 +373,13 @@ class SetFitModel(PyTorchModelHubMixin):
                     elif multi_target_strategy == "classifier-chain":
                         multilabel_classifier = ClassifierChain(clf)
                     else:
-                        raise ValueError(
-                            f"multi_target_strategy {multi_target_strategy} is not supported."
-                        )
+                        raise ValueError(f"multi_target_strategy {multi_target_strategy} is not supported.")
 
                     model_head = multilabel_classifier
                 else:
                     model_head = clf
 
-        return SetFitModel(
-            model_body=model_body,
-            model_head=model_head,
-            multi_target_strategy=multi_target_strategy,
-        )
+        return SetFitModel(model_body=model_body, model_head=model_head, multi_target_strategy=multi_target_strategy,)
 
 
 class SupConLoss(nn.Module):
@@ -430,9 +388,7 @@ class SupConLoss(nn.Module):
     It also supports the unsupervised contrastive loss in SimCLR.
     """
 
-    def __init__(
-        self, model, temperature=0.07, contrast_mode="all", base_temperature=0.07
-    ):
+    def __init__(self, model, temperature=0.07, contrast_mode="all", base_temperature=0.07):
         super(SupConLoss, self).__init__()
         self.model = model
         self.temperature = temperature
@@ -465,10 +421,7 @@ class SupConLoss(nn.Module):
         device = features.device
 
         if len(features.shape) < 3:
-            raise ValueError(
-                "`features` needs to be [bsz, n_views, ...],"
-                "at least 3 dimensions are required"
-            )
+            raise ValueError("`features` needs to be [bsz, n_views, ...]," "at least 3 dimensions are required")
         if len(features.shape) > 3:
             features = features.view(features.shape[0], features.shape[1], -1)
 
@@ -497,9 +450,7 @@ class SupConLoss(nn.Module):
             raise ValueError("Unknown mode: {}".format(self.contrast_mode))
 
         # Compute logits
-        anchor_dot_contrast = torch.div(
-            torch.matmul(anchor_feature, contrast_feature.T), self.temperature
-        )
+        anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
         # For numerical stability
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
@@ -508,10 +459,7 @@ class SupConLoss(nn.Module):
         mask = mask.repeat(anchor_count, contrast_count)
         # Mask-out self-contrast cases
         logits_mask = torch.scatter(
-            torch.ones_like(mask),
-            1,
-            torch.arange(batch_size * anchor_count).view(-1, 1).to(device),
-            0,
+            torch.ones_like(mask), 1, torch.arange(batch_size * anchor_count).view(-1, 1).to(device), 0,
         )
         mask = mask * logits_mask
 
@@ -568,18 +516,14 @@ def sentence_pairs_generation_multilabel(sentences, labels, pairs):
                 positive_sentence = sentences[second_idx]
                 # Prepare a positive pair and update the sentences and labels
                 # lists, respectively
-                pairs.append(
-                    InputExample(texts=[current_sentence, positive_sentence], label=1.0)
-                )
+                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
 
             # Search for sample that don't have a label in common with current
             # sentence
             negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
             negative_sentence = sentences[np.random.choice(negative_idx)]
             # Prepare a negative pair of sentences and update our lists
-            pairs.append(
-                InputExample(texts=[current_sentence, negative_sentence], label=0.0)
-            )
+            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
     # Return a 2-tuple of our sentence pairs and labels
     return pairs
 
@@ -596,16 +540,12 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
 
         cos_sim = float(cos_sim_matrix[first_idx][second_idx])
         paired_sentence = sentences[second_idx]
-        pairs.append(
-            InputExample(texts=[current_sentence, paired_sentence], label=cos_sim)
-        )
+        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
 
         third_idx = np.random.choice([x for x in idx if x != first_idx])
         cos_sim = float(cos_sim_matrix[first_idx][third_idx])
         paired_sentence = sentences[third_idx]
-        pairs.append(
-            InputExample(texts=[current_sentence, paired_sentence], label=cos_sim)
-        )
+        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
 
     return pairs
 
