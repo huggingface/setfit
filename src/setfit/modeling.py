@@ -132,7 +132,7 @@ class SetFitHead(models.Dense):
 
         return outputs
 
-    def predict_prob(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
 
         return self(x_test)
@@ -142,7 +142,7 @@ class SetFitHead(models.Dense):
         if not is_tensor:  # then assume it's ndarray
             x_test = torch.Tensor(x_test).to(self.device)
 
-        probs = self.predict_prob(x_test)
+        probs = self.predict_proba(x_test)
 
         if self.out_features == 1:
             out = torch.where(probs >= 0.5, 1, 0)
