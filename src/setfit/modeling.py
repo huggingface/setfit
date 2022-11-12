@@ -75,7 +75,7 @@ class SetFitHead(models.Dense):
         out_features: int = 1,
         temperature: float = 1.0,
         bias: bool = True,
-        device: Optional[Union[torch.device, str]] = None,
+        device: Optional[Union[torch.device, str]] = "cpu",
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
