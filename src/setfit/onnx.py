@@ -1,14 +1,13 @@
-from sentence_transformers import models
-import numpy as np
-import onnx
 import warnings
 from typing import Callable, Optional, Union
+
+import numpy as np
+import onnx
 import torch
+from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
-from transformers.modeling_utils import PreTrainedModel
-import torch
 from torch import nn
-from sentence_transformers import SentenceTransformer
+from transformers.modeling_utils import PreTrainedModel
 
 
 def mean_pooling(token_embeddings: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -137,9 +136,9 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
 
     # Check if skl2onnx is installed
     try:
-        from skl2onnx.common.data_types import guess_data_type
-        from skl2onnx import convert_sklearn
         import onnxconverter_common
+        from skl2onnx import convert_sklearn
+        from skl2onnx.common.data_types import guess_data_type
         from skl2onnx.sklapi import CastTransformer
         from sklearn.pipeline import Pipeline
     except ImportError:
@@ -205,11 +204,10 @@ def export_onnx(
 
     # Load the model and get all of the parts.
     model_body_module = model_body._modules["0"]
-    pooling_layer = model_body._modules["1"]
+    model_pooler = model_body._modules["1"]
     tokenizer = model_body_module.tokenizer
     max_length = model_body_module.max_seq_length
     transformer = model_body_module.auto_model
-    model_pooler = lambda x: pooling_layer(x)["sentence_embedding"]
     transformer.eval()
 
     # Create dummy data to use during onnx export.
@@ -222,11 +220,10 @@ def export_onnx(
     )
     dummy_sample = "It's a test."
     dummy_inputs = tokenizer(dummy_sample, **tokenizer_kwargs)
-    symbolic_names = {0: "batch_size", 1: "max_seq_len"}
 
     # Check to see if the model uses a sklearn head or a torch dense layer.
     if issubclass(type(model_head), models.Dense):
-        setfit_model = OnnxSetFitModel(transformer, model_pooler, model_head).cpu()
+        setfit_model = OnnxSetFitModel(transformer, lambda x: model_pooler(x)["sentence_embedding"], model_head).cpu()
         export_onnx_setfit_model(setfit_model, dummy_inputs, output_path, opset)
 
         # store meta data of the tokenizer for getting the correct tokenizer during inference
@@ -253,7 +250,12 @@ def export_onnx(
             warnings.warn(
                 f"sklearn onnx max opset is {max_opset} requested opset {opset} using opset {max_opset} for compatibility."
             )
-        export_onnx_setfit_model(OnnxSetFitModel(transformer, model_pooler), dummy_inputs, output_path, max_opset)
+        export_onnx_setfit_model(
+            OnnxSetFitModel(transformer, lambda x: model_pooler(x)["sentence_embedding"]),
+            dummy_inputs,
+            output_path,
+            max_opset,
+        )
 
         onnx_body = onnx.load(output_path)
 
