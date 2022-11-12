@@ -89,9 +89,9 @@ class SetFitHead(models.Dense):
         self.out_features = out_features
         self.temperature = temperature
         self.bias = bias
-        self.device = device or "cuda" if torch.cuda.is_available() else "cpu"
+        self._device = device or "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.to(device)
+        self.to(self._device)
         self.apply(self._init_weight)
 
     def forward(
@@ -160,13 +160,20 @@ class SetFitHead(models.Dense):
         else:
             return torch.nn.CrossEntropyLoss()
 
+    @property
+    def device(self) -> torch.device:
+        """
+        Ref from: https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/SentenceTransformer.py#L869
+        """
+        return next(self.parameters()).device
+
     def get_config_dict(self) -> Dict[str, Union[int, float, bool]]:
         return {
             "in_features": self.in_features,
             "out_features": self.out_features,
             "temperature": self.temperature,
             "bias": self.bias,
-            "device": self.device,
+            "device": self.device.type,  # store the string of the device, instead of `torch.device`
         }
 
     @staticmethod
@@ -323,6 +330,8 @@ class SetFitModel(PyTorchModelHubMixin):
         **model_kwargs,
     ) -> "SetFitModel":
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
+        target_device = model_body._target_device
+        model_body.to(target_device)  # put `model_body` on the target device
 
         if os.path.isdir(model_id):
             if MODEL_HEAD_NAME in os.listdir(model_id):
@@ -359,13 +368,16 @@ class SetFitModel(PyTorchModelHubMixin):
         else:
             if use_differentiable_head:
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
-                device = model_body._target_device
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})
-                    model_kwargs["head_params"].update({"device": device})  # follow the model head
+                    model_kwargs["head_params"].update(
+                        {"device": target_device}
+                    )  # follow the `model_body`, put `model_head` on the target device
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitHead(in_features=body_embedding_dim, device=device)  # a head for single target
+                    model_head = SetFitHead(
+                        in_features=body_embedding_dim, device=target_device
+                    )  # follow the `model_body`, put `model_head` on the target device
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])
