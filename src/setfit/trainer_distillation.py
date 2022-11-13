@@ -9,9 +9,8 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from torch.utils.data import DataLoader
 from transformers.trainer_utils import set_seed
 
-from setfit import SetFitTrainer
-
 from . import logging
+from . import SetFitTrainer
 from .modeling import SupConLoss, sentence_pairs_generation_cos_sim
 
 
@@ -25,13 +24,13 @@ logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
 
-class DistilSetFitTrainer(SetFitTrainer):
-    """Trainer to train a distilled SetFit model (student) model.
+class DistillationSetFitTrainer(SetFitTrainer):
+    """Trainer to compress a SetFit model with knowledge distillation.
 
     Args:
         teacher_model (`SetFitModel`):
             The teacher model to mimic.
-        model (`SetFitModel`, *optional*):
+        model (`SetFitModel`):
             The student model to train. If not provided, a `model_init` must be passed.
         train_dataset (`Dataset`):
             The training dataset.
@@ -83,7 +82,7 @@ class DistilSetFitTrainer(SetFitTrainer):
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
     ) -> None:
-        super(DistilSetFitTrainer, self).__init__(
+        super(DistillationSetFitTrainer, self).__init__(
             model,
             train_dataset,
             eval_dataset,
