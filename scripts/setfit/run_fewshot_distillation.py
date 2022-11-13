@@ -15,14 +15,14 @@ from evaluate import load
 from sentence_transformers import losses
 from sklearn.linear_model import LogisticRegression
 
-from setfit import SetFitModel, SetFitTrainer, DistillationSetFitTrainer
+from setfit import DistillationSetFitTrainer, SetFitModel, SetFitTrainer
 from setfit.modeling import SetFitBaseModel, SKLearnWrapper
 from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 
 TEACHER_SEED = [0]
 STUDENT_SEEDS = [1]
-#STUDENT_SEEDS = [1, 2, 3, 4,5]
+# STUDENT_SEEDS = [1, 2, 3, 4,5]
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
 
