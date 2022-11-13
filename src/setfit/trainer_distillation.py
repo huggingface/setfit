@@ -9,8 +9,7 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from torch.utils.data import DataLoader
 from transformers.trainer_utils import set_seed
 
-from . import logging
-from . import SetFitTrainer
+from . import SetFitTrainer, logging
 from .modeling import SupConLoss, sentence_pairs_generation_cos_sim
 
 
@@ -137,10 +136,10 @@ class DistillationSetFitTrainer(SetFitTrainer):
 
         if self.model is None:
             raise RuntimeError("`DistillationSetFitTrainer` training requires a (student) `model`")
-     
+
         if self.teacher_model is None:
             raise RuntimeError("`DistillationSetFitTrainer` training requires a teacher model")
-        
+
         if self.train_dataset is None:
             raise ValueError("`DistillationSetFitTrainer` training requires a train_dataset.")
 
