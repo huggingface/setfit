@@ -245,15 +245,22 @@ class SetFitModel(PyTorchModelHubMixin):
             self.model_head.fit(embeddings, y_train)
 
     def _prepare_dataloader(
-        self, x_train: List[str], y_train: List[int], batch_size: int, max_length: int, shuffle: bool = True
+        self,
+        x_train: List[str],
+        y_train: List[int],
+        batch_size: int,
+        max_length: Optional[int] = None,
+        shuffle: bool = True,
     ) -> DataLoader:
         max_acceptable_length = self.model_body.get_max_seq_length()
         max_length = max_length or max_acceptable_length
         if max_length > max_acceptable_length:
-            warnings.warn((
-                f"The specified `max_length`: {max_length} is greater than the maximum length of the current model body: {max_acceptable_length}. "
-                f"Change `max_length` to {max_acceptable_length}."
-            ))     
+            warnings.warn(
+                (
+                    f"The specified `max_length`: {max_length} is greater than the maximum length of the current model body: {max_acceptable_length}. "
+                    f"Change `max_length` to {max_acceptable_length}."
+                )
+            )
             max_length = max_acceptable_length
 
         dataset = SetFitDataset(

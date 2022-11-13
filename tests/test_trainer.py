@@ -172,6 +172,53 @@ class SetFitTrainerTest(TestCase):
             SetFitTrainer(warmup_proportion=-0.1)
 
 
+class SetFitTrainerDifferentiableHeadTest(TestCase):
+    def setUp(self):
+        self.dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+        self.model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2",
+            use_differentiable_head=True,
+            head_params={"out_features": 3},
+        )
+        self.num_iterations = 1
+
+    def test_trainer_max_length_exceeds_max_acceptable_length(self):
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=self.dataset,
+            eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+        trainer.unfreeze(keep_body_frozen=True)
+        trainer.train(
+            num_epochs=1,
+            batch_size=3,
+            learning_rate=1e-2,
+            l2_weight=0.0,
+            max_length=4096,
+        )
+
+    def test_trainer_max_length_is_smaller_than_max_acceptable_length(self):
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=self.dataset,
+            eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+        trainer.unfreeze(keep_body_frozen=True)
+        trainer.train(
+            num_epochs=1,
+            batch_size=3,
+            learning_rate=1e-2,
+            l2_weight=0.0,
+            max_length=32,
+        )
+
+
 class SetFitTrainerMultilabelTest(TestCase):
     def setUp(self):
         self.model = SetFitModel.from_pretrained(
