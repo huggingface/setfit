@@ -72,7 +72,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         eval_dataset: "Dataset" = None,
         model_init: Callable[[], "SetFitModel"] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
-        loss_class=losses.CosineSimilarityLoss,
+        loss_class: torch.nn.Module = losses.CosineSimilarityLoss,
         num_iterations: int = 20,
         num_epochs: int = 1,
         learning_rate: float = 2e-5,
@@ -135,8 +135,14 @@ class DistillationSetFitTrainer(SetFitTrainer):
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
+        if self.model is None:
+            raise RuntimeError("`DistillationSetFitTrainer` training requires a (student) `model`")
+     
+        if self.teacher_model is None:
+            raise RuntimeError("`DistillationSetFitTrainer` training requires a teacher model")
+        
         if self.train_dataset is None:
-            raise ValueError("DistilledSetFitTrainer:: training requires a train_dataset.")
+            raise ValueError("`DistillationSetFitTrainer` training requires a train_dataset.")
 
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
@@ -147,7 +153,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
         if self.loss_class is None:
-            return
+            raise RuntimeError("`DistillationSetFitTrainer` requires a loss_class argument")
 
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size

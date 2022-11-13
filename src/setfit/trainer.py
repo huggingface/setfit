@@ -287,7 +287,7 @@ class SetFitTrainer:
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
         if self.loss_class is None:
-            return
+            raise RuntimeError("SetFitTrainer: training requires a loss_class argument")
 
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
