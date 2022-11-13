@@ -190,6 +190,7 @@ class SetFitModel(PyTorchModelHubMixin):
         model_head: Optional[Union[nn.Module, LogisticRegression]] = None,
         multi_target_strategy: str = None,
         l2_weight: float = 1e-2,
+        normalize_embeddings: bool = False,
     ) -> None:
         super(SetFitModel, self).__init__()
         self.model_body = model_body
@@ -199,6 +200,7 @@ class SetFitModel(PyTorchModelHubMixin):
         self.l2_weight = l2_weight
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
+        self.normalize_embeddings = normalize_embeddings
 
     def fit(
         self,
@@ -239,7 +241,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
                 scheduler.step()
         else:  # train with sklean
-            embeddings = self.model_body.encode(x_train)
+            embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
 
     def _prepare_dataloader(
@@ -293,11 +295,11 @@ class SetFitModel(PyTorchModelHubMixin):
             param.requires_grad = not to_freeze
 
     def predict(self, x_test: torch.Tensor) -> torch.Tensor:
-        embeddings = self.model_body.encode(x_test)
+        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict(embeddings)
 
     def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
-        embeddings = self.model_body.encode(x_test)
+        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict_proba(embeddings)
 
     def __call__(self, inputs):
@@ -320,6 +322,7 @@ class SetFitModel(PyTorchModelHubMixin):
         use_auth_token: Optional[Union[bool, str]] = None,
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
+        normalize_embeddings: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
@@ -385,7 +388,12 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
-        return SetFitModel(model_body=model_body, model_head=model_head, multi_target_strategy=multi_target_strategy)
+        return SetFitModel(
+            model_body=model_body,
+            model_head=model_head,
+            multi_target_strategy=multi_target_strategy,
+            normalize_embeddings=normalize_embeddings,
+        )
 
 
 class SupConLoss(nn.Module):
