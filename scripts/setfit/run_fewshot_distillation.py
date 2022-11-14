@@ -37,7 +37,7 @@ def parse_args():
         nargs="+",
         default=["sst2"],
     )
-    parser.add_argument("--teacher_sample_sizes", type=int, nargs="+", default=16)
+    parser.add_argument("--teacher_sample_sizes", type=int, nargs="+", default=[16])
     parser.add_argument(
         "--student_sample_sizes",
         type=int,
@@ -47,7 +47,8 @@ def parse_args():
     parser.add_argument("--num_iterations_teacher", type=int, default=20)
     parser.add_argument("--num_iterations_student", type=int, default=20)
     parser.add_argument("--num_epochs", type=int, default=1)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size_teacher", type=int, default=16)
+    parser.add_argument("--batch_size_student", type=int, default=16)
     parser.add_argument("--max_seq_length", type=int, default=256)
     parser.add_argument("--baseline_model_epochs", type=int, default=10)
     parser.add_argument("--baseline_model_batch_size", type=int, default=16)
@@ -115,7 +116,7 @@ class RunFewShotDistill:
         self.output_path = (
             parent_directory
             / "results"
-            / f"{path_prefix}-{args.loss}-{args.classifier}-student_iters_{args.num_iterations_student}-batch_{args.batch_size}-{args.exp_name}".rstrip(
+            / f"{path_prefix}-{args.loss}-{args.classifier}-student_iters_{args.num_iterations_student}-batch_{args.batch_size_student}-{args.exp_name}".rstrip(
                 "-"
             )
         )
@@ -235,9 +236,6 @@ class RunFewShotDistill:
                 os.makedirs(os.path.dirname(results_path), exist_ok=True)
 
                 if self.mode == self.TEACHER:
-                    fewshot_ds[name].rename_column(
-                        "text", "sentence"
-                    )  # Map dataset columns to sentence/label expected by trainer
                     teacher_model = SetFitModel.from_pretrained(self.model_name)
                     teacher_trainer = SetFitTrainer(
                         model=teacher_model,
@@ -245,7 +243,7 @@ class RunFewShotDistill:
                         eval_dataset=eval_dataset,
                         loss_class=losses.CosineSimilarityLoss,
                         metric=metric,
-                        batch_size=self.args.batch_size,
+                        batch_size=self.args.batch_size_teacher,
                         num_iterations=self.args.num_iterations_teacher,  # The number of text pairs to generate for contrastive learning
                         num_epochs=1,  # The number of epochs to use for constrastive learning
                     )
@@ -262,9 +260,7 @@ class RunFewShotDistill:
 
                     # student train data = teacher train data + unlabeled data
                     student_train_dataset = concatenate_datasets([self.treacher_train_data, fewshot_ds[name]])
-                    student_train_dataset.rename_column(
-                        "text", "sentence"
-                    )  # Map dataset columns to sentence/label expected by trainer
+
                     student_model = SetFitModel.from_pretrained(self.model_name)
                     student_trainer = DistillationSetFitTrainer(
                         teacher_model=self.trained_teacher_model,
@@ -273,9 +269,8 @@ class RunFewShotDistill:
                         eval_dataset=eval_dataset,
                         loss_class=losses.CosineSimilarityLoss,
                         metric="accuracy",
-                        batch_size=16,
+                         batch_size=self.args.batch_size_student,
                         num_iterations=self.args.num_iterations_student,  # The number of text pairs to generate for contrastive learning
-                        num_epochs=1  # The number of epochs to use for constrastive learning
                         # column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
                     )
                     # Student Train and evaluate
