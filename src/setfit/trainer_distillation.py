@@ -134,9 +134,6 @@ class DistillationSetFitTrainer(SetFitTrainer):
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
-        if self.model is None:
-            raise RuntimeError("`DistillationSetFitTrainer` training requires a (student) `model`")
-
         if self.teacher_model is None:
             raise RuntimeError("`DistillationSetFitTrainer` training requires a teacher model")
 
