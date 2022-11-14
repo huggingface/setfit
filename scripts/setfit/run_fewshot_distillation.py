@@ -269,7 +269,7 @@ class RunFewShotDistill:
                         eval_dataset=eval_dataset,
                         loss_class=losses.CosineSimilarityLoss,
                         metric="accuracy",
-                         batch_size=self.args.batch_size_student,
+                        batch_size=self.args.batch_size_student,
                         num_iterations=self.args.num_iterations_student,  # The number of text pairs to generate for contrastive learning
                         # column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
                     )
