@@ -142,7 +142,6 @@ class SetFitModelDifferentiableHeadTest(TestCase):
 
     def test_setfit_body_and_head_on_same_device(self):
         model = self._build_model(num_classes=1)
-
         assert model.model_body.device.type == model.model_head.device.type
 
     def test_setfit_single_target_differentiable_head(self):
