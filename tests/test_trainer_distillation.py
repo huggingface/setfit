@@ -59,7 +59,7 @@ class DistillationSetFitTrainerTest(TestCase):
     def test_trainer_raises_error_with_missing_text(self):
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
         trainer = DistillationSetFitTrainer(
-            teacher_model=self.teacher_model,            
+            teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
@@ -71,7 +71,7 @@ class DistillationSetFitTrainerTest(TestCase):
     def test_column_mapping_with_missing_text(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
         trainer = DistillationSetFitTrainer(
-            teacher_model=self.teacher_model,            
+            teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
@@ -85,7 +85,7 @@ class DistillationSetFitTrainerTest(TestCase):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]})
 
         trainer = DistillationSetFitTrainer(
-            teacher_model=self.teacher_model,            
+            teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,

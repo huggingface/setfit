@@ -151,7 +151,9 @@ class DistillationSetFitTrainer(SetFitTrainer):
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
         batch_size = batch_size or self.batch_size
-        is_differentiable_head = isinstance(self.student_model.model_head, torch.nn.Module)  # If False, assume using sklearn
+        is_differentiable_head = isinstance(
+            self.student_model.model_head, torch.nn.Module
+        )  # If False, assume using sklearn
 
         if not is_differentiable_head or self._freeze:
             # sentence-transformers adaptation

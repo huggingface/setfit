@@ -11,9 +11,7 @@ from xmlrpc.client import Boolean
 import pandas as pd
 from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
 from distillation_baseline import BaselineDistillation
-from evaluate import load
 from sentence_transformers import losses
-from sklearn.linear_model import LogisticRegression
 
 from setfit import DistillationSetFitTrainer, SetFitModel, SetFitTrainer
 from setfit.modeling import SetFitBaseModel
@@ -326,6 +324,7 @@ def main():
         student_train_dataset=setfit_student.student_train_dataset,
     )
     baseline_student.train()
+
 
 if __name__ == "__main__":
     main()

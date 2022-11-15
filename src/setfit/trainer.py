@@ -289,7 +289,6 @@ class SetFitTrainer:
         if self.loss_class is None:
             logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
             self.loss_class = losses.CosineSimilarityLoss
-            
 
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
