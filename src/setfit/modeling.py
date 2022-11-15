@@ -292,11 +292,11 @@ class SetFitModel(PyTorchModelHubMixin):
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict(self, x_test: List[str]) -> torch.Tensor:
         embeddings = self.model_body.encode(x_test)
         return self.model_head.predict(embeddings)
 
-    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict_proba(self, x_test: List[str]) -> torch.Tensor:
         embeddings = self.model_body.encode(x_test)
         return self.model_head.predict_proba(embeddings)
 
