@@ -280,7 +280,7 @@ class SetFitTrainer:
                 If ignore, will be the same as `learning_rate`.
             l2_weight (float, *optional*):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
-            max_length (int, *optional*):
+            max_length (int, *optional*, defaults to `None`):
                 The maximum number of tokens for one data sample. Currently only for training the differentiable head.
                 If`None`, will use the maximum number of tokens the model body can accept.
                 If `max_length` is greater than the maximum number of acceptable tokens the model body can accept, it will be set to the maximum number of acceptable tokens.
