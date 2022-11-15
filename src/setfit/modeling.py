@@ -258,7 +258,7 @@ class SetFitModel(PyTorchModelHubMixin):
             logger.warning(
                 (
                     f"The specified `max_length`: {max_length} is greater than the maximum length of the current model body: {max_acceptable_length}. "
-                    f"Change `max_length` to {max_acceptable_length}."
+                    f"Using {max_acceptable_length} instead."
                 )
             )
             max_length = max_acceptable_length
