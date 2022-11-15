@@ -16,13 +16,12 @@ from sentence_transformers import losses
 from sklearn.linear_model import LogisticRegression
 
 from setfit import DistillationSetFitTrainer, SetFitModel, SetFitTrainer
-from setfit.modeling import SetFitBaseModel, SKLearnWrapper
+from setfit.modeling import SetFitBaseModel
 from setfit.utils import DEV_DATASET_TO_METRIC, TEST_DATASET_TO_METRIC
 
 
 TEACHER_SEED = [0]
-STUDENT_SEEDS = [1]
-# STUDENT_SEEDS = [1, 2, 3, 4,5]
+STUDENT_SEEDS = [1, 2, 3, 4, 5]
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
 
@@ -78,7 +77,7 @@ def parse_args():
 
 
 class RunFewShotDistill:
-    def __init__(self, args, mode, trained_teacher_model, treacher_train_data, student_train_ds) -> None:
+    def __init__(self, args, mode, trained_teacher_model, teacher_train_dataset, student_train_dataset) -> None:
         # Prepare directory for results
         self.args = args
 
@@ -96,15 +95,15 @@ class RunFewShotDistill:
             model = args.student_model
             path_prefix = f"setfit_student_{args.student_model.replace('/', '-')}"
             self.trained_teacher_model = trained_teacher_model
-            self.treacher_train_data = treacher_train_data
+            self.teacher_train_dataset = teacher_train_dataset
             self.mode = self.SETFIT_STUDENT
 
         if mode == self.BASELINE_STUDENT:
             model = args.baseline_student_model
             path_prefix = f"baseline_student_{args.student_model.replace('/', '-')}"
             self.trained_teacher_model = trained_teacher_model
-            self.treacher_train_data = treacher_train_data
-            self.student_train_ds = student_train_ds
+            self.teacher_train_dataset = teacher_train_dataset
+            self.student_train_dataset = student_train_dataset
             self.mode = self.BASELINE_STUDENT
             self.bl_stdnt_distill = BaselineDistillation(
                 args.baseline_student_model,
@@ -177,20 +176,6 @@ class RunFewShotDistill:
                 splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
         return splits_ds
 
-    def compute_metrics(self, x_train, y_train, x_test, y_test, y_pred, metric):
-        """Computes the metrics for a given classifier."""
-        # Define metrics
-        metric_fn = load(metric)
-
-        metrics = metric_fn.compute(predictions=y_pred, references=y_test)
-        print(f"{metric} -- {metrics[metric]:.4f}")
-
-        return metrics
-
-    def get_classifier(self, sbert_model):
-        if self.args.classifier == "logistic_regression":
-            return SKLearnWrapper(sbert_model, LogisticRegression())
-
     def train(self):
         for dataset, metric in self.dataset_to_metric.items():
             if self.mode == self.TEACHER:
@@ -222,11 +207,11 @@ class RunFewShotDistill:
                     seeds=STUDENT_SEEDS,
                     mode=self.SETFIT_STUDENT,
                 )
-                self.student_train_ds = fewshot_ds
+                self.student_train_dataset = fewshot_ds
 
             # for training baseline student use the same data that was used for training setfit student
             if self.mode == self.BASELINE_STUDENT:
-                fewshot_ds = self.student_train_ds
+                fewshot_ds = self.student_train_dataset
                 num_classes = len(train_ds.unique("label"))
                 self.bl_stdnt_distill.update_metric(metric)
 
@@ -253,19 +238,19 @@ class RunFewShotDistill:
                     metrics = teacher_trainer.evaluate()
                     print("Teacher metrics: ", metrics)
 
-                    self.treacher_train_data = fewshot_ds[name]  # save teacher training data
+                    self.teacher_train_dataset = fewshot_ds[name]  # save teacher training data
                     self.trained_teacher_model = teacher_trainer.model
 
                 if self.mode == self.SETFIT_STUDENT:
 
                     # student train data = teacher train data + unlabeled data
-                    student_train_dataset = concatenate_datasets([self.treacher_train_data, fewshot_ds[name]])
+                    student_train_dataset = concatenate_datasets([self.teacher_train_dataset, fewshot_ds[name]])
 
                     student_model = SetFitModel.from_pretrained(self.model_name)
                     student_trainer = DistillationSetFitTrainer(
                         teacher_model=self.trained_teacher_model,
-                        model=student_model,
                         train_dataset=student_train_dataset,
+                        student_model=student_model,
                         eval_dataset=eval_dataset,
                         loss_class=losses.CosineSimilarityLoss,
                         metric="accuracy",
@@ -280,7 +265,7 @@ class RunFewShotDistill:
                     print("Student metrics: ", metrics)
 
                 if self.mode == self.BASELINE_STUDENT:
-                    student_train_dataset = concatenate_datasets([self.treacher_train_data, fewshot_ds[name]])
+                    student_train_dataset = concatenate_datasets([self.teacher_train_dataset, fewshot_ds[name]])
                     metrics = self.train_baseline_student(student_train_dataset, eval_dataset, num_classes)
                     print("Baseline model score: ", round(metrics[metric] * 100, 3))
 
@@ -317,8 +302,8 @@ def main():
         args,
         mode=TEACHER,
         trained_teacher_model=None,
-        treacher_train_data=None,
-        student_train_ds=None,
+        teacher_train_dataset=None,
+        student_train_dataset=None,
     )
     fewshot_teacher.train()
 
@@ -327,8 +312,8 @@ def main():
         args,
         mode=SETFIT_STUDENT,
         trained_teacher_model=fewshot_teacher.trained_teacher_model,
-        treacher_train_data=fewshot_teacher.treacher_train_data,
-        student_train_ds=None,
+        teacher_train_dataset=fewshot_teacher.teacher_train_dataset,
+        student_train_dataset=None,
     )
     setfit_student.train()
 
@@ -337,11 +322,10 @@ def main():
         args,
         mode=BASELINE_STUDENT,
         trained_teacher_model=fewshot_teacher.trained_teacher_model,
-        treacher_train_data=fewshot_teacher.treacher_train_data,
-        student_train_ds=setfit_student.student_train_ds,
+        teacher_train_dataset=fewshot_teacher.teacher_train_dataset,
+        student_train_dataset=setfit_student.student_train_dataset,
     )
     baseline_student.train()
-
 
 if __name__ == "__main__":
     main()

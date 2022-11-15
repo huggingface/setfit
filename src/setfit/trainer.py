@@ -287,7 +287,9 @@ class SetFitTrainer:
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
         if self.loss_class is None:
-            raise RuntimeError("SetFitTrainer: training requires a loss_class argument")
+            logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
+            self.loss_class = losses.CosineSimilarityLoss
+            
 
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size

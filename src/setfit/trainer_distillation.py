@@ -29,14 +29,14 @@ class DistillationSetFitTrainer(SetFitTrainer):
     Args:
         teacher_model (`SetFitModel`):
             The teacher model to mimic.
-        model (`SetFitModel`):
-            The student model to train. If not provided, a `model_init` must be passed.
         train_dataset (`Dataset`):
             The training dataset.
+        student_model (`SetFitModel`):
+            The student model to train. If not provided, a `model_init` must be passed.
         eval_dataset (`Dataset`, *optional*):
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
-            A function that instantiates the model to be used. If provided, each call to [`~DistilledSetFitTrainer:.train`] will start
+            A function that instantiates the model to be used. If provided, each call to [`~DistillationSetFitTrainer.train`] will start
             from a new instance of the model as given by this function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation. If a string is provided, we treat it as the metric name and load it with default settings.
@@ -65,8 +65,8 @@ class DistillationSetFitTrainer(SetFitTrainer):
 
     def __init__(
         self,
-        teacher_model: "SetFitModel" = None,
-        model: "SetFitModel" = None,
+        teacher_model: "SetFitModel",
+        student_model: "SetFitModel" = None,
         train_dataset: "Dataset" = None,
         eval_dataset: "Dataset" = None,
         model_init: Callable[[], "SetFitModel"] = None,
@@ -82,23 +82,24 @@ class DistillationSetFitTrainer(SetFitTrainer):
         warmup_proportion: float = 0.1,
     ) -> None:
         super(DistillationSetFitTrainer, self).__init__(
-            model,
-            train_dataset,
-            eval_dataset,
-            model_init,
-            metric,
-            loss_class,
-            num_iterations,
-            num_epochs,
-            learning_rate,
-            batch_size,
-            seed,
-            column_mapping,
-            use_amp,
-            warmup_proportion,
+            model=student_model,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            model_init=model_init,
+            metric=metric,
+            loss_class=loss_class,
+            num_iterations=num_iterations,
+            num_epochs=num_epochs,
+            learning_rate=learning_rate,
+            batch_size=batch_size,
+            seed=seed,
+            column_mapping=column_mapping,
+            use_amp=use_amp,
+            warmup_proportion=warmup_proportion,
         )
 
         self.teacher_model = teacher_model
+        self.student_model = self.model
 
     def train(
         self,
@@ -134,12 +135,6 @@ class DistillationSetFitTrainer(SetFitTrainer):
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
-        if self.teacher_model is None:
-            raise RuntimeError("`DistillationSetFitTrainer` training requires a teacher model")
-
-        if self.train_dataset is None:
-            raise ValueError("`DistillationSetFitTrainer` training requires a train_dataset.")
-
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
         if self.column_mapping is not None:
@@ -149,13 +144,14 @@ class DistillationSetFitTrainer(SetFitTrainer):
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
         if self.loss_class is None:
-            raise RuntimeError("`DistillationSetFitTrainer` requires a loss_class argument")
+            logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
+            self.loss_class = losses.CosineSimilarityLoss
 
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
         batch_size = batch_size or self.batch_size
-        is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
+        is_differentiable_head = isinstance(self.student_model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
         if not is_differentiable_head or self._freeze:
             # sentence-transformers adaptation
@@ -174,15 +170,15 @@ class DistillationSetFitTrainer(SetFitTrainer):
 
                 if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
                     train_loss = self.loss_class(
-                        model=self.model,
+                        model=self.student_model,
                         distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
                     )
                 elif self.loss_class is SupConLoss:
-                    train_loss = self.loss_class(model=self.model)
+                    train_loss = self.loss_class(model=self.student_model)
                 else:
 
                     train_loss = self.loss_class(
-                        model=self.model,
+                        model=self.student_model,
                         distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
                         margin=0.25,
                     )
@@ -206,7 +202,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 # **************** student training END ****************
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-                train_loss = self.loss_class(self.model.model_body)
+                train_loss = self.loss_class(self.student_model.model_body)
                 train_steps = len(train_dataloader) * num_epochs
 
             logger.info("***** Running training *****")
@@ -216,7 +212,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
             logger.info(f"  Total train batch size = {batch_size}")
 
             warmup_steps = math.ceil(train_steps * self.warmup_proportion)
-            self.model.model_body.fit(
+            self.student_model.model_body.fit(
                 train_objectives=[(train_dataloader, train_loss)],
                 epochs=num_epochs,
                 steps_per_epoch=train_steps,
@@ -228,7 +224,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
 
         if not is_differentiable_head or not self._freeze:
             # Train the final classifier
-            self.model.fit(
+            self.student_model.fit(
                 x_train,
                 y_train,
                 num_epochs=num_epochs,
