@@ -227,7 +227,7 @@ class SetFitTrainerDifferentiableHeadTest(TestCase):
             column_mapping={"text_new": "text", "label_new": "label"},
         )
         trainer.unfreeze(keep_body_frozen=True)
-        
+
         # An alternative way of `assertNoLogs`, which is new in Python 3.10
         try:
             with self.assertLogs(level=logging.WARNING) as cm:

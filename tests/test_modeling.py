@@ -183,6 +183,7 @@ class SetFitModelDifferentiableHeadTest(TestCase):
 
         assert dataloader.dataset.max_length == max_length
 
+
 def test_setfit_from_pretrained_local_model_without_head(tmp_path):
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
     model.save_pretrained(str(tmp_path.absolute()))
