@@ -135,6 +135,11 @@ class DistillationSetFitTrainer(SetFitTrainer):
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
+        if self.train_dataset is None:
+            raise ValueError(
+                "Training requires a `train_dataset` given to the `DistillationSetFitTrainer` initialization."
+            )
+
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
         if self.column_mapping is not None:
