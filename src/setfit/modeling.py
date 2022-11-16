@@ -164,7 +164,7 @@ class SetFitHead(models.Dense):
     def device(self) -> torch.device:
         """
         `torch.device`: The device on which the model is placed.
-        
+
         Reference from: https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/SentenceTransformer.py#L869
         """
         return next(self.parameters()).device
