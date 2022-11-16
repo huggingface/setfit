@@ -66,10 +66,10 @@ class DistillationSetFitTrainer(SetFitTrainer):
     def __init__(
         self,
         teacher_model: "SetFitModel",
-        student_model: "SetFitModel" = None,
-        train_dataset: "Dataset" = None,
-        eval_dataset: "Dataset" = None,
-        model_init: Callable[[], "SetFitModel"] = None,
+        student_model: Optional["SetFitModel"] = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class: torch.nn.Module = losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -77,7 +77,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         learning_rate: float = 2e-5,
         batch_size: int = 16,
         seed: int = 42,
-        column_mapping: Dict[str, str] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
     ) -> None:
@@ -108,7 +108,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
-        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
     ):
         """
         Main training entry point.

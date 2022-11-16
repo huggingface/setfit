@@ -73,10 +73,10 @@ class SetFitTrainer:
 
     def __init__(
         self,
-        model: "SetFitModel" = None,
-        train_dataset: "Dataset" = None,
-        eval_dataset: "Dataset" = None,
-        model_init: Callable[[], "SetFitModel"] = None,
+        model: Optional["SetFitModel"] = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -84,7 +84,7 @@ class SetFitTrainer:
         learning_rate: float = 2e-5,
         batch_size: int = 16,
         seed: int = 42,
-        column_mapping: Dict[str, str] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
@@ -97,6 +97,7 @@ class SetFitTrainer:
 
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
+        self.model_init = model_init
         self.metric = metric
         self.loss_class = loss_class
         self.num_iterations = num_iterations
@@ -112,15 +113,12 @@ class SetFitTrainer:
 
         if model is None:
             if model_init is not None:
-                self.model_init = model_init
                 model = self.call_model_init()
             else:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument")
         else:
             if model_init is not None:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
-
-            self.model_init = model_init
 
         self.model = model
         self.hp_search_backend = None
@@ -183,7 +181,7 @@ class SetFitTrainer:
                 setattr(self, key, value)
             elif number_of_arguments(self.model_init) == 0:  # we do not warn if model_init could be using it
                 logger.warning(
-                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in "
+                    f"Trying to set {key!r} in the hyperparameter search but there is no corresponding field in "
                     "`SetFitTrainer`, and `model_init` does not take any arguments."
                 )
 
@@ -208,17 +206,17 @@ class SetFitTrainer:
         logger.info(f"Trial: {params}")
         self.apply_hyperparameters(params, final_model=False)
 
-    def call_model_init(self, params: Dict[str, Any] = None):
+    def call_model_init(self, params: Optional[Dict[str, Any]] = None):
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
         elif model_init_argcount == 1:
             model = self.model_init(params)
         else:
-            raise RuntimeError("model_init should have 0 or 1 argument.")
+            raise RuntimeError("`model_init` should have 0 or 1 argument.")
 
         if model is None:
-            raise RuntimeError("model_init should not return None.")
+            raise RuntimeError("`model_init` should not return None.")
 
         return model
 
@@ -259,7 +257,7 @@ class SetFitTrainer:
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
-        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
     ):
         """
         Main training entry point.
@@ -287,7 +285,7 @@ class SetFitTrainer:
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
-            raise ValueError("SetFitTrainer: training requires a train_dataset.")
+            raise ValueError("Training requires a `train_dataset` given to the `SetFitTrainer` initialization.")
 
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
@@ -501,7 +499,7 @@ class SetFitTrainer:
         organization: Optional[str] = None,
         private: Optional[bool] = None,
         api_endpoint: Optional[str] = None,
-        use_auth_token: Union[bool, str] = None,
+        use_auth_token: Optional[Union[bool, str]] = None,
         git_user: Optional[str] = None,
         git_email: Optional[str] = None,
         config: Optional[dict] = None,
