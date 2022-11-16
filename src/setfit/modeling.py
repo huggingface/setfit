@@ -119,7 +119,7 @@ class SetFitHead(models.Dense):
             is_features_dict = True
 
         x = features["sentence_embedding"] if is_features_dict else features
-        logits = self.linear(x)
+        logits = self.linear(x).squeeze()  # squeeze (N, 1) to (N,)
         if self.out_features == 1:  # only has one target
             outputs = torch.sigmoid(logits)
         else:  # multiple targets
