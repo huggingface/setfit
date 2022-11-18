@@ -69,6 +69,9 @@ class SetFitTrainer:
         margin (`float`, defaults to `0.25`): Margin for the triplet loss.
             Negative samples should be at least margin further apart from the anchor than the positive.
             This is ignored for `CosineSimilarityLoss`, `BatchHardSoftMarginTripletLoss` and `SupConLoss`.
+        samples_per_label (`int`, defaults to `2`): Number of consecutive, random and unique samples drawn per label.
+            This is only relevant for triplet loss and ignored for `CosineSimilarityLoss`.
+            Batch size should be a multiple of samples_per_label.
     """
 
     def __init__(
@@ -89,6 +92,7 @@ class SetFitTrainer:
         warmup_proportion: float = 0.1,
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
         margin: float = 0.25,
+        samples_per_label: int = 2,
     ):
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
             raise ValueError(
@@ -109,6 +113,7 @@ class SetFitTrainer:
         self.warmup_proportion = warmup_proportion
         self.distance_metric = distance_metric
         self.margin = margin
+        self.samples_per_label = samples_per_label
 
         if model is None:
             if model_init is not None:
@@ -317,7 +322,7 @@ class SetFitTrainer:
                 SupConLoss,
             ]:
                 train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-                train_data_sampler = SentenceLabelDataset(train_examples)
+                train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=self.samples_per_label)
 
                 batch_size = min(batch_size, len(train_data_sampler))
                 train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
