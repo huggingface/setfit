@@ -232,6 +232,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     labels = labels.to(device)
 
                     outputs = self.model_body(features)
+                    if self.normalize_embeddings:
+                        outputs = torch.nn.functional.normalize(outputs, p=2, dim=1)
                     outputs = self.model_head(outputs)
                     predictions = outputs["prediction"]
 
