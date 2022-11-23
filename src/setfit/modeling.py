@@ -310,7 +310,6 @@ class SetFitModel(PyTorchModelHubMixin):
         return self.model_head.predict(embeddings)
 
     def predict_proba(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-
         embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict_proba(embeddings)
 
