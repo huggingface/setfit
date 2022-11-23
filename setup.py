@@ -8,7 +8,7 @@ README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
 INTEGRATIONS_REQUIRE = ["optuna"]
 
-REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.2.2"]
+REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.3.0"]
 
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
