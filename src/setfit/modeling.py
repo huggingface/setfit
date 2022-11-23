@@ -89,9 +89,9 @@ class SetFitHead(models.Dense):
         self.out_features = out_features
         self.temperature = temperature
         self.bias = bias
-        self.device = device or "cuda" if torch.cuda.is_available() else "cpu"
+        self._device = device or "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.to(device)
+        self.to(self._device)
         self.apply(self._init_weight)
 
     def forward(
@@ -160,13 +160,22 @@ class SetFitHead(models.Dense):
         else:
             return torch.nn.CrossEntropyLoss()
 
+    @property
+    def device(self) -> torch.device:
+        """
+        `torch.device`: The device on which the model is placed.
+
+        Reference from: https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/SentenceTransformer.py#L869
+        """
+        return next(self.parameters()).device
+
     def get_config_dict(self) -> Dict[str, Union[int, float, bool]]:
         return {
             "in_features": self.in_features,
             "out_features": self.out_features,
             "temperature": self.temperature,
             "bias": self.bias,
-            "device": self.device,
+            "device": self.device.type,  # store the string of the device, instead of `torch.device`
         }
 
     @staticmethod
@@ -190,6 +199,7 @@ class SetFitModel(PyTorchModelHubMixin):
         model_head: Optional[Union[nn.Module, LogisticRegression]] = None,
         multi_target_strategy: str = None,
         l2_weight: float = 1e-2,
+        normalize_embeddings: bool = False,
     ) -> None:
         super(SetFitModel, self).__init__()
         self.model_body = model_body
@@ -199,6 +209,7 @@ class SetFitModel(PyTorchModelHubMixin):
         self.l2_weight = l2_weight
 
         self.model_original_state = copy.deepcopy(self.model_body.state_dict())
+        self.normalize_embeddings = normalize_embeddings
 
     def fit(
         self,
@@ -230,6 +241,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     labels = labels.to(device)
 
                     outputs = self.model_body(features)
+                    if self.normalize_embeddings:
+                        outputs = torch.nn.functional.normalize(outputs, p=2, dim=1)
                     outputs = self.model_head(outputs)
                     predictions = outputs["prediction"]
 
@@ -239,7 +252,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
                 scheduler.step()
         else:  # train with sklean
-            embeddings = self.model_body.encode(x_train)
+            embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
 
     def _prepare_dataloader(
@@ -293,11 +306,11 @@ class SetFitModel(PyTorchModelHubMixin):
             param.requires_grad = not to_freeze
 
     def predict(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-        embeddings = self.model_body.encode(x_test)
+        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict(embeddings)
 
     def predict_proba(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-        embeddings = self.model_body.encode(x_test)
+        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict_proba(embeddings)
 
     def __call__(self, inputs):
@@ -320,9 +333,12 @@ class SetFitModel(PyTorchModelHubMixin):
         use_auth_token: Optional[Union[bool, str]] = None,
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
+        normalize_embeddings: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
+        target_device = model_body._target_device
+        model_body.to(target_device)  # put `model_body` on the target device
 
         if os.path.isdir(model_id):
             if MODEL_HEAD_NAME in os.listdir(model_id):
@@ -359,13 +375,16 @@ class SetFitModel(PyTorchModelHubMixin):
         else:
             if use_differentiable_head:
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
-                device = model_body._target_device
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})
-                    model_kwargs["head_params"].update({"device": device})  # follow the model head
+                    model_kwargs["head_params"].update(
+                        {"device": target_device}
+                    )  # follow the `model_body`, put `model_head` on the target device
                     model_head = SetFitHead(**model_kwargs["head_params"])
                 else:
-                    model_head = SetFitHead(in_features=body_embedding_dim, device=device)  # a head for single target
+                    model_head = SetFitHead(
+                        in_features=body_embedding_dim, device=target_device
+                    )  # follow the `model_body`, put `model_head` on the target device
             else:
                 if "head_params" in model_kwargs.keys():
                     clf = LogisticRegression(**model_kwargs["head_params"])
@@ -385,7 +404,12 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
-        return SetFitModel(model_body=model_body, model_head=model_head, multi_target_strategy=multi_target_strategy)
+        return SetFitModel(
+            model_body=model_body,
+            model_head=model_head,
+            multi_target_strategy=multi_target_strategy,
+            normalize_embeddings=normalize_embeddings,
+        )
 
 
 class SupConLoss(nn.Module):
