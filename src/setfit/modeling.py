@@ -2,7 +2,7 @@ import copy
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -50,8 +50,8 @@ class SetFitBaseModel:
 
 class SetFitHead(models.Dense):
     """
-    A SetFit head that supports binary and multi-class classification
-    for end-to-end training.
+    A SetFit head that supports multi-class classification for end-to-end training.
+    Binary classification is treated as 2-class classification.
 
     To be compatible with Sentence Transformers, we inherit `Dense` from:
     https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/models/Dense.py
@@ -59,10 +59,12 @@ class SetFitHead(models.Dense):
     Args:
         in_features (`int`, *optional*):
             The embedding dimension from the output of the SetFit body. If `None`, defaults to `LazyLinear`.
-        out_features (`int`, defaults to `1`):
-            The number of targets.
-        temperature (`float`):
-            A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
+        out_features (`int`, defaults to `2`):
+            The number of targets. If set `out_features` to 1 for binary classification, it will be changed to 2 as 2-class classification.
+        temperature (`float`, defaults to `1.0`):
+            A logits' scaling factor (i.e., number of targets more than 1).
+        eps (`float`, defaults to `1e-5`):
+            A value for numerical stability when scaling logits.
         bias (`bool`, *optional*, defaults to `True`):
             Whether to add bias to the head.
         device (`torch.device`, str, *optional*):
@@ -72,14 +74,20 @@ class SetFitHead(models.Dense):
     def __init__(
         self,
         in_features: Optional[int] = None,
-        out_features: int = 1,
+        out_features: int = 2,
         temperature: float = 1.0,
+        eps: float = 1e-5,
         bias: bool = True,
         device: Optional[Union[torch.device, str]] = None,
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
-        self.linear = None
+        if out_features == 1:
+            logger.warning(
+                "Change `out_features` from 1 to 2 since we use `CrossEntropyLoss` for binary classification."
+            )
+            out_features = 2
+
         if in_features is not None:
             self.linear = nn.Linear(in_features, out_features, bias=bias)
         else:
@@ -88,6 +96,7 @@ class SetFitHead(models.Dense):
         self.in_features = in_features
         self.out_features = out_features
         self.temperature = temperature
+        self.eps = eps
         self.bias = bias
         self.device = device or "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -95,8 +104,10 @@ class SetFitHead(models.Dense):
         self.apply(self._init_weight)
 
     def forward(
-        self, features: Union[Dict[str, torch.Tensor], torch.Tensor], temperature: Optional[float] = None
-    ) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
+        self,
+        features: Union[Dict[str, torch.Tensor], torch.Tensor],
+        temperature: Optional[float] = None,
+    ) -> Union[Dict[str, torch.Tensor], Tuple[torch.Tensor]]:
         """
         SetFitHead can accept embeddings in:
         1. Output format (`dict`) from Sentence-Transformers.
@@ -111,8 +122,9 @@ class SetFitHead(models.Dense):
                 A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
                 Will override the temperature given during initialization.
         Returns:
-        [`Dict[str, torch.Tensor]` or `torch.Tensor`]
+        [`Dict[str, torch.Tensor]` or `Tuple[torch.Tensor]`]
         """
+        temperature = temperature or self.temperature
         is_features_dict = False  # whether `features` is dict or not
         if isinstance(features, dict):
             assert "sentence_embedding" in features
@@ -120,22 +132,24 @@ class SetFitHead(models.Dense):
 
         x = features["sentence_embedding"] if is_features_dict else features
         logits = self.linear(x)
-        if self.out_features == 1:  # only has one target
-            outputs = torch.sigmoid(logits)
-        else:  # multiple targets
-            temperature = temperature or self.temperature
-            outputs = nn.functional.softmax(logits / temperature, dim=-1)
+        logits = logits / (temperature + self.eps)
+        probs = nn.functional.softmax(logits, dim=-1)
 
         if is_features_dict:
-            features.update({"prediction": outputs})
+            features.update(
+                {
+                    "logits": logits,
+                    "probs": probs,
+                }
+            )
             return features
 
-        return outputs
+        return logits, probs
 
     def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
 
-        return self(x_test)
+        return self(x_test)[1]
 
     def predict(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
         is_tensor = isinstance(x_test, torch.Tensor)
@@ -144,10 +158,7 @@ class SetFitHead(models.Dense):
 
         probs = self.predict_proba(x_test)
 
-        if self.out_features == 1:
-            out = torch.where(probs >= 0.5, 1, 0)
-        else:
-            out = torch.argmax(probs, dim=-1)
+        out = torch.argmax(probs, dim=-1)
 
         if not is_tensor:
             return out.cpu().numpy()
@@ -155,10 +166,7 @@ class SetFitHead(models.Dense):
         return out
 
     def get_loss_fn(self):
-        if self.out_features == 1:  # if single target
-            return torch.nn.BCELoss()
-        else:
-            return torch.nn.CrossEntropyLoss()
+        return torch.nn.CrossEntropyLoss()
 
     def get_config_dict(self) -> Dict[str, Union[int, float, bool]]:
         return {
@@ -231,9 +239,9 @@ class SetFitModel(PyTorchModelHubMixin):
 
                     outputs = self.model_body(features)
                     outputs = self.model_head(outputs)
-                    predictions = outputs["prediction"]
+                    logits = outputs["logits"]
 
-                    loss = criterion(predictions, labels)
+                    loss = criterion(logits, labels)
                     loss.backward()
                     optimizer.step()
 
