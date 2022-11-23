@@ -113,9 +113,12 @@ class SetFitModelDifferentiableHeadTest(TestCase):
         dataloader = model._prepare_dataloader(x_train, y_train, batch_size=2 * num_classes)
         criterion = model.model_head.get_loss_fn()
         optimizer = model._prepare_optimizer(2e-4, None, 0.1)
+        device = model.model_head.device
 
         batch = next(iter(dataloader))
         features, labels = batch
+        features = {k: v.to(device) for k, v in features.items()}
+        labels = labels.to(device)
         optimizer.zero_grad()
 
         outputs = model.model_body(features)
@@ -136,6 +139,10 @@ class SetFitModelDifferentiableHeadTest(TestCase):
         )
 
         return model
+
+    def test_setfit_body_and_head_on_same_device(self):
+        model = self._build_model(num_classes=1)
+        assert model.model_body.device.type == model.model_head.device.type
 
     def test_setfit_single_target_differentiable_head(self):
         model = self._build_model(num_classes=1)
