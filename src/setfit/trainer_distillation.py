@@ -150,7 +150,6 @@ class DistillationSetFitTrainer(SetFitTrainer):
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
-        batch_size = batch_size or self.batch_size
         is_differentiable_head = isinstance(
             self.student_model.model_head, torch.nn.Module
         )  # If False, assume using sklearn

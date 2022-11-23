@@ -304,7 +304,6 @@ class SetFitTrainer:
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
-        batch_size = batch_size or self.batch_size
         is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
         if not is_differentiable_head or self._freeze:
