@@ -9,5 +9,5 @@ sentencepiece==0.1.96
 scipy
 ipdb
 evaluate==0.1.2
-sklearn
+scikit-learn
 git+https://github.com/SetFit/promptsource.git

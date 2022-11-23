@@ -52,7 +52,7 @@ pypi_test_upload:
 	twine upload dist/* -r pypitest --repository-url=https://test.pypi.org/legacy/
 
 pypi_test_install:
-	python -m pip install evaluate==0.2.2 datasets==2.3.2 sentence_transformers==2.2.2
+	python -m pip install evaluate==0.3.0 datasets==2.3.2 sentence_transformers==2.2.2
 	python -m pip install -i https://testpypi.python.org/pypi setfit
 	python -c "from setfit import *"
 	echo "🚀 Successfully installed setfit from test.pypi.org"
