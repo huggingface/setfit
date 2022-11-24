@@ -254,6 +254,10 @@ class SetFitModel(PyTorchModelHubMixin):
         max_acceptable_length = self.model_body.get_max_seq_length()
         if max_length is None:
             max_length = max_acceptable_length
+            logger.warning(
+                f"The `max_length` is `None`. Using the maximum acceptable length according to the current model body: {max_length}."
+            )
+
         if max_length > max_acceptable_length:
             logger.warning(
                 (
