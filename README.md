@@ -84,7 +84,7 @@ trainer.push_to_hub("my-awesome-setfit-model")
 # Download from Hub and run inference
 model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
 # Run inference
-preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
+preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
 ```
 
 Here is an end-to-end example using `SetFitHead`:
@@ -94,15 +94,14 @@ Here is an end-to-end example using `SetFitHead`:
 from datasets import load_dataset
 from sentence_transformers.losses import CosineSimilarityLoss
 
-from setfit import SetFitModel, SetFitTrainer
+from setfit import SetFitModel, SetFitTrainer, sample_dataset
 
 
 # Load a dataset from the Hugging Face Hub
 dataset = load_dataset("sst2")
 
 # Simulate the few-shot regime by sampling 8 examples per class
-num_classes = 2
-train_dataset = dataset["train"].shuffle(seed=42).select(range(8 * num_classes))
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
 eval_dataset = dataset["validation"]
 
 # Load a SetFit model from Hub
@@ -150,7 +149,7 @@ trainer.push_to_hub("my-awesome-setfit-model")
 # Download from Hub and run inference
 model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
 # Run inference
-preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]) 
+preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
 ```
 
 Based on our experiments, `SetFitHead` can achieve similar performance as using a `scikit-learn` head. We use `AdamW` as the optimizer and scale down learning rates by 0.5 every 5 epochs. For more details about the experiments, please check out [here](https://github.com/huggingface/setfit/pull/112#issuecomment-1295773537). We recommend using a large learning rate (e.g. `1e-2`) for `SetFitHead` and a small learning rate (e.g. `1e-5`) for the body in your first attempt.
@@ -246,7 +245,7 @@ def hp_space(trial):  # Training parameters
         "seed": trial.suggest_int("seed", 1, 40),
         "num_iterations": trial.suggest_categorical("num_iterations", [5, 10, 20]),
         "max_iter": trial.suggest_int("max_iter", 50, 300),
-        "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),        
+        "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),
     }
 ```
 
@@ -278,6 +277,62 @@ a final time.
 trainer.apply_hyperparameters(best_run.hyperparameters, final_model=True)
 trainer.train()
 ```
+
+## Compressing a SetFit model with knowledge distillation
+
+If you have access to unlabeled data, you can use knowledge distillation to compress a trained SetFit model into a smaller version. The result is a model that can run inference much faster, with little to no drop in accuracy. Here's an end-to-end example (see our paper for more details):
+
+```python
+from datasets import load_dataset
+from sentence_transformers.losses import CosineSimilarityLoss
+
+from setfit import SetFitModel, SetFitTrainer, DistillationSetFitTrainer, sample_dataset
+
+# Load a dataset from the Hugging Face Hub
+dataset = load_dataset("ag_news")
+
+# Simulate the few-shot regime by sampling 16 examples per class
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=16)
+# Create a dataset of unlabeled examples
+train_dataset_student = dataset["train"].shuffle(seed=0).select(range(500))
+eval_dataset = dataset["test"]
+
+# Load teacher model
+teacher_model = SetFitModel.from_pretrained(
+    "sentence-transformers/paraphrase-mpnet-base-v2"
+)
+
+# Create trainer for teacher model
+teacher_trainer = SetFitTrainer(
+    model=teacher_model,
+    train_dataset=train_dataset_teacher,
+    eval_dataset=eval_dataset,
+    loss_class=CosineSimilarityLoss,
+)
+
+# Train teacher model
+teacher_trainer.train()
+
+# Load small student model
+student_model = SetFitModel.from_pretrained("paraphrase-MiniLM-L3-v2")
+
+# Create trainer for knowledge distillation
+student_trainer = DistillationSetFitTrainer(
+    teacher_model=teacher_model,
+    train_dataset=train_dataset_student,
+    student_model=student_model,
+    eval_dataset=eval_dataset,
+    loss_class=CosineSimilarityLoss,
+    metric="accuracy",
+    batch_size=16,
+    num_iterations=20,
+    num_epochs=1,
+)
+
+# Train student with knowledge distillation
+student_trainer.train()
+```
+
 
 ## Reproducing the results from the paper
 
