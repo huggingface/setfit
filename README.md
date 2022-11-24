@@ -291,10 +291,11 @@ from setfit import SetFitModel, SetFitTrainer, DistillationSetFitTrainer, sample
 # Load a dataset from the Hugging Face Hub
 dataset = load_dataset("ag_news")
 
-# Simulate the few-shot regime by sampling 16 examples per class
-train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=16)
-# Create a dataset of unlabeled examples
+# Create a sample few-shot dataset to train the teacher model
+train_dataset_teacher = sample_dataset(dataset["train"], label_column="label", num_samples=16)
+# Create a dataset of unlabeled examples to train the student
 train_dataset_student = dataset["train"].shuffle(seed=0).select(range(500))
+# Dataset for evaluation
 eval_dataset = dataset["test"]
 
 # Load teacher model
