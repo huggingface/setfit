@@ -252,7 +252,8 @@ class SetFitModel(PyTorchModelHubMixin):
         shuffle: bool = True,
     ) -> DataLoader:
         max_acceptable_length = self.model_body.get_max_seq_length()
-        max_length = max_length or max_acceptable_length
+        if max_length is None:
+            max_length = max_acceptable_length
         if max_length > max_acceptable_length:
             logger.warning(
                 (
