@@ -12,16 +12,9 @@ REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0
 
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
-TESTS_REQUIRE = ["pytest", "pytest-cov", "onnxruntime"]
+TESTS_REQUIRE = ["pytest", "pytest-cov", "onnxruntime", "onnx", "skl2onnx"]
 
-ONNX_REQUIRE = ["onnx", "skl2onnx"]
-
-EXTRAS_REQUIRE = {
-    "optuna": INTEGRATIONS_REQUIRE,
-    "quality": QUALITY_REQUIRE,
-    "tests": TESTS_REQUIRE,
-    "onnx": ONNX_REQUIRE,
-}
+EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
 
 
 def combine_requirements(base_keys):
