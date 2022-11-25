@@ -11,13 +11,13 @@ from transformers.modeling_utils import PreTrainedModel
 
 
 def mean_pooling(token_embeddings: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
-    """Perform attention aware mean pooling.
+    """Perform attention-aware mean pooling.
 
     This method takes in embeddings of shape (batch, sequence, embedding_size) and performs average
     pooling across the sequence dimension to yield embeddings of size (batch, embedding_size).
 
     From:
-    https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2#usage-huggingface-transformers
+    https://github.com/UKPLab/sentence-transformers/blob/0b5ef4be93d2b21de3a918a084b48aab6ba48595/sentence_transformers/model_card_templates.py#L134  # noqa: E501
 
     Args:
         token_embeddings (`torch.Tensor`): The embeddings we wish to pool over of shape
@@ -35,17 +35,19 @@ def mean_pooling(token_embeddings: torch.Tensor, attention_mask: torch.Tensor) -
 class OnnxSetFitModel(torch.nn.Module):
     """A wrapper around SetFit model body, pooler, and model head which makes ONNX exporting easier.
 
-    This wrapper allows us to create a nn.Module with different levels of connectivity. We can set
-    model_body and pooler and have a Module which maps inputs to embeddings or we can set all three
-    and have a model which maps inputs to final predictions. This is useful because torch.onnx.export
-    will work with a nn.Module.
+    This wrapper creates a `nn.Module` with different levels of connectivity. We can set
+    `model_body` and `pooler` and have a Module which maps inputs to embeddings or we can set all three
+    and have a model which maps inputs to final predictions. This is useful because `torch.onnx.export`
+    will work with a `nn.Module`.
 
     Attributes:
         model_body (`PreTrainedModel`): The pretrained model body of a setfit model.
-        pooler (`nn.Module` or `Callable[[torch.Tensor], torch.Tensor]`): The callable function that can
-            map  tensors of shape (batch, sequence, embedding_dim) to shape (batch, embedding_dim).
-        model_head: (`torch.nn.Module` or `LogisticRegression`): The model head from the pretrained SetFit model.
-            if it is None then the resulting OnnxSetFitModel forward will return embeddings instead of predictions.
+        pooler (`Union[nn.Module, Callable[[torch.Tensor], torch.Tensor]]`, *optional*, defaults to `None`): The
+            callable function that can map  tensors of shape (batch, sequence, embedding_dim) to shape
+            (batch, embedding_dim).
+        model_head: (`Union[nn.Module, LogisticRegression]`, *optional*, defaults to `None`): The model head from
+            the pretrained SetFit model. If `None`, then the resulting `OnnxSetFitModel.forward` forward  method will
+            return embeddings instead of predictions.
     """
 
     def __init__(
@@ -58,6 +60,7 @@ class OnnxSetFitModel(torch.nn.Module):
 
         self.model_body = model_body
         if pooler is None:
+            print("No pooler was set so defaulting to mean pooling.")
             self.pooler = mean_pooling
         else:
             self.pooler = pooler
@@ -80,13 +83,13 @@ class OnnxSetFitModel(torch.nn.Module):
         return out
 
 
-def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path, opset):
-    """Export the OnnxSetFitModel.
+def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path, opset: int = 12):
+    """Export the `OnnxSetFitModel`.
 
-    This exports the model created by the OnnxSetFitModel wrapper using torch.onnx.export.
+    This exports the model created by the `OnnxSetFitModel` wrapper using `torch.onnx.export`.
 
     Args:
-        setfit_model (`OnnxSetFitModel`): The OnnxSetFitModel we want to export to .onnx format.
+        setfit_model (`OnnxSetFitModel`): The `OnnxSetFitModel` we want to export to .onnx format.
         inputs (`Dict[str, torch.Tensor]`): The inputs we would hypothetically pass to the model. These are
             generated using a tokenizer.
         output_path (`str`): The local path to save the onnx model to.
@@ -123,14 +126,14 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
     Args:
         model_head (`LogisticRegression`): The trained SetFit model_head.
         opset (`int`): The ONNX opset to use for optimizing this model. The opset is not
-            gauranteed and will default to the maximum version possible for the sklearn
+            guaranteed and will default to the maximum version possible for the sklearn
             model.
 
     Returns:
         [`onnx.onnx_ml_pb2.ModelProto`] The ONNX model generated from the sklearn head.
 
     Raises:
-        ImportError: If skl2onnx is not installed an error will be raised asking
+        ImportError: If `skl2onnx` is not installed an error will be raised asking
             to install this package.
     """
 
@@ -143,8 +146,8 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
         from sklearn.pipeline import Pipeline
     except ImportError:
         msg = """
-        skl2onnx must be installed in order to convert a model with an sklearn head.
-        Please install with pip install skl2onnx.
+        `skl2onnx` must be installed in order to convert a model with an sklearn head.
+        Please install with `pip install skl2onnx`.
         """
         raise ImportError(msg)
 
@@ -181,7 +184,7 @@ def export_onnx(
     model_body: SentenceTransformer,
     model_head: Union[torch.nn.Module, LogisticRegression],
     opset: int,
-    output_path: str,
+    output_path: str = "model.onnx",
     ignore_ir_version: bool = True,
 ) -> None:
     """Export a PyTorch backed SetFit model to ONNX Intermediate Representation.
@@ -194,8 +197,8 @@ def export_onnx(
         opset (`int`): The actual version of the ONNX operator set to use.  The final opset used might be lower.
             ONNX will use the highest version supported by both the sklearn head and the model body. If versions
             can't be rectified an error will be thrown.
-        output_path (`str`): The path where will be stored the generated ONNX model. If the head is an sklearn.estimator the
-            models will be saved in
+        output_path (`str`): The path where will be stored the generated ONNX model. At a minimum it needs to contain
+            the name of the final file.
         ignore_ir_version (`bool`): Whether to ignore the IR version used in sklearn. The version is often missmatched
             with the transformer models. Setting this to true coerces the versions to be the same. This might
             cause errors but in practice works.  If this is set to False you need to ensure that the IR versions

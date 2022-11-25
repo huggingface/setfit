@@ -14,7 +14,14 @@ QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
 TESTS_REQUIRE = ["pytest", "pytest-cov"]
 
-EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
+ONNX_REQUIRE = ["onnx", "onnxruntime", "skl2onnx"]
+
+EXTRAS_REQUIRE = {
+    "optuna": INTEGRATIONS_REQUIRE,
+    "quality": QUALITY_REQUIRE,
+    "tests": TESTS_REQUIRE,
+    "onnx": ONNX_REQUIRE,
+}
 
 
 def combine_requirements(base_keys):
