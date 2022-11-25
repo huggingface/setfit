@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import onnxruntime
-import torch
 from transformers import AutoTokenizer
 
 from setfit import SetFitModel
