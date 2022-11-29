@@ -539,17 +539,20 @@ class SetFitModel(PyTorchModelHubMixin):
                         use_multitarget = True
                     else:
                         raise ValueError(
-                            f"multi_target_strategy '{multi_target_strategy}' is not supported for differentiable head"
+                            f"multi_target_strategy {multi_target_strategy} is not supported for differentiable head"
                         )
-                # Base `model_head` parameters
-                # - get the sentence embedding dimension from the `model_body`
-                # - follow the `model_body`, put `model_head` on the target device
-                base_head_params = {
-                    "in_features": model_body.get_sentence_embedding_dimension(),
-                    "device": target_device,
-                    "multitarget": use_multitarget,
-                }
-                model_head = SetFitHead(**{**head_params, **base_head_params})
+
+                body_embedding_dim = model_body.get_sentence_embedding_dimension()
+                if "head_params" in model_kwargs.keys():
+                    model_kwargs["head_params"].update({"in_features": body_embedding_dim})
+                    model_kwargs["head_params"].update(
+                        {"device": target_device}
+                    )  # follow the `model_body`, put `model_head` on the target device
+                    model_head = SetFitHead(**model_kwargs["head_params"], multitarget=use_multitarget)
+                else:
+                    model_head = SetFitHead(
+                        in_features=body_embedding_dim, device=target_device, multitarget=use_multitarget
+                    )  # follow the `model_body`, put `model_head` on the target device
             else:
                 clf = LogisticRegression(**head_params)
                 if multi_target_strategy is not None:
