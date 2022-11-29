@@ -62,7 +62,8 @@ class SetFitHead(models.Dense):
         out_features (`int`, defaults to `1`):
             The number of targets.
         temperature (`float`):
-            A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
+            A logits' scaling factor. Higher values makes the model less confident and higher values makes
+            it more confident.
         bias (`bool`, *optional*, defaults to `True`):
             Whether to add bias to the head.
         device (`torch.device`, str, *optional*):
@@ -76,6 +77,7 @@ class SetFitHead(models.Dense):
         temperature: float = 1.0,
         bias: bool = True,
         device: Optional[Union[torch.device, str]] = None,
+        multitarget: bool = False,
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
@@ -90,6 +92,7 @@ class SetFitHead(models.Dense):
         self.temperature = temperature
         self.bias = bias
         self._device = device or "cuda" if torch.cuda.is_available() else "cpu"
+        self.multitarget = multitarget
 
         self.to(self._device)
         self.apply(self._init_weight)
@@ -108,7 +111,8 @@ class SetFitHead(models.Dense):
                 make sure to store embeddings under the key: 'sentence_embedding'
                 and the outputs will be under the key: 'prediction'.
             temperature (`float`, *optional*):
-                A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
+                A logits' scaling factor. Higher values makes the model less
+                confident and higher values makes it more confident.
                 Will override the temperature given during initialization.
         Returns:
         [`Dict[str, torch.Tensor]` or `torch.Tensor`]
@@ -120,10 +124,11 @@ class SetFitHead(models.Dense):
 
         x = features["sentence_embedding"] if is_features_dict else features
         logits = self.linear(x)
-        if self.out_features == 1:  # only has one target
-            outputs = torch.sigmoid(logits)
-        else:  # multiple targets
-            temperature = temperature or self.temperature
+
+        temperature = temperature or self.temperature
+        if self.multitarget or self.out_features == 1:  # only has one target or multiple targets per item
+            outputs = torch.sigmoid(logits / temperature)
+        else:  # multiple classes, one target per item
             outputs = nn.functional.softmax(logits / temperature, dim=-1)
 
         if is_features_dict:
@@ -144,7 +149,7 @@ class SetFitHead(models.Dense):
 
         probs = self.predict_proba(x_test)
 
-        if self.out_features == 1:
+        if self.out_features == 1 or self.multitarget:
             out = torch.where(probs >= 0.5, 1, 0)
         else:
             out = torch.argmax(probs, dim=-1)
@@ -374,16 +379,26 @@ class SetFitModel(PyTorchModelHubMixin):
             model_head = joblib.load(model_head_file)
         else:
             if use_differentiable_head:
+                if multi_target_strategy is None:
+                    use_multitarget = False
+                else:
+                    if multi_target_strategy in ["one-vs-rest", "multi-output"]:
+                        use_multitarget = True
+                    else:
+                        raise ValueError(
+                            f"multi_target_strategy {multi_target_strategy} is not supported for differentiable head"
+                        )
+
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})
                     model_kwargs["head_params"].update(
                         {"device": target_device}
                     )  # follow the `model_body`, put `model_head` on the target device
-                    model_head = SetFitHead(**model_kwargs["head_params"])
+                    model_head = SetFitHead(**model_kwargs["head_params"], multitarget=use_multitarget)
                 else:
                     model_head = SetFitHead(
-                        in_features=body_embedding_dim, device=target_device
+                        in_features=body_embedding_dim, device=target_device, multitarget=use_multitarget
                     )  # follow the `model_body`, put `model_head` on the target device
             else:
                 if "head_params" in model_kwargs.keys():
