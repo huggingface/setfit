@@ -68,6 +68,9 @@ class SetFitHead(models.Dense):
             Whether to add bias to the head.
         device (`torch.device`, str, *optional*):
             The device the model will be sent to. If `None`, will check whether GPU is available.
+        multitarget (`bool`, *optional*, defaults to `True`):
+            Enable multi-target classification by making `out_features` binary predictions instead
+            of a single multinomial prediction.
     """
 
     def __init__(
@@ -137,30 +140,29 @@ class SetFitHead(models.Dense):
 
         return outputs
 
-    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict_proba(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
+        is_tensor = isinstance(x_test, torch.Tensor)  # Otherwise assume it's ndarray
+        if not is_tensor:
+            x_test = torch.Tensor(x_test).to(self.device)
         self.eval()
 
-        return self(x_test)
+        out = self(x_test)
+        if not is_tensor:
+            return out.detach().cpu().numpy()
+        return out
 
     def predict(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
-        is_tensor = isinstance(x_test, torch.Tensor)
-        if not is_tensor:  # then assume it's ndarray
-            x_test = torch.Tensor(x_test).to(self.device)
-
         probs = self.predict_proba(x_test)
 
         if self.out_features == 1 or self.multitarget:
-            out = torch.where(probs >= 0.5, 1, 0)
+            out = np.where(probs >= 0.5, 1, 0)
         else:
-            out = torch.argmax(probs, dim=-1)
-
-        if not is_tensor:
-            return out.cpu().numpy()
+            out = np.argmax(probs, dim=-1)
 
         return out
 
     def get_loss_fn(self):
-        if self.out_features == 1:  # if single target
+        if self.out_features == 1 or self.multitarget:  # if sigmoid output
             return torch.nn.BCELoss()
         else:
             return torch.nn.CrossEntropyLoss()
@@ -310,11 +312,11 @@ class SetFitModel(PyTorchModelHubMixin):
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict(self, x_test: Union[str, List[str]]) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict(embeddings)
 
-    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict_proba(self, x_test: Union[str, List[str]]) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict_proba(embeddings)
 
@@ -386,9 +388,8 @@ class SetFitModel(PyTorchModelHubMixin):
                         use_multitarget = True
                     else:
                         raise ValueError(
-                            f"multi_target_strategy {multi_target_strategy} is not supported for differentiable head"
+                            f"multi_target_strategy '{multi_target_strategy}' is not supported for differentiable head"
                         )
-
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})

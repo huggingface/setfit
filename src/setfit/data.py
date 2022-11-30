@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Tuple, Union
 
 import pandas as pd
 import torch
@@ -107,7 +107,10 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
 
 
 def create_fewshot_splits(
-    dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: str = None
+    dataset: Dataset,
+    sample_sizes: List[int],
+    add_data_augmentation: bool = False,
+    dataset_name: str = None,
 ) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
@@ -222,7 +225,7 @@ class SetFitDataset(TorchDataset):
     Args:
         x (`List[str]`):
             A list of input data as texts that will be fed into `SetFitModel`.
-        y (`List[int]`):
+        y (`Union[List[int], List[List[int]]]`):
             A list of input data's labels.
         tokenizer (`PreTrainedTokenizerBase`):
             The tokenizer from `SetFitModel`'s body.
@@ -234,7 +237,7 @@ class SetFitDataset(TorchDataset):
     def __init__(
         self,
         x: List[str],
-        y: List[int],
+        y: Union[List[int], List[List[int]]],
         tokenizer: "PreTrainedTokenizerBase",
         max_length: int = 32,
     ) -> None:
@@ -248,7 +251,7 @@ class SetFitDataset(TorchDataset):
     def __len__(self) -> int:
         return len(self.x)
 
-    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
+    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, Union[int, List[int]]]:
         feature = self.tokenizer(
             self.x[idx],
             max_length=self.max_length,
