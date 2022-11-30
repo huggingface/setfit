@@ -12,6 +12,8 @@ from hummingbird.ml import convert
 from torch import nn
 from transformers.modeling_utils import PreTrainedModel
 
+from setfit import SetFitModel
+
 
 def mean_pooling(token_embeddings: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
     """Perform attention-aware mean pooling.
@@ -126,8 +128,7 @@ def export_onnx_setfit_model(setfit_model: SetFitModelWrapper, inputs, output_pa
         )
 
 def export_openvino(
-    model_body: SentenceTransformer,
-    model_head: Union[torch.nn.Module, LogisticRegression],
+    model: SetFitModel,
     output_path: str = "model.xml",
     ignore_ir_version: bool = True,
 ) -> None:
@@ -147,6 +148,9 @@ def export_openvino(
     """
 
     # Load the model and get all of the parts.
+    model_body = model.model_body.cpu()
+    model_head = model.model_head
+    
     model_body_module = model_body._modules["0"]
     model_pooler = model_body._modules["1"]
     tokenizer = model_body_module.tokenizer
@@ -185,10 +189,11 @@ def export_openvino(
     else:
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
-        test_input = copy.deepcopy(dummy_inputs)
-        head_input = model_body(test_input)["sentence_embedding"]
+        with torch.no_grad():
+            test_input = copy.deepcopy(dummy_inputs)
+            head_input = model_body(test_input)["sentence_embedding"]
+            onnx_head = hummingbird_export(model_head, head_input.detach().numpy())
 
-        onnx_head = hummingbird_export(model_head, head_input.detach().numpy())
         max_opset = onnx_head.opset_import[0].version
 
         if max_opset != ONNX_OPSET:
@@ -196,7 +201,7 @@ def export_openvino(
                 f"sklearn onnx max opset is {max_opset} requested opset {ONNX_OPSET} using opset {max_opset} for compatibility."
             )
         export_onnx_setfit_model(
-            SetFitModelWrapper(transformer, lambda x: model_pooler(x)["sentence_embedding"]),
+            SetFitModelWrapper(transformer, lambda x: model_pooler(x)["sentence_embedding"]).cpu(),
             dummy_inputs,
             output_path,
             max_opset,

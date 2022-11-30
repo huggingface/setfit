@@ -16,7 +16,7 @@ def test_export_to_openvino():
 
     # Export the sklearn based model
     output_path = "model.xml"
-    export_openvino(model.model_body, model.model_head, output_path=output_path)
+    export_openvino(model, output_path=output_path)
 
     # Check that the model was saved.
     assert output_path in os.listdir(), "Model not saved to output_path"
@@ -25,7 +25,7 @@ def test_export_to_openvino():
     input_text = ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]
     pytorch_preds = model(input_text)
 
-    # Run inference using the exported onnx model.
+    # Run inference using the exported OpenVINO model.
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     inputs = tokenizer(
         input_text,
