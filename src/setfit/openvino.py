@@ -127,7 +127,7 @@ def export_onnx_setfit_model(setfit_model: SetFitModelWrapper, inputs, output_pa
             dynamic_axes={**dynamic_axes_input, **dynamic_axes_output},
         )
 
-def export_openvino(
+def export_to_openvino(
     model: SetFitModel,
     output_path: str = "model.xml",
     ignore_ir_version: bool = True,
