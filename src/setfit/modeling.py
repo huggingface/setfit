@@ -204,7 +204,10 @@ class SetFitHead(models.Dense):
 
         return logits, probs
 
-    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
+    def predict_proba(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
+        is_tensor = isinstance(x_test, torch.Tensor)  # Otherwise assume it's ndarray
+        if not is_tensor:
+            x_test = torch.Tensor(x_test).to(self.device)
         self.eval()
 
         return self(x_test)[1]
@@ -539,9 +542,8 @@ class SetFitModel(PyTorchModelHubMixin):
                         use_multitarget = True
                     else:
                         raise ValueError(
-                            f"multi_target_strategy {multi_target_strategy} is not supported for differentiable head"
+                            f"multi_target_strategy '{multi_target_strategy}' is not supported for differentiable head"
                         )
-
                 body_embedding_dim = model_body.get_sentence_embedding_dimension()
                 if "head_params" in model_kwargs.keys():
                     model_kwargs["head_params"].update({"in_features": body_embedding_dim})
