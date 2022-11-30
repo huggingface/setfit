@@ -308,6 +308,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     # to model's device
                     features = {k: v.to(device) for k, v in features.items()}
                     labels = labels.to(device)
+                    if self.model_head.multitarget:
+                        labels = labels.float()
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
