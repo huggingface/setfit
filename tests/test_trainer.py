@@ -229,7 +229,6 @@ class SetFitTrainerMultilabelDifferentiableTest(TestCase):
         multilabel_accuracy_metric = evaluate.load("accuracy", "multilabel")
 
         def compute_metrics(y_pred, y_test):
-            print(y_pred, y_test)
             return {
                 "f1": multilabel_f1_metric.compute(predictions=y_pred, references=y_test, average="micro")["f1"],
                 "accuracy": multilabel_accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
