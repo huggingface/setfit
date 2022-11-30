@@ -12,7 +12,7 @@ REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0
 
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
-TESTS_REQUIRE = ["pytest", "pytest-cov"]
+TESTS_REQUIRE = ["pytest", "pytest-cov", "onnx", "skl2onnx", "hummingbird-ml", "openvino==2022.3.0.dev20221103"]
 
 EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
 
