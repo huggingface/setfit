@@ -16,7 +16,7 @@ def test_export_to_openvino():
 
     # Export the sklearn based model
     output_path = "model.xml"
-    export_openvino(model.model_body, model.model_head, opset=12, output_path=output_path)
+    export_openvino(model.model_body, model.model_head, output_path=output_path)
 
     # Check that the model was saved.
     assert output_path in os.listdir(), "Model not saved to output_path"

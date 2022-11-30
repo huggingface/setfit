@@ -35,8 +35,8 @@ def mean_pooling(token_embeddings: torch.Tensor, attention_mask: torch.Tensor) -
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 
-class OnnxSetFitModel(torch.nn.Module):
-    """A wrapper around SetFit model body, pooler, and model head which makes ONNX exporting easier.
+class SetFitModelWrapper(torch.nn.Module):
+    """A wrapper around SetFit model body, pooler, and model head which makes ONNX exporting possible.
 
     This wrapper creates a `nn.Module` with different levels of connectivity. We can set
     `model_body` and `pooler` and have a Module which maps inputs to embeddings or we can set all three
@@ -49,7 +49,7 @@ class OnnxSetFitModel(torch.nn.Module):
             callable function that can map  tensors of shape (batch, sequence, embedding_dim) to shape
             (batch, embedding_dim).
         model_head: (`Union[nn.Module, LogisticRegression]`, *optional*, defaults to `None`): The model head from
-            the pretrained SetFit model. If `None`, then the resulting `OnnxSetFitModel.forward` forward  method will
+            the pretrained SetFit model. If `None`, then the resulting `SetFitModelWrapper.forward` forward  method will
             return embeddings instead of predictions.
     """
 
@@ -89,13 +89,13 @@ def hummingbird_export(model, data_sample):
     onnx_model = convert(model, "onnx", data_sample)
     return onnx_model._model
 
-def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path, opset: int = 12):
-    """Export the `OnnxSetFitModel`.
+def export_onnx_setfit_model(setfit_model: SetFitModelWrapper, inputs, output_path, opset: int = 13):
+    """Export the `SetFitModelWrapper`.
 
-    This exports the model created by the `OnnxSetFitModel` wrapper using `torch.onnx.export`.
+    This exports the model created by the `SetFitModelWrapper` wrapper using `torch.onnx.export`.
 
     Args:
-        setfit_model (`OnnxSetFitModel`): The `OnnxSetFitModel` we want to export to .onnx format.
+        setfit_model (`SetFitModelWrapper`): The `SetFitModelWrapper` we want to export to .onnx format.
         inputs (`Dict[str, torch.Tensor]`): The inputs we would hypothetically pass to the model. These are
             generated using a tokenizer.
         output_path (`str`): The local path to save the onnx model to.
@@ -128,21 +128,17 @@ def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path,
 def export_openvino(
     model_body: SentenceTransformer,
     model_head: Union[torch.nn.Module, LogisticRegression],
-    opset: int,
-    output_path: str = "model.onnx",
+    output_path: str = "model.xml",
     ignore_ir_version: bool = True,
 ) -> None:
-    """Export a PyTorch backed SetFit model to ONNX Intermediate Representation.
+    """Export a PyTorch backed SetFit model to OpenVINO Intermediate Representation.
 
     Args:
         model_body (`SentenceTransformer`): The model_body from a SetFit model body. This should be a
             SentenceTransformer.
         model_head (`torch.nn.Module` or `LogisticRegression`): The SetFit model head. This can be either a
             dense layer SetFitHead or a Sklearn estimator.
-        opset (`int`): The actual version of the ONNX operator set to use.  The final opset used might be lower.
-            ONNX will use the highest version supported by both the sklearn head and the model body. If versions
-            can't be rectified an error will be thrown.
-        output_path (`str`): The path where will be stored the generated ONNX model. At a minimum it needs to contain
+        output_path (`str`): The path where will be stored the generated OpenVINO model. At a minimum it needs to contain
             the name of the final file.
         ignore_ir_version (`bool`): Whether to ignore the IR version used in sklearn. The version is often missmatched
             with the transformer models. Setting this to true coerces the versions to be the same. This might
@@ -158,6 +154,8 @@ def export_openvino(
     transformer = model_body_module.auto_model
     transformer.eval()
 
+    ONNX_OPSET = 13
+
     # Create dummy data to use during onnx export.
     tokenizer_kwargs = dict(
         max_length=max_length,
@@ -171,8 +169,8 @@ def export_openvino(
 
     # Check to see if the model uses a sklearn head or a torch dense layer.
     if issubclass(type(model_head), models.Dense):
-        setfit_model = OnnxSetFitModel(transformer, lambda x: model_pooler(x)["sentence_embedding"], model_head).cpu()
-        export_onnx_setfit_model(setfit_model, dummy_inputs, output_path, opset)
+        setfit_model = SetFitModelWrapper(transformer, lambda x: model_pooler(x)["sentence_embedding"], model_head).cpu()
+        export_onnx_setfit_model(setfit_model, dummy_inputs, output_path, ONNX_OPSET)
 
         # store meta data of the tokenizer for getting the correct tokenizer during inference
         onnx_setfit_model = onnx.load(output_path)
@@ -193,12 +191,12 @@ def export_openvino(
         onnx_head = hummingbird_export(model_head, head_input.detach().numpy())
         max_opset = onnx_head.opset_import[0].version
 
-        if max_opset != opset:
+        if max_opset != ONNX_OPSET:
             warnings.warn(
-                f"sklearn onnx max opset is {max_opset} requested opset {opset} using opset {max_opset} for compatibility."
+                f"sklearn onnx max opset is {max_opset} requested opset {ONNX_OPSET} using opset {max_opset} for compatibility."
             )
         export_onnx_setfit_model(
-            OnnxSetFitModel(transformer, lambda x: model_pooler(x)["sentence_embedding"]),
+            SetFitModelWrapper(transformer, lambda x: model_pooler(x)["sentence_embedding"]),
             dummy_inputs,
             output_path,
             max_opset,
