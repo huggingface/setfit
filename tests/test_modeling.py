@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import numpy as np
+import torch
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import LogisticRegression
@@ -195,3 +196,21 @@ def test_setfit_from_pretrained_local_model_with_head(tmp_path):
     model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
 
     assert isinstance(model, SetFitModel)
+
+
+def test_setfithead_multitarget_from_pretrained():
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2",
+        use_differentiable_head=True,
+        multi_target_strategy="one-vs-rest",
+        head_params={"out_features": 5},
+    )
+    assert isinstance(model.model_head, SetFitHead)
+    assert model.model_head.multitarget
+    assert isinstance(model.model_head.get_loss_fn(), torch.nn.BCELoss)
+
+    y_pred = model.predict("Test text")
+    assert len(y_pred) == 5
+
+    y_pred_probs = model.predict_proba("Test text")
+    assert not np.isclose(y_pred_probs.sum(), 1)  # Should not sum to one

@@ -158,7 +158,6 @@ class SetFitHead(models.Dense):
             out = np.where(probs >= 0.5, 1, 0)
         else:
             out = np.argmax(probs, dim=-1)
-
         return out
 
     def get_loss_fn(self):
@@ -246,6 +245,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     # to model's device
                     features = {k: v.to(device) for k, v in features.items()}
                     labels = labels.to(device)
+                    if self.model_head.multitarget:
+                        labels = labels.float()
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
