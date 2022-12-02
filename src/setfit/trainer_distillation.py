@@ -109,6 +109,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
         trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        show_progress_bar: bool = True,
     ):
         """
         Main training entry point.
@@ -130,6 +131,8 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
+            show_progress_bar (`bool`, *optional*, defaults to `True`):
+                Whether to show a bar that indicates training progress.
         """
         if trial:  # Trial and model initialization
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
@@ -224,7 +227,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 steps_per_epoch=train_steps,
                 optimizer_params={"lr": learning_rate},
                 warmup_steps=warmup_steps,
-                show_progress_bar=True,
+                show_progress_bar=show_progress_bar,
                 use_amp=self.use_amp,
             )
 
@@ -238,5 +241,5 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 learning_rate=learning_rate,
                 body_learning_rate=body_learning_rate,
                 l2_weight=l2_weight,
-                show_progress_bar=True,
+                show_progress_bar=show_progress_bar,
             )
