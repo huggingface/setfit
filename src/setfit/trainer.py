@@ -271,19 +271,19 @@ class SetFitTrainer:
         Main training entry point.
 
         Args:
-            num_epochs (int, *optional*):
+            num_epochs (`int`, *optional*):
                 Temporary change the number of epochs to train the Sentence Transformer body/head for.
                 If ignore, will use the value given in initialization.
-            batch_size (int, *optional*):
+            batch_size (`int`, *optional*):
                 Temporary change the batch size to use for contrastive training or logistic regression.
                 If ignore, will use the value given in initialization.
-            learning_rate (float, *optional*):
+            learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for contrastive training or SetFitModel's head in logistic regression.
                 If ignore, will use the value given in initialization.
-            body_learning_rate (float, *optional*):
+            body_learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
                 If ignore, will be the same as `learning_rate`.
-            l2_weight (float, *optional*):
+            l2_weight (`float`, *optional*):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
