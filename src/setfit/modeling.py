@@ -251,7 +251,7 @@ class SetFitModel(PyTorchModelHubMixin):
                     optimizer.step()
 
                 scheduler.step()
-        else:  # train with sklean
+        else:  # train with sklearn
             embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
 
