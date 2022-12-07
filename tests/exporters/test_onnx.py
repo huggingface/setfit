@@ -5,7 +5,7 @@ import onnxruntime
 from transformers import AutoTokenizer
 
 from setfit import SetFitModel
-from setfit.onnx import export_onnx
+from setfit.exporters.onnx import export_onnx
 
 
 def test_export_onnx_sklearn_head():
@@ -23,7 +23,6 @@ def test_export_onnx_sklearn_head():
     # Run inference using the original model.
     input_text = ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]
     pytorch_preds = model(input_text)
-    pytorch_preds
 
     # Run inference using the exported onnx model.
     tokenizer = AutoTokenizer.from_pretrained(model_path)
