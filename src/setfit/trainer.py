@@ -264,6 +264,7 @@ class SetFitTrainer:
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
+        max_length: Optional[int] = None,
         trial: Union["optuna.Trial", Dict[str, Any]] = None,
     ):
         """
@@ -284,6 +285,10 @@ class SetFitTrainer:
                 If ignore, will be the same as `learning_rate`.
             l2_weight (float, *optional*):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
+            max_length (int, *optional*, defaults to `None`):
+                The maximum number of tokens for one data sample. Currently only for training the differentiable head.
+                If `None`, will use the maximum number of tokens the model body can accept.
+                If `max_length` is greater than the maximum number of acceptable tokens the model body can accept, it will be set to the maximum number of acceptable tokens.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
         """
@@ -385,6 +390,7 @@ class SetFitTrainer:
                 learning_rate=learning_rate,
                 body_learning_rate=body_learning_rate,
                 l2_weight=l2_weight,
+                max_length=max_length,
                 show_progress_bar=True,
             )
 

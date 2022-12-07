@@ -220,6 +220,7 @@ class SetFitModel(PyTorchModelHubMixin):
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
+        max_length: Optional[int] = None,
         show_progress_bar: Optional[bool] = None,
     ) -> None:
         if isinstance(self.model_head, nn.Module):  # train with pyTorch
@@ -227,7 +228,7 @@ class SetFitModel(PyTorchModelHubMixin):
             self.model_body.train()
             self.model_head.train()
 
-            dataloader = self._prepare_dataloader(x_train, y_train, batch_size)
+            dataloader = self._prepare_dataloader(x_train, y_train, batch_size, max_length)
             criterion = self.model_head.get_loss_fn()
             optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
@@ -256,13 +257,34 @@ class SetFitModel(PyTorchModelHubMixin):
             self.model_head.fit(embeddings, y_train)
 
     def _prepare_dataloader(
-        self, x_train: List[str], y_train: List[int], batch_size: int, shuffle: bool = True
+        self,
+        x_train: List[str],
+        y_train: List[int],
+        batch_size: int,
+        max_length: Optional[int] = None,
+        shuffle: bool = True,
     ) -> DataLoader:
+        max_acceptable_length = self.model_body.get_max_seq_length()
+        if max_length is None:
+            max_length = max_acceptable_length
+            logger.warning(
+                f"The `max_length` is `None`. Using the maximum acceptable length according to the current model body: {max_length}."
+            )
+
+        if max_length > max_acceptable_length:
+            logger.warning(
+                (
+                    f"The specified `max_length`: {max_length} is greater than the maximum length of the current model body: {max_acceptable_length}. "
+                    f"Using {max_acceptable_length} instead."
+                )
+            )
+            max_length = max_acceptable_length
+
         dataset = SetFitDataset(
             x_train,
             y_train,
             tokenizer=self.model_body.tokenizer,
-            max_length=self.model_body.get_max_seq_length(),
+            max_length=max_length,
         )
         dataloader = DataLoader(
             dataset, batch_size=batch_size, collate_fn=SetFitDataset.collate_fn, shuffle=shuffle, pin_memory=True
