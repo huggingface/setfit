@@ -46,6 +46,8 @@ class SetFitTrainer:
             The loss function to use for contrastive training.
         num_iterations (`int`, *optional*, defaults to `20`):
             The number of iterations to generate sentence pairs for.
+            This argument is ignored if triplet loss is used.
+            It is only used in conjunction with `CosineSimilarityLoss`.
         num_epochs (`int`, *optional*, defaults to `1`):
             The number of epochs to train the Sentence Transformer body for.
         learning_rate (`float`, *optional*, defaults to `2e-5`):
