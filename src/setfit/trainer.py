@@ -268,24 +268,25 @@ class SetFitTrainer:
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
         trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        show_progress_bar: bool = True,
     ):
         """
         Main training entry point.
 
         Args:
-            num_epochs (int, *optional*):
+            num_epochs (`int`, *optional*):
                 Temporary change the number of epochs to train the Sentence Transformer body/head for.
                 If ignore, will use the value given in initialization.
-            batch_size (int, *optional*):
+            batch_size (`int`, *optional*):
                 Temporary change the batch size to use for contrastive training or logistic regression.
                 If ignore, will use the value given in initialization.
-            learning_rate (float, *optional*):
+            learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for contrastive training or SetFitModel's head in logistic regression.
                 If ignore, will use the value given in initialization.
-            body_learning_rate (float, *optional*):
+            body_learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
                 If ignore, will be the same as `learning_rate`.
-            l2_weight (float, *optional*):
+            l2_weight (`float`, *optional*):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
             max_length (int, *optional*, defaults to `None`):
                 The maximum number of tokens for one data sample. Currently only for training the differentiable head.
@@ -293,6 +294,8 @@ class SetFitTrainer:
                 If `max_length` is greater than the maximum number of acceptable tokens the model body can accept, it will be set to the maximum number of acceptable tokens.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
+            show_progress_bar (`bool`, *optional*, defaults to `True`):
+                Whether to show a bar that indicates training progress.
         """
         if trial:  # Trial and model initialization
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
@@ -378,7 +381,7 @@ class SetFitTrainer:
                 steps_per_epoch=train_steps,
                 optimizer_params={"lr": learning_rate},
                 warmup_steps=warmup_steps,
-                show_progress_bar=True,
+                show_progress_bar=show_progress_bar,
                 use_amp=self.use_amp,
             )
 
