@@ -232,12 +232,10 @@ def export_onnx(
         # store meta data of the tokenizer for getting the correct tokenizer during inference
         onnx_setfit_model = onnx.load(output_path)
         meta = onnx_setfit_model.metadata_props.add()
-        meta.key = "model_name"
-        meta.value = transformer.name_or_path
         for key, value in tokenizer_kwargs.items():
             meta = onnx_setfit_model.metadata_props.add()  # create a new key-value pair to store
-            meta.key = key
-            meta.value = value
+            meta.key = str(key)
+            meta.value = str(value)
 
     else:
         # TODO:: Make this work for other sklearn models without coef_.
@@ -247,7 +245,7 @@ def export_onnx(
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
         onnx_head = export_sklearn_head_to_onnx(model_head, opset)
-        max_opset = onnx_head.opset_import[0].version
+        max_opset = max([x.version for x in onnx_head.opset_import])
 
         if max_opset != opset:
             warnings.warn(
