@@ -323,8 +323,10 @@ class SetFitModel(PyTorchModelHubMixin):
 
         out = self.model_head.predict(embeddings)
 
-        if as_numpy:
+        if isinstance(out, torch.Tensor) and as_numpy:
             out = out.cpu().numpy()
+        elif isinstance(out, np.ndarray) and not as_numpy:
+            out = torch.from_numpy(out)
 
         return out
 
@@ -335,8 +337,10 @@ class SetFitModel(PyTorchModelHubMixin):
 
         out = self.model_head.predict_proba(embeddings)
 
-        if as_numpy:
+        if isinstance(out, torch.Tensor) and as_numpy:
             out = out.cpu().numpy()
+        elif isinstance(out, np.ndarray) and not as_numpy:
+            out = torch.from_numpy(out)
 
         return out
 
