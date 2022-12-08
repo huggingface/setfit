@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from torch import nn
 from transformers.modeling_utils import PreTrainedModel
+
 from setfit.exporters.utils import mean_pooling
 
 
