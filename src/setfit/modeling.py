@@ -130,33 +130,17 @@ class SetFitHead(models.Dense):
 
         return outputs
 
-    def predict_proba(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
+    def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
+        return self(x_test)
 
-        is_tensor = isinstance(x_test, torch.Tensor)
-        if not is_tensor:  # then assume it's ndarray
-            x_test = torch.Tensor(x_test).to(self.device)
-
-        out = self(x_test)
-        if not is_tensor:
-            return out.cpu().numpy()
-
-        return out
-
-    def predict(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
+    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
         probs = self.predict_proba(x_test)
-        is_tensor = isinstance(probs, torch.Tensor)
 
         if self.out_features == 1:
-            if is_tensor:
-                out = torch.where(probs >= 0.5, 1, 0)
-            else:
-                out = np.where(probs >= 0.5, 1, 0)
+            out = torch.where(probs >= 0.5, 1, 0)
         else:
-            if is_tensor:
-                out = torch.argmax(probs, dim=-1)
-            else:
-                out = np.argmax(probs, axis=-1)
+            out = torch.argmax(probs, dim=-1)
 
         return out
 
@@ -332,13 +316,29 @@ class SetFitModel(PyTorchModelHubMixin):
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def predict(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
-        return self.model_head.predict(embeddings)
+    def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+        embeddings = self.model_body.encode(
+            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=True
+        )
 
-    def predict_proba(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
-        return self.model_head.predict_proba(embeddings)
+        out = self.model_head.predict(embeddings)
+
+        if as_numpy:
+            out = out.cpu().numpy()
+
+        return out
+
+    def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+        embeddings = self.model_body.encode(
+            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=True
+        )
+
+        out = self.model_head.predict_proba(embeddings)
+
+        if as_numpy:
+            out = out.cpu().numpy()
+
+        return out
 
     def __call__(self, inputs):
         return self.predict(inputs)
