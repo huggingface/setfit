@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from torch import nn
 from transformers.modeling_utils import PreTrainedModel
 
-from .utils import mean_pooling
+from setfit.exporters.utils import mean_pooling
 
 
 class OnnxSetFitModel(torch.nn.Module):
