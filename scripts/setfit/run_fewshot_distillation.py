@@ -228,7 +228,7 @@ class RunFewShotDistill:
                         metric=metric,
                         batch_size=self.args.batch_size_teacher,
                         num_iterations=self.args.num_iterations_teacher,  # The number of text pairs to generate for contrastive learning
-                        num_epochs=1,  # The number of epochs to use for constrastive learning
+                        num_epochs=1,  # The number of epochs to use for contrastive learning
                     )
                     teacher_trainer.train()
 
