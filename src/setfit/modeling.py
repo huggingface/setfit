@@ -1,4 +1,3 @@
-import copy
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,7 +40,6 @@ MODEL_HEAD_NAME = "model_head.pkl"
 class SetFitBaseModel:
     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
         self.model = SentenceTransformer(model)
-        self.model_original_state = copy.deepcopy(self.model.state_dict())
         self.model.max_seq_length = max_seq_length
 
         if add_normalization_layer:
@@ -208,7 +206,6 @@ class SetFitModel(PyTorchModelHubMixin):
         self.multi_target_strategy = multi_target_strategy
         self.l2_weight = l2_weight
 
-        self.model_original_state = copy.deepcopy(self.model_body.state_dict())
         self.normalize_embeddings = normalize_embeddings
 
     def fit(
