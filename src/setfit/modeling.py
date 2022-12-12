@@ -321,28 +321,28 @@ class SetFitModel(PyTorchModelHubMixin):
             x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=True
         )
 
-        out = self.model_head.predict(embeddings)
+        outputs = self.model_head.predict(embeddings)
 
-        if isinstance(out, torch.Tensor) and as_numpy:
-            out = out.cpu().numpy()
-        elif isinstance(out, np.ndarray) and not as_numpy:
-            out = torch.from_numpy(out)
+        if isinstance(outputs, torch.Tensor) and as_numpy:
+            outputs = outputs.cpu().numpy()
+        elif isinstance(outputs, np.ndarray) and not as_numpy:
+            outputs = torch.from_numpy(outputs)
 
-        return out
+        return outputs
 
     def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
             x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=True
         )
 
-        out = self.model_head.predict_proba(embeddings)
+        outputs = self.model_head.predict_proba(embeddings)
 
-        if isinstance(out, torch.Tensor) and as_numpy:
-            out = out.cpu().numpy()
-        elif isinstance(out, np.ndarray) and not as_numpy:
-            out = torch.from_numpy(out)
+        if isinstance(outputs, torch.Tensor) and as_numpy:
+            outputs = outputs.cpu().numpy()
+        elif isinstance(outputs, np.ndarray) and not as_numpy:
+            outputs = torch.from_numpy(outputs)
 
-        return out
+        return outputs
 
     def __call__(self, inputs):
         return self.predict(inputs)
