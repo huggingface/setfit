@@ -330,6 +330,14 @@ class SetFitModel(PyTorchModelHubMixin):
         embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict_proba(embeddings)
 
+    def to(self, device: Union[str, torch.device]) -> "SetFitModel":
+        self.model_body = self.model_body.to(device)
+
+        if isinstance(self.model_head, torch.nn.Module):
+            self.model_head = self.model_head.to(device)
+
+        return self
+
     def __call__(self, inputs):
         return self.predict(inputs)
 
