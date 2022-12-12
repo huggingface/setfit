@@ -77,7 +77,6 @@ class SetFitHead(models.Dense):
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
-        self.linear = None
         if in_features is not None:
             self.linear = nn.Linear(in_features, out_features, bias=bias)
         else:
@@ -155,8 +154,7 @@ class SetFitHead(models.Dense):
     def get_loss_fn(self):
         if self.out_features == 1:  # if single target
             return torch.nn.BCELoss()
-        else:
-            return torch.nn.CrossEntropyLoss()
+        return torch.nn.CrossEntropyLoss()
 
     @property
     def device(self) -> torch.device:
@@ -167,7 +165,7 @@ class SetFitHead(models.Dense):
         """
         return next(self.parameters()).device
 
-    def get_config_dict(self) -> Dict[str, Union[int, float, bool]]:
+    def get_config_dict(self) -> Dict[str, Optional[Union[int, float, bool]]]:
         return {
             "in_features": self.in_features,
             "out_features": self.out_features,
@@ -193,9 +191,9 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def __init__(
         self,
-        model_body: Optional[nn.Module] = None,
-        model_head: Optional[Union[nn.Module, LogisticRegression]] = None,
-        multi_target_strategy: str = None,
+        model_body: Optional[SentenceTransformer] = None,
+        model_head: Optional[Union[SetFitHead, LogisticRegression]] = None,
+        multi_target_strategy: Optional[str] = None,
         l2_weight: float = 1e-2,
         normalize_embeddings: bool = False,
     ) -> None:
@@ -212,7 +210,7 @@ class SetFitModel(PyTorchModelHubMixin):
         self,
         x_train: List[str],
         y_train: List[int],
-        num_epochs: Optional[int] = None,
+        num_epochs: int,
         batch_size: Optional[int] = None,
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
@@ -257,7 +255,7 @@ class SetFitModel(PyTorchModelHubMixin):
         self,
         x_train: List[str],
         y_train: List[int],
-        batch_size: int,
+        batch_size: Optional[int] = None,
         max_length: Optional[int] = None,
         shuffle: bool = True,
     ) -> DataLoader:

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import pandas as pd
 import torch
@@ -107,7 +107,7 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
 
 
 def create_fewshot_splits(
-    dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: str = None
+    dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: Optional[str] = None
 ) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
