@@ -213,9 +213,7 @@ def test_setfit_from_pretrained_local_model_with_head(tmp_path):
 
 
 def test_to_logistic_head():
-    model = SetFitModel.from_pretrained(
-        "sentence-transformers/paraphrase-albert-small-v2"
-    )
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
     devices = (
         [torch.device("cpu"), torch.device("cuda", 0), torch.device("cpu")]
         if torch.cuda.is_available()
