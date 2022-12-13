@@ -8,7 +8,7 @@ README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
 INTEGRATIONS_REQUIRE = ["optuna"]
 
-REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.3.0"]
+REQUIRED_PKGS = ["datasets>=2.0.0", "sentence-transformers>=2.0.0", "evaluate>=0.3.0"]
 
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
@@ -16,7 +16,15 @@ ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 
 TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE
 
-EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE, "onnx": ONNX_REQUIRE}
+COMPAT_TESTS_REQUIRE = [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE
+
+EXTRAS_REQUIRE = {
+    "optuna": INTEGRATIONS_REQUIRE,
+    "quality": QUALITY_REQUIRE,
+    "tests": TESTS_REQUIRE,
+    "onnx": ONNX_REQUIRE,
+    "compat_tests": COMPAT_TESTS_REQUIRE,
+}
 
 
 def combine_requirements(base_keys):
