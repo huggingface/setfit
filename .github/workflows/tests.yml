@@ -18,6 +18,7 @@ jobs:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
         os: [ubuntu-latest, windows-latest]
         requirements: [".[tests]", ".[compat_tests]"]
+      fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -28,10 +29,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Try to load cached dependencies
+        uses: actions/cache@v3
+        id: restore-cache
+        with:
+          path: ${{ env.pythonLocation }}
+          key: python-dependencies-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.requirements }}-${{ hashFiles("setup.py") }}-${{ env.pythonLocation }}
+
+      - name: Install dependencies on cache miss
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install ".[tests]"
+          python -m pip install --no-cache-dir --upgrade pip
+          python -m pip install --no-cache-dir ${{ matrix.requirements }}
+        if: steps.restore-cache.outputs.cache-hit != "true"
 
       - name: Run unit tests
         run: pytest -sv tests/
