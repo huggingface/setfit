@@ -99,8 +99,8 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     samples = []
     for label in range(num_labels):
         data = shuffled_dataset.filter(lambda example: int(example[label_column]) == label)
-        num_samples = min(len(data) // 2, num_samples)
-        samples.append(data.select([i for i in range(num_samples)]))
+        num_label_samples = min(len(data) // 2, num_samples)
+        samples.append(data.select([i for i in range(num_label_samples)]))
 
     all_samples = concatenate_datasets(samples)
     return all_samples.shuffle(seed=seed)
