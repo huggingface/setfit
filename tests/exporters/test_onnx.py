@@ -34,6 +34,8 @@ def test_export_onnx_sklearn_head():
         return_token_type_ids=True,
         return_tensors="np",
     )
+    # Map inputs to int64 from int32
+    inputs = {key: value.astype("int64") for key, value in inputs.items()}
 
     session = onnxruntime.InferenceSession(output_path)
 
