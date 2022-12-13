@@ -1,3 +1,5 @@
+import string
+
 import pandas as pd
 import pytest
 from datasets import Dataset
@@ -25,6 +27,11 @@ def dataset():
             "label": [[1, 0], [0, 1]],
         }
     )
+
+
+@pytest.fixture
+def unbalanced_dataset():
+    return Dataset.from_dict({"text": string.ascii_letters, "label": [0] + 51 * [1]})
 
 
 def test_add_to_empty_dataset_defaults(empty_dataset):
@@ -114,3 +121,12 @@ def test_sample_dataset_with_label_column():
     samples = sample_dataset(dataset=dataset, label_column=label_column, num_samples=num_samples)
     for label_id in range(num_samples):
         assert len(samples.filter(lambda x: x[label_column] == label_id)) == num_samples
+
+
+def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
+    num_samples = 8
+    ds = sample_dataset(unbalanced_dataset, num_samples=num_samples)
+    # The dataset ought to have just `num_samples` rows, as `unbalanced_dataset`
+    # only has one label for which multiple entries exist. So, we can only sample
+    # for one label, leading to `num_samples` rows in the final dataset.
+    assert ds.num_rows == num_samples
