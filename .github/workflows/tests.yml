@@ -34,7 +34,7 @@ jobs:
         id: restore-cache
         with:
           path: ${{ env.pythonLocation }}
-          key: python-dependencies-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.requirements }}-${{ hashFiles("setup.py") }}-${{ env.pythonLocation }}
+          key: python-dependencies-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.requirements }}-${{ hashFiles('setup.py') }}-${{ env.pythonLocation }}
 
       - name: Install dependencies on cache miss
         run: |
