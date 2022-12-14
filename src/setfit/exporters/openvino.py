@@ -1,3 +1,5 @@
+import os
+
 import openvino.runtime as ov
 
 from setfit import SetFitModel
@@ -41,3 +43,5 @@ def export_to_openvino(
     # Save the final model.
     ov_model = ov.Core().read_model(onnx_path)
     ov.serialize(ov_model, output_path)
+
+    os.remove(onnx_path)

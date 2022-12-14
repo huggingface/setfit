@@ -45,3 +45,7 @@ def test_export_to_openvino():
 
     # Compare the results and ensure that we get the same predictions.
     assert np.array_equal(ov_preds, pytorch_preds)
+
+    # Cleanup the model.
+    os.remove(output_path)
+    os.remove(output_path.replace(".xml", ".bin"))
