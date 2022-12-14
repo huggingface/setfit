@@ -330,22 +330,6 @@ class SetFitModel(PyTorchModelHubMixin):
         embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
         return self.model_head.predict_proba(embeddings)
 
-    def to(self, device: Union[str, torch.device]) -> "SetFitModel":
-        """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
-
-        Args:
-            device (Union[str, torch.device]): The identifier of the device to move the model to.
-
-        Returns:
-            SetFitModel: Returns the original model, but now on the desired device.
-        """
-        self.model_body = self.model_body.to(device)
-
-        if isinstance(self.model_head, torch.nn.Module):
-            self.model_head = self.model_head.to(device)
-
-        return self
-
     def __call__(self, inputs):
         return self.predict(inputs)
 
