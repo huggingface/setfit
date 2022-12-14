@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic_ns
-from typing import Any, Dict, List, NamedTuple, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
@@ -101,7 +101,7 @@ class Benchmark:
         bench.summary()
     """
 
-    out_path: str = None
+    out_path: Optional[str] = None
     summary_msg: str = field(default_factory=str)
 
     def print(self, msg: str) -> None:

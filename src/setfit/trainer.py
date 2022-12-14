@@ -46,6 +46,8 @@ class SetFitTrainer:
             The loss function to use for contrastive training.
         num_iterations (`int`, *optional*, defaults to `20`):
             The number of iterations to generate sentence pairs for.
+            This argument is ignored if triplet loss is used.
+            It is only used in conjunction with `CosineSimilarityLoss`.
         num_epochs (`int`, *optional*, defaults to `1`):
             The number of epochs to train the Sentence Transformer body for.
         learning_rate (`float`, *optional*, defaults to `2e-5`):
@@ -76,10 +78,10 @@ class SetFitTrainer:
 
     def __init__(
         self,
-        model: "SetFitModel" = None,
-        train_dataset: "Dataset" = None,
-        eval_dataset: "Dataset" = None,
-        model_init: Callable[[], "SetFitModel"] = None,
+        model: Optional["SetFitModel"] = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -87,7 +89,7 @@ class SetFitTrainer:
         learning_rate: float = 2e-5,
         batch_size: int = 16,
         seed: int = 42,
-        column_mapping: Dict[str, str] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
@@ -101,6 +103,7 @@ class SetFitTrainer:
 
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
+        self.model_init = model_init
         self.metric = metric
         self.loss_class = loss_class
         self.num_iterations = num_iterations
@@ -117,15 +120,12 @@ class SetFitTrainer:
 
         if model is None:
             if model_init is not None:
-                self.model_init = model_init
                 model = self.call_model_init()
             else:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument")
         else:
             if model_init is not None:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
-
-            self.model_init = model_init
 
         self.model = model
         self.hp_search_backend = None
@@ -188,7 +188,7 @@ class SetFitTrainer:
                 setattr(self, key, value)
             elif number_of_arguments(self.model_init) == 0:  # we do not warn if model_init could be using it
                 logger.warning(
-                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in "
+                    f"Trying to set {key!r} in the hyperparameter search but there is no corresponding field in "
                     "`SetFitTrainer`, and `model_init` does not take any arguments."
                 )
 
@@ -213,17 +213,17 @@ class SetFitTrainer:
         logger.info(f"Trial: {params}")
         self.apply_hyperparameters(params, final_model=False)
 
-    def call_model_init(self, params: Dict[str, Any] = None):
+    def call_model_init(self, params: Optional[Dict[str, Any]] = None):
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
         elif model_init_argcount == 1:
             model = self.model_init(params)
         else:
-            raise RuntimeError("model_init should have 0 or 1 argument.")
+            raise RuntimeError("`model_init` should have 0 or 1 argument.")
 
         if model is None:
-            raise RuntimeError("model_init should not return None.")
+            raise RuntimeError("`model_init` should not return None.")
 
         return model
 
@@ -264,35 +264,43 @@ class SetFitTrainer:
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
-        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        max_length: Optional[int] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
+        show_progress_bar: bool = True,
     ):
         """
         Main training entry point.
 
         Args:
-            num_epochs (int, *optional*):
+            num_epochs (`int`, *optional*):
                 Temporary change the number of epochs to train the Sentence Transformer body/head for.
                 If ignore, will use the value given in initialization.
-            batch_size (int, *optional*):
+            batch_size (`int`, *optional*):
                 Temporary change the batch size to use for contrastive training or logistic regression.
                 If ignore, will use the value given in initialization.
-            learning_rate (float, *optional*):
+            learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for contrastive training or SetFitModel's head in logistic regression.
                 If ignore, will use the value given in initialization.
-            body_learning_rate (float, *optional*):
+            body_learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
                 If ignore, will be the same as `learning_rate`.
-            l2_weight (float, *optional*):
+            l2_weight (`float`, *optional*):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
+            max_length (int, *optional*, defaults to `None`):
+                The maximum number of tokens for one data sample. Currently only for training the differentiable head.
+                If `None`, will use the maximum number of tokens the model body can accept.
+                If `max_length` is greater than the maximum number of acceptable tokens the model body can accept, it will be set to the maximum number of acceptable tokens.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
+            show_progress_bar (`bool`, *optional*, defaults to `True`):
+                Whether to show a bar that indicates training progress.
         """
         if trial:  # Trial and model initialization
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
-            raise ValueError("SetFitTrainer: training requires a train_dataset.")
+            raise ValueError("Training requires a `train_dataset` given to the `SetFitTrainer` initialization.")
 
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
@@ -371,7 +379,7 @@ class SetFitTrainer:
                 steps_per_epoch=train_steps,
                 optimizer_params={"lr": learning_rate},
                 warmup_steps=warmup_steps,
-                show_progress_bar=True,
+                show_progress_bar=show_progress_bar,
                 use_amp=self.use_amp,
             )
 
@@ -385,6 +393,7 @@ class SetFitTrainer:
                 learning_rate=learning_rate,
                 body_learning_rate=body_learning_rate,
                 l2_weight=l2_weight,
+                max_length=max_length,
                 show_progress_bar=True,
             )
 
@@ -505,7 +514,7 @@ class SetFitTrainer:
         organization: Optional[str] = None,
         private: Optional[bool] = None,
         api_endpoint: Optional[str] = None,
-        use_auth_token: Union[bool, str] = None,
+        use_auth_token: Optional[Union[bool, str]] = None,
         git_user: Optional[str] = None,
         git_email: Optional[str] = None,
         config: Optional[dict] = None,

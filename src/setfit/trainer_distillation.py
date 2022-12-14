@@ -66,10 +66,10 @@ class DistillationSetFitTrainer(SetFitTrainer):
     def __init__(
         self,
         teacher_model: "SetFitModel",
-        student_model: "SetFitModel" = None,
-        train_dataset: "Dataset" = None,
-        eval_dataset: "Dataset" = None,
-        model_init: Callable[[], "SetFitModel"] = None,
+        student_model: Optional["SetFitModel"] = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class: torch.nn.Module = losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -77,7 +77,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         learning_rate: float = 2e-5,
         batch_size: int = 16,
         seed: int = 42,
-        column_mapping: Dict[str, str] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
     ) -> None:
@@ -108,28 +108,31 @@ class DistillationSetFitTrainer(SetFitTrainer):
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
-        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
+        show_progress_bar: bool = True,
     ):
         """
         Main training entry point.
 
         Args:
-            num_epochs (int, *optional*):
+            num_epochs (`int`, *optional*):
                 Temporary change the number of epochs to train the Sentence Transformer body/head for.
                 If ignore, will use the value given in initialization.
-            batch_size (int, *optional*):
+            batch_size (`int`, *optional*):
                 Temporary change the batch size to use for contrastive training or logistic regression.
                 If ignore, will use the value given in initialization.
-            learning_rate (float, *optional*):
+            learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for contrastive training or SetFitModel's head in logistic regression.
                 If ignore, will use the value given in initialization.
-            body_learning_rate (float, *optional*):
+            body_learning_rate (`float`, *optional*):
                 Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
                 If ignore, will be the same as `learning_rate`.
-            l2_weight (float, *optional*):
+            l2_weight (`float`, *optional*):
                 Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
+            show_progress_bar (`bool`, *optional*, defaults to `True`):
+                Whether to show a bar that indicates training progress.
         """
         if trial:  # Trial and model initialization
             set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
@@ -224,7 +227,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 steps_per_epoch=train_steps,
                 optimizer_params={"lr": learning_rate},
                 warmup_steps=warmup_steps,
-                show_progress_bar=True,
+                show_progress_bar=show_progress_bar,
                 use_amp=self.use_amp,
             )
 
@@ -238,5 +241,5 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 learning_rate=learning_rate,
                 body_learning_rate=body_learning_rate,
                 l2_weight=l2_weight,
-                show_progress_bar=True,
+                show_progress_bar=show_progress_bar,
             )

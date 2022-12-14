@@ -12,9 +12,18 @@ REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0
 
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
-TESTS_REQUIRE = ["pytest", "pytest-cov", "onnx", "skl2onnx", "hummingbird-ml", "openvino==2022.3.0.dev20221103"]
+ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 
-EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
+OPENVINO_REQUIRE = ["hummingbird-ml", "openvino>=2022.3"]
+
+TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
+
+EXTRAS_REQUIRE = {
+    "optuna": INTEGRATIONS_REQUIRE, 
+    "quality": QUALITY_REQUIRE, 
+    "tests": TESTS_REQUIRE, 
+    "onnx": ONNX_REQUIRE,
+    "openvino": ONNX_REQUIRE + OPENVINO_REQUIRE}
 
 
 def combine_requirements(base_keys):
