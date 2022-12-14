@@ -6,7 +6,7 @@ from transformers import AutoTokenizer
 import openvino.runtime as ov
 
 from setfit import SetFitModel
-from setfit.openvino import export_to_openvino
+from setfit.exporters.openvino import export_to_openvino
 
 
 def test_export_to_openvino():
