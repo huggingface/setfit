@@ -36,7 +36,7 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 
 setup(
     name="setfit",
-    version="0.5.0.dev0",
+    version="0.5.0",
     description="Efficient few-shot learning with Sentence Transformers",
     long_description=README_TEXT,
     long_description_content_type="text/markdown",
