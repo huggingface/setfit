@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import numpy as np
+import torch
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import LogisticRegression
@@ -209,3 +210,30 @@ def test_setfit_from_pretrained_local_model_with_head(tmp_path):
     model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
 
     assert isinstance(model, SetFitModel)
+
+
+def test_to_logistic_head():
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    devices = (
+        [torch.device("cpu"), torch.device("cuda", 0), torch.device("cpu")]
+        if torch.cuda.is_available()
+        else [torch.device("cpu")]
+    )
+    for device in devices:
+        model.to(device)
+        assert model.model_body.device == device
+
+
+def test_to_torch_head():
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
+    )
+    devices = (
+        [torch.device("cpu"), torch.device("cuda", 0), torch.device("cpu")]
+        if torch.cuda.is_available()
+        else [torch.device("cpu")]
+    )
+    for device in devices:
+        model.to(device)
+        assert model.model_body.device == device
+        assert model.model_head.device == device
