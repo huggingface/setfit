@@ -1,6 +1,6 @@
+import copy
 import warnings
 from typing import Callable, Optional, Union
-import copy
 
 import numpy as np
 import onnx
@@ -165,8 +165,9 @@ def hummingbird_export(model, data_sample):
     try:
         from hummingbird.ml import convert
     except ImportError:
-        raise ImportError("Hummingbird-ML library is not installed."
-                          "Run 'pip install hummingbird-ml' to use this type of export.")
+        raise ImportError(
+            "Hummingbird-ML library is not installed." "Run 'pip install hummingbird-ml' to use this type of export."
+        )
     onnx_model = convert(model, "onnx", data_sample)
     return onnx_model._model
 
@@ -177,7 +178,7 @@ def export_onnx(
     opset: int,
     output_path: str = "model.onnx",
     ignore_ir_version: bool = True,
-    use_hummingbird: bool = False
+    use_hummingbird: bool = False,
 ) -> None:
     """Export a PyTorch backed SetFit model to ONNX Intermediate Representation.
 
@@ -244,7 +245,6 @@ def export_onnx(
                 onnx_head = hummingbird_export(model_head, head_input.detach().numpy())
         else:
             onnx_head = export_sklearn_head_to_onnx(model_head, opset)
-
 
         max_opset = max([x.version for x in onnx_head.opset_import])
 

@@ -1,9 +1,8 @@
 import os
 
 import numpy as np
-from transformers import AutoTokenizer
-
 import openvino.runtime as ov
+from transformers import AutoTokenizer
 
 from setfit import SetFitModel
 from setfit.exporters.openvino import export_to_openvino

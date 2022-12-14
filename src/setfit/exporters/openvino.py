@@ -1,7 +1,7 @@
 import openvino.runtime as ov
 
-from setfit.exporters.onnx import export_onnx
 from setfit import SetFitModel
+from setfit.exporters.onnx import export_onnx
 
 
 def export_to_openvino(
@@ -26,20 +26,18 @@ def export_to_openvino(
     # Load the model and get all of the parts.
     OPENVINO_SUPPORTED_OPSET = 13
 
-    model.model_body.cpu()    
+    model.model_body.cpu()
     onnx_path = output_path.replace(".xml", ".onnx")
 
     export_onnx(
-        model.model_body, 
+        model.model_body,
         model.model_head,
         opset=OPENVINO_SUPPORTED_OPSET,
         output_path=onnx_path,
         ignore_ir_version=True,
-        use_hummingbird=True
-        )
+        use_hummingbird=True,
+    )
 
     # Save the final model.
     ov_model = ov.Core().read_model(onnx_path)
     ov.serialize(ov_model, output_path)
-
-    
