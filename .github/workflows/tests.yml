@@ -36,11 +36,14 @@ jobs:
           path: ${{ env.pythonLocation }}
           key: python-dependencies-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.requirements }}-${{ hashFiles('setup.py') }}-${{ env.pythonLocation }}
 
-      - name: Install dependencies on cache miss
+      - name: Install external dependencies on cache miss
         run: |
           python -m pip install --no-cache-dir --upgrade pip
           python -m pip install --no-cache-dir ${{ matrix.requirements }}
         if: steps.restore-cache.outputs.cache-hit != 'true'
+
+      - name: Install the checked-out setfit
+        run: python -m pip install .
 
       - name: Run unit tests
         run: pytest -sv tests/
