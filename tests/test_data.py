@@ -126,7 +126,7 @@ def test_sample_dataset_with_label_column():
 def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
     num_samples = 8
     ds = sample_dataset(unbalanced_dataset, num_samples=num_samples)
-    # The dataset ought to have just `num_samples` rows, as `unbalanced_dataset`
-    # only has one label for which multiple entries exist. So, we can only sample
-    # for one label, leading to `num_samples` rows in the final dataset.
-    assert ds.num_rows == num_samples
+    # The dataset ought to have just `num_samples + 1` rows, as `unbalanced_dataset`
+    # has one label with more than `num_samples` entries and another label with just 1 row.
+    # We sample `num_samples` from the former, and 1 from the latter.
+    assert ds.num_rows == num_samples + 1
