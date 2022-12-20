@@ -6,12 +6,14 @@ import sys
 from shutil import copyfile
 from warnings import simplefilter
 
-from sentence_transformers import models
+import numpy as np
+from sentence_transformers import models, InputExample
 from typing_extensions import LiteralString
+from datasets import load_dataset
 
 from setfit import SetFitModel, SetFitTrainer
 from setfit.data import SAMPLE_SIZES
-from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits, load_pseudolabeled_examples
+from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits
 
 
 # ignore all future warnings
@@ -24,7 +26,7 @@ def parse_args():
     parser.add_argument(
         "--datasets",
         nargs="+",
-        default=["sst2"],
+        default=["emotion"],
     )
     parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
     parser.add_argument("--num_iterations", type=int, default=20)
@@ -53,8 +55,9 @@ def parse_args():
     parser.add_argument("--override_results", default=False, action="store_true")
     parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
-    parser.add_argument("--pseudolabels_path", default=None)
-    parser.add_argument("--num_test_splits", type=int, default=10)
+    parser.add_argument("--num_training_iterations", default=2)
+    parser.add_argument("--unlabeled_bs", default=32)
+    
     args = parser.parse_args()
 
     return args
@@ -66,6 +69,38 @@ def create_results_path(dataset: str, split_name: str, output_path: str) -> Lite
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     return results_path
 
+
+# def get_quality_pairs(model: SetFitModel, examples):
+#     pseudolabeled_examples = model.predict(examples["text"])
+#     print(pseudolabeled_examples)
+#     exit()
+
+
+def generate_quality_pairs(model, train_sentences, train_labels, unlabeled_sentences):
+    # Initialize two empty lists to hold the (sentence, sentence) pairs and
+    # labels to indicate if a pair is positive or negative
+
+    predictions = model.predict(unlabeled_sentences["text"])
+
+    num_classes = np.unique(labels)
+    idx = [np.where(labels == i)[0] for i in num_classes]
+
+    for first_idx in range(len(sentences)):
+        current_sentence = sentences[first_idx]
+        label = labels[first_idx]
+        second_idx = np.random.choice(idx[np.where(num_classes == label)[0][0]])
+        positive_sentence = sentences[second_idx]
+        # Prepare a positive pair and update the sentences and labels
+        # lists, respectively
+        pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
+
+        negative_idx = np.where(labels != label)[0]
+        negative_sentence = sentences[np.random.choice(negative_idx)]
+        # Prepare a negative pair of sentences and update our lists
+        pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
+    # Return a 2-tuple of our sentence pairs and labels
+    return pairs
+    
 
 def main():
     args = parse_args()
@@ -99,62 +134,44 @@ def main():
 
     for dataset, metric in dataset_to_metric.items():
         few_shot_train_splits, test_data = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
-        
-        for split_name, train_data in list(few_shot_train_splits.items())[:args.num_test_splits]:
+
+        for split_name, train_data in few_shot_train_splits.items():
             results_path = create_results_path(dataset, split_name, output_path)
             if os.path.exists(results_path) and not args.override_results:
                 print(f"Skipping finished experiment: {results_path}")
                 continue
+            
+            quality_pairs = None
+            unlabeled_dataset = load_dataset(dataset, split="validation").shuffle(seed=42)
 
-            # Load model
-            if args.classifier == "pytorch":
-                model = SetFitModel.from_pretrained(
-                    args.model,
-                    use_differentiable_head=True,
-                    head_params={"out_features": len(set(train_data["label"]))},
-                )
-            else:
+            for i in range(args.num_training_iterations):
+                # Load model
                 model = SetFitModel.from_pretrained(args.model)
-            model.model_body.max_seq_length = args.max_seq_length
-            if args.add_normalization_layer:
-                model.model_body._modules["2"] = models.Normalize()
+                model.model_body.max_seq_length = args.max_seq_length
+                if args.add_normalization_layer:
+                    model.model_body._modules["2"] = models.Normalize()
 
-            # Load Pseudo-lableled data
-            if args.pseudolabels_path is not None:
-                pseudolabeled_examples = load_pseudolabeled_examples(args.pseudolabels_path)
-            else:
-                pseudolabeled_examples = None
 
-            # Train on current split
-            trainer = SetFitTrainer(
-                model=model,
-                train_dataset=train_data,
-                eval_dataset=test_data,
-                metric=metric,
-                loss_class=loss_class,
-                batch_size=args.batch_size,
-                num_epochs=args.num_epochs,
-                num_iterations=args.num_iterations,
-                pseudolabeled_examples=pseudolabeled_examples,
-                seed=0
-            )
-            if args.classifier == "pytorch":
-                trainer.freeze()
-                trainer.train()
-                trainer.unfreeze(keep_body_frozen=args.keep_body_frozen)
-                trainer.train(
-                    num_epochs=25,
-                    body_learning_rate=1e-5,
-                    learning_rate=args.lr,  # recommend: 1e-2
-                    l2_weight=0.0,
+                # Train on current split
+                trainer = SetFitTrainer(
+                    model=model,
+                    train_dataset=train_data,
+                    extra_train_pairs=quality_pairs,
+                    eval_dataset=test_data,
+                    metric=metric,
+                    loss_class=loss_class,
                     batch_size=args.batch_size,
+                    num_epochs=args.num_epochs,
+                    num_iterations=args.num_iterations,
                 )
-            else:
                 trainer.train()
 
-            # Evaluate the model on the test data
-            metrics = trainer.evaluate()
-            print(f"Metrics: {metrics}")
+                unlabeled_batch = unlabeled_dataset.select(range(i * args.unlabeled_bs, (i + 1) * args.unlabeled_bs))
+                quality_pairs = generate_quality_pairs(model, unlabeled_batch)
+
+                # Evaluate the model on the test data
+                metrics = trainer.evaluate()
+                print(f"Metrics: {metrics}")
 
             with open(results_path, "w") as f_out:
                 json.dump(

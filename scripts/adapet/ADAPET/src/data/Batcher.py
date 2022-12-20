@@ -6,6 +6,7 @@ from src.data.Dataset import Dataset
 from src.data.DatasetReader import DatasetReader
 from src.utils.util import set_seeds
 
+from transformers.trainer_utils import set_seed
 
 class Batcher(object):
     '''
@@ -20,6 +21,7 @@ class Batcher(object):
         self.config = config
         self.dataset_reader = DatasetReader(config, tokenizer, dataset)
         set_seeds(self.config.seed)
+        set_seed(self.config.seed)
 
         self.train_loader = None
         self.dev_loader = None

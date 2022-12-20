@@ -1,13 +1,15 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+import json
 from time import monotonic_ns
 from typing import Any, Dict, List, NamedTuple, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
-from sentence_transformers import losses
+from sentence_transformers import losses, InputExample
+import numpy as np
 
 from .data import create_fewshot_splits, create_fewshot_splits_multilabel
-from .modeling import SupConLoss
+from .modeling import SupConLoss, sentence_pairs_generation
 
 
 SEC_TO_NS_SCALE = 1000000000
@@ -61,6 +63,51 @@ def default_hp_space_optuna(trial) -> Dict[str, Any]:
         "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
     }
 
+def create_pairs_dataset(dataset, num_iterations: int=20) -> Dict[str, Dataset]:
+    # Randomly select `num_pairs` pairs from the test split,
+    # and assign them Yes (in-class) / No (out-of-class) labels.
+
+    x_train = dataset["text"]
+    y_train = dataset["label"]
+    examples = []
+
+    for _ in range(num_iterations):
+        pair_examples = sentence_pairs_generation(
+            np.array(x_train), np.array(y_train), examples
+        )
+
+    # Construct Dataset from examples
+    text_a_list, text_b_list, labels = [], [], []
+    for example in pair_examples:
+        text_a_list.append(example.texts[0])
+        text_b_list.append(example.texts[1])
+        labels.append(example.label)
+
+    pairs_dataset = Dataset.from_dict(dict(text_a=text_a_list, text_b=text_b_list, label=labels))
+    return pairs_dataset
+
+def load_pseudolabeled_examples(pseudolabels_json: str) -> List[InputExample]:
+    examples = []
+    with open(pseudolabels_json) as f:
+        metadata = json.load(f)
+    
+    orig_dataset = load_dataset(f"SetFit/{metadata['dataset']}", split=metadata['split'])
+    sliced_dataset = orig_dataset.shuffle(seed=metadata["seed"]).select(range(metadata['num_examples']))
+    pairs_dataset = create_pairs_dataset(sliced_dataset, num_iterations=metadata['iterations'])
+
+    pseudolabels, labels = [], []
+    
+    for idx, pseudolabel in metadata['examples']:
+        text_a = pairs_dataset[idx]["text_a"]
+        text_b = pairs_dataset[idx]["text_b"]
+        examples.append(InputExample(texts=[text_a, text_b], label=float(pseudolabel)))
+        pseudolabels.append(pseudolabel)
+        labels.append(pairs_dataset[idx]["label"])
+
+    matching = [a == b for a, b in zip(pseudolabels, labels)]
+    accuracy = sum(matching) / len(matching)
+    print(f"pseudolabels accuracy: {accuracy}")
+    return examples
 
 def load_data_splits(
     dataset: str, sample_sizes: List[int], add_data_augmentation: bool = False
@@ -68,9 +115,9 @@ def load_data_splits(
     """Loads a dataset from the Hugging Face Hub and returns the test split and few-shot training splits."""
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
-    train_split = load_dataset(f"SetFit/{dataset}", split="train")
+    train_split = load_dataset(f"{dataset}", split="train")
     train_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, dataset)
-    test_split = load_dataset(f"SetFit/{dataset}", split="test")
+    test_split = load_dataset(f"{dataset}", split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
 

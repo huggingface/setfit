@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 import evaluate
 import numpy as np
@@ -93,6 +93,9 @@ class SetFitTrainer:
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
         margin: float = 0.25,
         samples_per_label: int = 2,
+        extra_train_pairs: "Dataset" = None,
+        pseudolabeled_examples: List[InputExample] = None,
+
     ):
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
             raise ValueError(
@@ -114,6 +117,8 @@ class SetFitTrainer:
         self.distance_metric = distance_metric
         self.margin = margin
         self.samples_per_label = samples_per_label
+        self.extra_train_pairs = extra_train_pairs
+        self.pseudolabeled_examples = pseudolabeled_examples
 
         if model is None:
             if model_init is not None:
@@ -311,6 +316,11 @@ class SetFitTrainer:
         learning_rate = learning_rate or self.learning_rate
         is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
+        train_examples = []
+
+        if self.pseudolabeled_examples is not None:
+            train_examples.extend(self.pseudolabeled_examples)
+
         if not is_differentiable_head or self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
@@ -320,7 +330,7 @@ class SetFitTrainer:
                 losses.BatchHardSoftMarginTripletLoss,
                 SupConLoss,
             ]:
-                train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
+                train_examples.extend([InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)])
                 train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=self.samples_per_label)
 
                 batch_size = min(batch_size, len(train_data_sampler))
@@ -342,7 +352,6 @@ class SetFitTrainer:
 
                 train_steps = len(train_dataloader) * self.num_epochs
             else:
-                train_examples = []
 
                 for _ in range(self.num_iterations):
                     if self.model.multi_target_strategy is not None:

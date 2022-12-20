@@ -10,4 +10,4 @@ scipy
 ipdb
 evaluate==0.1.2
 scikit-learn
-git+https://github.com/SetFit/promptsource.git
+git+https://github.com/danielkorat/promptsource.git
