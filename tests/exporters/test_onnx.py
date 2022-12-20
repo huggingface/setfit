@@ -3,9 +3,9 @@ import os
 import numpy as np
 import onnxruntime
 import pytest
+from datasets import Dataset
 from transformers import AutoTokenizer
 
-from datasets import Dataset
 from setfit import SetFitModel
 from setfit.data import get_augmented_samples
 from setfit.exporters.onnx import export_onnx
