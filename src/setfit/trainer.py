@@ -295,7 +295,6 @@ class SetFitTrainer:
             show_progress_bar (`bool`, *optional*, defaults to `True`):
                 Whether to show a bar that indicates training progress.
         """
-        
         set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
 
         if trial:  # Trial and model initialization
