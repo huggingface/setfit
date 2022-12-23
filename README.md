@@ -381,7 +381,7 @@ make style && make quality
 ```
 
 ## Related work
-[jxpress/seifit-pytorch-lightning](https://github.com/jxpress/seifit-pytorch-lightning) - A repository of PyTorch Lightning implementations of SetFit.
+* [jxpress/setfit-pytorch-lightning](https://github.com/jxpress/setfit-pytorch-lightning) - A PyTorch Lightning implementation of SetFit.
 
 ## Citation
 
