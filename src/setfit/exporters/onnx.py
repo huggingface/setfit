@@ -88,11 +88,15 @@ def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path,
     for output_name in output_names:
         dynamic_axes_output[output_name] = {0: "batch_size"}
 
+    # Move inputs to the right device
+    target = setfit_model.model_body.device
+    args = tuple(value.to(target) for value in inputs.values())
+
     setfit_model.eval()
     with torch.no_grad():
         torch.onnx.export(
             setfit_model,
-            args=tuple(inputs.values()),
+            args=args,
             f=output_path,
             opset_version=opset,
             input_names=["input_ids", "attention_mask", "token_type_ids"],
