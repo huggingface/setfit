@@ -16,7 +16,7 @@ ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 
 OPENVINO_REQUIRE = ["hummingbird-ml", "openvino>=2022.3"]
 
-TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE
+TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
 
 COMPAT_TESTS_REQUIRE = [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE
 
