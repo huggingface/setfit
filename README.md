@@ -380,6 +380,8 @@ make style && make quality
 └── tests           <- Unit tests
 ```
 
+## Related work
+* [jxpress/setfit-pytorch-lightning](https://github.com/jxpress/setfit-pytorch-lightning) - A PyTorch Lightning implementation of SetFit.
 
 ## Citation
 
