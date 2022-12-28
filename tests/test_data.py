@@ -1,15 +1,18 @@
 import string
 
+import numpy as np
 import pandas as pd
 import pytest
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 
 from setfit.data import (
     SAMPLE_SIZES,
     SEEDS,
     add_templated_examples,
     create_fewshot_splits,
+    create_fewshot_splits_multilabel,
     create_samples,
+    get_augmented_samples,
     sample_dataset,
 )
 
@@ -102,8 +105,47 @@ def test_subset_is_smaller_than_sample_size(sample_size):
 
 def test_expected_number_of_splits():
     dataset = Dataset.from_pandas(pd.DataFrame({"label": [0] * 50 + [1] * 50}))
+    num_labels = 2
     splits_ds = create_fewshot_splits(dataset, SAMPLE_SIZES)
     assert len(splits_ds) == len(SAMPLE_SIZES) * len(SEEDS)
+
+    split: Dataset
+    for idx, split in enumerate(splits_ds.values()):
+        sample_size = SAMPLE_SIZES[idx // len(SEEDS)]
+        # The number of rows is limited by 100 due to the size of the original dataset
+        assert len(split) == min(sample_size * num_labels, len(dataset))
+
+
+def test_create_fewshot_splits_with_augmentation():
+    dataset_name = "sst5"
+    dataset = load_dataset(f"SetFit/{dataset_name}", split="train")
+    num_labels = len(set(dataset["label"]))
+    splits_ds = create_fewshot_splits(dataset, SAMPLE_SIZES, add_data_augmentation=True, dataset_name=dataset_name)
+    assert len(splits_ds) == len(SAMPLE_SIZES) * len(SEEDS)
+
+    split: Dataset
+    for idx, split in enumerate(splits_ds.values()):
+        sample_size = SAMPLE_SIZES[idx // len(SEEDS)]
+        # Each split should have sample_size * num_labels * 2 rows:
+        # for each label we sample `sample_size`, and then we generate
+        # another `sample_size` samples through augmentation.
+        assert len(split) == sample_size * num_labels * 2
+
+
+def test_create_fewshot_splits_multilabel():
+    num_samples = 50
+    dataset = Dataset.from_dict(
+        {
+            "text": string.ascii_letters[:50],
+            "label_one": np.random.randint(2, size=(num_samples,)),
+            "label_two": np.random.randint(2, size=(num_samples,)),
+            "label_three": np.random.randint(2, size=(num_samples,)),
+        }
+    )
+    splits_ds = create_fewshot_splits_multilabel(dataset, SAMPLE_SIZES)
+    assert len(splits_ds) == len(SAMPLE_SIZES) * len(SEEDS)
+    # We can't safely test the number of rows of each of the splits
+    # as duplicate samples are removed.
 
 
 def test_sample_dataset_returns_expected_samples():
@@ -130,3 +172,28 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
     # has one label with more than `num_samples` entries and another label with just 1 row.
     # We sample `num_samples` from the former, and 1 from the latter.
     assert ds.num_rows == num_samples + 1
+
+
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        "emotion",
+        "ag_news",
+        "amazon_counterfactual_en",
+        "SentEval-CR",
+        "sst5",
+        "enron_spam",
+        "tweet_eval_stance_abortion",
+        "ade_corpus_v2_classification",
+    ],
+)
+def test_get_augmented_samples(dataset: str):
+    dataset_dict = get_augmented_samples(dataset)
+    assert set(dataset_dict.keys()) == {"text", "label"}
+    assert len(dataset_dict["text"])
+    assert len(dataset_dict["label"])
+
+
+def test_get_augmented_samples_negative():
+    with pytest.raises(ValueError):
+        get_augmented_samples(None)
