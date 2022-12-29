@@ -94,7 +94,7 @@ preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 
 }}
 ```
 """
-    with open(f"{model_name}/README.md", "w") as f:
+    with open(f"{model_name}/README.md", "w", encoding="utf-8") as f:
         f.write(model_card_content)
 
 
