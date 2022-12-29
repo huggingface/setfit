@@ -6,6 +6,9 @@ from setuptools import find_packages, setup
 
 README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
+MAINTAINER = "Lewis Tunstall, Tom Aarsen"
+MAINTAINER_EMAIL = "lewis@huggingface.co"
+
 INTEGRATIONS_REQUIRE = ["optuna"]
 
 REQUIRED_PKGS = ["datasets>=2.3.0", "sentence-transformers>=2.2.1", "evaluate>=0.3.0"]
@@ -40,8 +43,8 @@ setup(
     description="Efficient few-shot learning with Sentence Transformers",
     long_description=README_TEXT,
     long_description_content_type="text/markdown",
-    author="SetFit",
-    author_email="lewis@huggingface.co",
+    maintainer=MAINTAINER,
+    maintainer_email=MAINTAINER_EMAIL,
     url="https://github.com/SetFit/setfit",
     download_url="https://github.com/SetFit/setfit/tags",
     license="Apache 2.0",
