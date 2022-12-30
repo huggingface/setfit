@@ -398,9 +398,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
         return self
 
-    def create_model_card(
-        self, path: str, model_name: Optional[str] = "SetFit Model", train_datasets: List[str] = None
-    ) -> None:
+    def create_model_card(self, path: str, model_name: Optional[str] = "SetFit Model") -> None:
         """Creates and saves a model card for a SetFit model.
 
         Args:
