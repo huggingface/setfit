@@ -145,7 +145,10 @@ scripts/**/summary_table.csv
 scripts/tfew/t-few
 scripts/tfew/results
 scripts/tfew/run_tmux.sh
+scripts/tfew/results-single-split
+scripts/tfew/data/pseudolabeled
 
 # macOS
 .DS_Store
 .vscode/settings.json
+

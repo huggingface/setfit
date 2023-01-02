@@ -16,6 +16,9 @@ SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
 
 def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]:
+    if sample_size == 0:
+        sample_size = 8
+
     if dataset == "emotion":
         return {
             "text": ["The sentence is sadness"] * sample_size
@@ -89,7 +92,13 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
             examples.append(subset.sample(sample_size, random_state=seed, replace=False))
         else:
             examples.append(subset)
-    return pd.concat(examples)
+
+    examples_df = pd.concat(examples)
+
+    # use the complement for unlabeled data
+    unlabeled_df = pd.concat([examples_df, df]).drop_duplicates(keep=False)
+
+    return examples_df, unlabeled_df
 
 
 def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
@@ -108,22 +117,41 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
 
 def create_fewshot_splits(
     dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: str = None
-) -> DatasetDict:
+) -> Tuple[DatasetDict, DatasetDict]:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
-    splits_ds = DatasetDict()
+    train_splits_ds = DatasetDict()
+    unlabeled_splits_ds = DatasetDict()
+    unlabeled_df = None
     df = dataset.to_pandas()
 
     for sample_size in sample_sizes:
-        for idx, seed in enumerate(SEEDS):
+        if sample_size == 0:
+            # Zero-Shot case: create a single train split with augmented samples
             if add_data_augmentation and dataset_name is not None:
                 augmented_samples = get_augmented_samples(dataset_name, sample_size)
-                augmented_df = pd.DataFrame(augmented_samples)
-                samples_df = create_samples(df, sample_size, seed)
-                split_df = pd.concat([samples_df, augmented_df], axis=0).sample(frac=1, random_state=seed)
+                split_df = pd.DataFrame(augmented_samples).sample(frac=1, random_state=SEEDS[0])
+                train_splits_ds[f"train-{sample_size}-0"] = Dataset.from_pandas(split_df, preserve_index=False)
             else:
-                split_df = create_samples(df, sample_size, seed)
-            splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
-    return splits_ds
+                train_splits_ds[f"train-{sample_size}-0"] = Dataset.from_dict({"text": [], "label": []})
+
+        for idx, seed in enumerate(SEEDS):
+            unlabeled_splits_ds[f"unlabeled-{sample_size}-{idx}"] = Dataset.from_pandas(df).shuffle(seed)
+
+        else:
+            for idx, seed in enumerate(SEEDS):
+                if add_data_augmentation and dataset_name is not None:
+                    augmented_samples = get_augmented_samples(dataset_name, sample_size)
+                    augmented_df = pd.DataFrame(augmented_samples)
+                    samples_df, unlabeled_df = create_samples(df, sample_size, seed)
+                    split_df = pd.concat([samples_df, augmented_df], axis=0).sample(frac=1, random_state=seed)
+                else:
+                    split_df, unlabeled_df = create_samples(df, sample_size, seed)
+                train_splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
+
+                if unlabeled_df is not None:
+                    unlabeled_splits_ds[f"unlabeled-{sample_size}-{idx}"] = Dataset.from_pandas(unlabeled_df, preserve_index=False)
+
+    return train_splits_ds, unlabeled_splits_ds
 
 
 def create_samples_multilabel(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:

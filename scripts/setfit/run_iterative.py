@@ -133,7 +133,7 @@ def main():
     loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
     for dataset, metric in dataset_to_metric.items():
-        few_shot_train_splits, test_data = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
+        few_shot_train_splits, test_data, _ = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
 
         for split_name, train_data in few_shot_train_splits.items():
             results_path = create_results_path(dataset, split_name, output_path)

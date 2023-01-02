@@ -1,0 +1,750 @@
+[H[J[3JUsing bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Parameter 'generator'=Generator(PCG64) of the transform datasets.arrow_dataset.Dataset.shuffle couldn't be hashed properly, a random hash was used instead. Make sure your transforms and parameters are serializable with pickle or dill for the dataset fingerprinting and caching to work. If you reuse this transform, the caching mechanism will consider it to be different from the previous calls and recompute everything. This warning is only showed once. Subsequent hashing failures won't be showed.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [6]
+
+  | Name  | Type                       | Params
+-----------------------------------------------------
+0 | model | T5ForConditionalGeneration | 2.9 B 
+-----------------------------------------------------
+540 K     Trainable params
+2.9 B     Non-trainable params
+2.9 B     Total params
+11,402.764Total estimated model params size (MB)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [6]
+Start experiment t03b_pretrained/emotion/train-0-0/seed0
+{
+    "exp_dir": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0",
+    "exp_name": "t03b_pretrained/emotion/train-0-0/seed0",
+    "allow_skip_exp": 0,
+    "seed": 0,
+    "model": "EncDec",
+    "max_seq_len": 256,
+    "origin_model": "bigscience/T0_3B",
+    "load_weight": "t-few/pretrained_checkpoints/t03b_ia3_finish.pt",
+    "dataset": "emotion_pairs",
+    "subset": null,
+    "few_shot": true,
+    "num_shot": 1,
+    "few_shot_random_seed": 0,
+    "train_template_idx": -1,
+    "eval_template_idx": -1,
+    "batch_size": 8,
+    "eval_batch_size": 16,
+    "num_workers": 8,
+    "change_hswag_templates": false,
+    "raft_cross_validation": true,
+    "raft_validation_start": 0,
+    "raft_labels_in_input_string": "comma",
+    "cleaned_answer_choices_b77": false,
+    "train_split": 0,
+    "prompts_dataset": "dkorat/emotion",
+    "prompts_subset": null,
+    "unlabeled_examples": 30,
+    "unlabeled_iterations": 4,
+    "compute_precision": "bf16",
+    "compute_strategy": "none",
+    "num_steps": 0,
+    "eval_epoch_interval": 10000,
+    "eval_before_training": 0,
+    "save_model": true,
+    "save_step_interval": 20000,
+    "mc_loss": 1,
+    "unlikely_loss": 1,
+    "length_norm": 1,
+    "grad_accum_factor": 1,
+    "split_option_at_inference": false,
+    "optimizer": "adafactor",
+    "lr": 0.003,
+    "trainable_param_names": ".*lora_b.*",
+    "scheduler": "linear_decay_with_warmup",
+    "warmup_ratio": 0.06,
+    "weight_decay": 0,
+    "scale_parameter": true,
+    "grad_clip_norm": 1,
+    "model_modifier": "lora",
+    "prompt_tuning_num_prefix_emb": 100,
+    "prompt_tuning_encoder": true,
+    "prompt_tuning_decoder": true,
+    "lora_rank": 0,
+    "lora_scaling_rank": 1,
+    "lora_init_scale": 0.0,
+    "lora_modules": ".*SelfAttention|.*EncDecAttention|.*DenseReluDense",
+    "lora_layers": "k|v|wi_1.*",
+    "bitfit_modules": ".*",
+    "bitfit_layers": "q|k|v|o|wi_[01]|w_o",
+    "adapter_type": "normal",
+    "adapter_non_linearity": "relu",
+    "adapter_reduction_factor": 4,
+    "normal_adapter_residual": true,
+    "lowrank_adapter_w_init": "glorot-uniform",
+    "lowrank_adapter_rank": 1,
+    "compacter_hypercomplex_division": 8,
+    "compacter_learn_phm": true,
+    "compacter_hypercomplex_nonlinearity": "glorot-uniform",
+    "compacter_shared_phm_rule": false,
+    "compacter_factorized_phm": false,
+    "compacter_shared_W_phm": false,
+    "compacter_factorized_phm_rule": false,
+    "compacter_phm_c_init": "normal",
+    "compacter_phm_rank": 1,
+    "compacter_phm_init_range": 0.01,
+    "compacter_kronecker_prod": false,
+    "compacter_add_compacter_in_self_attention": false,
+    "compacter_add_compacter_in_cross_attention": false,
+    "intrinsic_projection": "fastfood",
+    "intrinsic_said": true,
+    "intrinsic_dim": 2000,
+    "intrinsic_device": "cpu",
+    "fishmask_mode": null,
+    "fishmask_path": null,
+    "fishmask_keep_ratio": 0.05,
+    "prefix_tuning_num_input_tokens": 10,
+    "prefix_tuning_num_target_tokens": 10,
+    "prefix_tuning_init_path": null,
+    "prefix_tuning_init_text": null,
+    "prefix_tuning_parameterization": "mlp-512",
+    "train_pred_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0/train_pred.txt",
+    "dev_pred_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0/dev_pred.txt",
+    "dev_score_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0/dev_scores.json",
+    "test_pred_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0/test_pred.txt",
+    "test_score_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0/test_scores.json",
+    "finish_flag_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/emotion/train-0-0/seed0/exp_completed.txt"
+}
+Mark experiment t03b_pretrained/emotion/train-0-0/seed0 as claimed
+[0, 1, 2, 3]
+[0, 1, 2, 3]
+
+**********************************************************************
+'init' took 35.765s (35,765,354,743ns)
+**********************************************************************
+
+
+
+
+============== emotion ============
+Test set: 2000
+Train size 0
+Eval size 2000
+Unlabeled size 240
+
+**********************************************************************
+'trainer.fit()' took 15.451s (15,450,849,982ns)
+**********************************************************************
+
+Train size 0
+Eval size 2000
+Unlabeled size 240
+Validating: 0it [00:00, ?it/s]Validating: 0it [00:00, ?it/s]entropies mean: 0.9846339799463749
+split: 0, top_n: 240 (ALL)
+
+accuracy: 0.5750
+
+split: 0, top_n: 200 
+
+accuracy: 0.5900
+
+
+{"accuracy": 0.59, "score_gt": 4.035581270853679, "score_cand": 4.375587844848633}
+
+--------------------------------------------------------------------------------
+DATALOADER:0 VALIDATE RESULTS
+{}
+--------------------------------------------------------------------------------
+                              
+**********************************************************************
+'trainer.validate()' took 16.066s (16,065,517,759ns)
+**********************************************************************
+
+
+##############################
+Benchmark Summary:
+##############################
+
+
+**********************************************************************
+'init' took 35.765s (35,765,354,743ns)
+**********************************************************************
+
+
+**********************************************************************
+'trainer.fit()' took 15.451s (15,450,849,982ns)
+**********************************************************************
+
+
+**********************************************************************
+'trainer.validate()' took 16.066s (16,065,517,759ns)
+**********************************************************************
+
+
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+config.json not found in HuggingFace Hub
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Loading cached shuffled indices for dataset at /home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b/cache-a1625ff01ef006c7.arrow
+Parameter 'indices'=range(0, 30) of the transform datasets.arrow_dataset.Dataset.select couldn't be hashed properly, a random hash was used instead. Make sure your transforms and parameters are serializable with pickle or dill for the dataset fingerprinting and caching to work. If you reuse this transform, the caching mechanism will consider it to be different from the previous calls and recompute everything. This warning is only showed once. Subsequent hashing failures won't be showed.
+***** Running training *****
+  Num examples = 2120
+  Num epochs = 1
+  Total optimization steps = 133
+  Total train batch size = 16
+
+
+
+============== emotion ============
+Test set: 2000
+pseudolabels accuracy: 0.59
+
+
+======== /store/setfit/scripts/tfew/../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/emotion/train-0-0 =======
+Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
+Iteration:   0%|          | 0/133 [00:00<?, ?it/s][A
+Iteration:   1%|          | 1/133 [00:01<02:28,  1.12s/it][A
+Iteration:   2%|▏         | 3/133 [00:01<00:54,  2.40it/s][A
+Iteration:   4%|▍         | 5/133 [00:01<00:36,  3.53it/s][A
+Iteration:   5%|▌         | 7/133 [00:01<00:27,  4.63it/s][A
+Iteration:   7%|▋         | 9/133 [00:01<00:22,  5.59it/s][A
+Iteration:   8%|▊         | 11/133 [00:01<00:18,  6.44it/s][A
+Iteration:  10%|▉         | 13/133 [00:02<00:17,  7.03it/s][A
+Iteration:  11%|█▏        | 15/133 [00:02<00:15,  7.65it/s][A
+Iteration:  13%|█▎        | 17/133 [00:02<00:14,  8.27it/s][A
+Iteration:  14%|█▍        | 19/133 [00:02<00:12,  8.83it/s][A
+Iteration:  16%|█▌        | 21/133 [00:02<00:12,  9.28it/s][A
+Iteration:  17%|█▋        | 23/133 [00:02<00:11,  9.71it/s][A
+Iteration:  19%|█▉        | 25/133 [00:02<00:10, 10.14it/s][A
+Iteration:  20%|██        | 27/133 [00:02<00:10, 10.45it/s][A
+Iteration:  22%|██▏       | 29/133 [00:03<00:09, 10.78it/s][A
+Iteration:  23%|██▎       | 31/133 [00:03<00:09, 11.05it/s][A
+Iteration:  25%|██▍       | 33/133 [00:03<00:08, 11.22it/s][A
+Iteration:  26%|██▋       | 35/133 [00:03<00:08, 11.49it/s][A
+Iteration:  28%|██▊       | 37/133 [00:03<00:08, 11.71it/s][A
+Iteration:  29%|██▉       | 39/133 [00:03<00:07, 11.98it/s][A
+Iteration:  31%|███       | 41/133 [00:03<00:07, 12.15it/s][A
+Iteration:  32%|███▏      | 43/133 [00:04<00:07, 12.24it/s][A
+Iteration:  34%|███▍      | 45/133 [00:04<00:07, 12.45it/s][A
+Iteration:  35%|███▌      | 47/133 [00:04<00:06, 12.62it/s][A
+Iteration:  37%|███▋      | 49/133 [00:04<00:06, 12.71it/s][A
+Iteration:  38%|███▊      | 51/133 [00:04<00:06, 12.85it/s][A
+Iteration:  40%|███▉      | 53/133 [00:04<00:06, 13.02it/s][A
+Iteration:  41%|████▏     | 55/133 [00:04<00:05, 13.17it/s][A
+Iteration:  43%|████▎     | 57/133 [00:04<00:05, 13.28it/s][A
+Iteration:  44%|████▍     | 59/133 [00:05<00:05, 13.37it/s][A
+Iteration:  46%|████▌     | 61/133 [00:05<00:05, 13.48it/s][A
+Iteration:  47%|████▋     | 63/133 [00:05<00:05, 13.53it/s][A
+Iteration:  49%|████▉     | 65/133 [00:05<00:04, 13.68it/s][A
+Iteration:  50%|█████     | 67/133 [00:05<00:04, 13.68it/s][A
+Iteration:  52%|█████▏    | 69/133 [00:05<00:04, 13.82it/s][A
+Iteration:  53%|█████▎    | 71/133 [00:05<00:04, 13.94it/s][A
+Iteration:  55%|█████▍    | 73/133 [00:05<00:04, 14.06it/s][A
+Iteration:  56%|█████▋    | 75/133 [00:06<00:04, 14.12it/s][A
+Iteration:  58%|█████▊    | 77/133 [00:06<00:03, 14.18it/s][A
+Iteration:  59%|█████▉    | 79/133 [00:06<00:03, 14.27it/s][A
+Iteration:  61%|██████    | 81/133 [00:06<00:03, 14.30it/s][A
+Iteration:  62%|██████▏   | 83/133 [00:06<00:03, 14.36it/s][A
+Iteration:  64%|██████▍   | 85/133 [00:06<00:03, 14.38it/s][A
+Iteration:  65%|██████▌   | 87/133 [00:06<00:03, 14.49it/s][A
+Iteration:  67%|██████▋   | 89/133 [00:07<00:03, 14.38it/s][A
+Iteration:  68%|██████▊   | 91/133 [00:07<00:02, 14.42it/s][A
+Iteration:  70%|██████▉   | 93/133 [00:07<00:02, 14.43it/s][A
+Iteration:  71%|███████▏  | 95/133 [00:07<00:02, 14.46it/s][A
+Iteration:  73%|███████▎  | 97/133 [00:07<00:02, 14.46it/s][A
+Iteration:  74%|███████▍  | 99/133 [00:07<00:02, 14.49it/s][A
+Iteration:  76%|███████▌  | 101/133 [00:07<00:02, 14.52it/s][A
+Iteration:  77%|███████▋  | 103/133 [00:07<00:02, 14.59it/s][A
+Iteration:  79%|███████▉  | 105/133 [00:08<00:01, 14.70it/s][A
+Iteration:  80%|████████  | 107/133 [00:08<00:01, 14.78it/s][A
+Iteration:  82%|████████▏ | 109/133 [00:08<00:01, 14.87it/s][A
+Iteration:  83%|████████▎ | 111/133 [00:08<00:01, 14.86it/s][A
+Iteration:  85%|████████▍ | 113/133 [00:08<00:01, 14.82it/s][A
+Iteration:  86%|████████▋ | 115/133 [00:08<00:01, 14.88it/s][A
+Iteration:  88%|████████▊ | 117/133 [00:08<00:01, 14.88it/s][A
+Iteration:  89%|████████▉ | 119/133 [00:08<00:00, 14.94it/s][A
+Iteration:  91%|█████████ | 121/133 [00:09<00:00, 14.96it/s][A
+Iteration:  92%|█████████▏| 123/133 [00:09<00:00, 14.90it/s][A
+Iteration:  94%|█████████▍| 125/133 [00:09<00:00, 14.91it/s][A
+Iteration:  95%|█████████▌| 127/133 [00:09<00:00, 14.93it/s][A
+Iteration:  97%|█████████▋| 129/133 [00:09<00:00, 14.94it/s][A
+Iteration:  98%|█████████▊| 131/133 [00:09<00:00, 14.86it/s][A
+Iteration: 100%|██████████| 133/133 [00:09<00:00, 14.94it/s][AIteration: 100%|██████████| 133/133 [00:09<00:00, 13.39it/s]
+Epoch: 100%|██████████| 1/1 [00:09<00:00,  9.93s/it]Epoch: 100%|██████████| 1/1 [00:09<00:00,  9.93s/it]
+***** Running evaluation *****
+Using custom data configuration SetFit--SentEval-CR-3d6d995d44023096
+Metrics: {'accuracy': 0.5065}
+Metrics: {'accuracy': 0.5065}
+
+
+
+============== SentEval-CR ============
+Downloading and preparing dataset json/SetFit--SentEval-CR to /home/dkorat/.cache/huggingface/datasets/json/SetFit--SentEval-CR-3d6d995d44023096/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b...
+Downloading data files:   0%|          | 0/2 [00:00<?, ?it/s]
+Downloading data:   0%|          | 0.00/427k [00:00<?, ?B/s][A
+Downloading data:   7%|▋         | 28.7k/427k [00:00<00:01, 201kB/s][A
+Downloading data:  43%|████▎     | 184k/427k [00:00<00:00, 729kB/s] [ADownloading data: 100%|██████████| 427k/427k [00:00<00:00, 1.20MB/s]
+Downloading data files:  50%|█████     | 1/2 [00:00<00:00,  1.00it/s]
+Downloading data:   0%|          | 0.00/109k [00:00<?, ?B/s][A
+Downloading data:  79%|███████▉  | 86.0k/109k [00:00<00:00, 625kB/s][ADownloading data: 100%|██████████| 109k/109k [00:00<00:00, 783kB/s] 
+Downloading data files: 100%|██████████| 2/2 [00:01<00:00,  1.11it/s]Downloading data files: 100%|██████████| 2/2 [00:01<00:00,  1.10it/s]
+Extracting data files:   0%|          | 0/2 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 2/2 [00:00<00:00, 2050.50it/s]
+Using custom data configuration SetFit--SentEval-CR-3d6d995d44023096
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--SentEval-CR-3d6d995d44023096/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+config.json not found in HuggingFace Hub
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Loading cached shuffled indices for dataset at /home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b/cache-a1625ff01ef006c7.arrow
+***** Running training *****
+  Num examples = 840
+  Num epochs = 1
+  Total optimization steps = 53
+  Total train batch size = 16
+Dataset json downloaded and prepared to /home/dkorat/.cache/huggingface/datasets/json/SetFit--SentEval-CR-3d6d995d44023096/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b. Subsequent calls will reuse this data.
+Test set: 753
+pseudolabels accuracy: 0.59
+
+
+======== /store/setfit/scripts/tfew/../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/SentEval-CR/train-0-0 =======
+Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
+Iteration:   0%|          | 0/53 [00:00<?, ?it/s][A
+Iteration:   2%|▏         | 1/53 [00:00<00:06,  8.01it/s][A
+Iteration:   6%|▌         | 3/53 [00:00<00:04, 10.73it/s][A
+Iteration:   9%|▉         | 5/53 [00:00<00:04, 11.42it/s][A
+Iteration:  13%|█▎        | 7/53 [00:00<00:03, 11.55it/s][A
+Iteration:  17%|█▋        | 9/53 [00:00<00:03, 12.10it/s][A
+Iteration:  21%|██        | 11/53 [00:00<00:03, 12.44it/s][A
+Iteration:  25%|██▍       | 13/53 [00:01<00:03, 12.50it/s][A
+Iteration:  28%|██▊       | 15/53 [00:01<00:02, 12.72it/s][A
+Iteration:  32%|███▏      | 17/53 [00:01<00:02, 12.87it/s][A
+Iteration:  36%|███▌      | 19/53 [00:01<00:02, 12.93it/s][A
+Iteration:  40%|███▉      | 21/53 [00:01<00:02, 13.08it/s][A
+Iteration:  43%|████▎     | 23/53 [00:01<00:02, 13.15it/s][A
+Iteration:  47%|████▋     | 25/53 [00:01<00:02, 13.21it/s][A
+Iteration:  51%|█████     | 27/53 [00:02<00:01, 13.39it/s][A
+Iteration:  55%|█████▍    | 29/53 [00:02<00:01, 13.47it/s][A
+Iteration:  58%|█████▊    | 31/53 [00:02<00:01, 13.63it/s][A
+Iteration:  62%|██████▏   | 33/53 [00:02<00:01, 13.68it/s][A
+Iteration:  66%|██████▌   | 35/53 [00:02<00:01, 13.66it/s][A
+Iteration:  70%|██████▉   | 37/53 [00:02<00:01, 13.65it/s][A
+Iteration:  74%|███████▎  | 39/53 [00:02<00:01, 13.55it/s][A
+Iteration:  77%|███████▋  | 41/53 [00:03<00:00, 13.64it/s][A
+Iteration:  81%|████████  | 43/53 [00:03<00:00, 13.64it/s][A
+Iteration:  85%|████████▍ | 45/53 [00:03<00:00, 13.72it/s][A
+Iteration:  89%|████████▊ | 47/53 [00:03<00:00, 13.71it/s][A
+Iteration:  92%|█████████▏| 49/53 [00:03<00:00, 13.81it/s][A
+Iteration:  96%|█████████▌| 51/53 [00:03<00:00, 13.89it/s][A
+Iteration: 100%|██████████| 53/53 [00:03<00:00, 13.97it/s][AIteration: 100%|██████████| 53/53 [00:03<00:00, 13.68it/s]
+Epoch: 100%|██████████| 1/1 [00:03<00:00,  3.87s/it]Epoch: 100%|██████████| 1/1 [00:03<00:00,  3.87s/it]
+***** Running evaluation *****
+Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
+Metrics: {'accuracy': 0.8419654714475432}
+Metrics: {'accuracy': 0.8419654714475432}
+
+
+
+============== sst5 ============
+Downloading and preparing dataset json/SetFit--sst5 to /home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b...
+Downloading data files:   0%|          | 0/3 [00:00<?, ?it/s]
+Downloading data:   0%|          | 0.00/1.32M [00:00<?, ?B/s][A
+Downloading data:   7%|▋         | 90.1k/1.32M [00:00<00:01, 648kB/s][A
+Downloading data:  30%|███       | 401k/1.32M [00:00<00:00, 1.58MB/s][ADownloading data: 100%|██████████| 1.32M/1.32M [00:00<00:00, 3.64MB/s]
+Downloading data files:  33%|███▎      | 1/3 [00:01<00:02,  1.08s/it]
+Downloading data:   0%|          | 0.00/343k [00:00<?, ?B/s][A
+Downloading data:  10%|▉         | 32.8k/343k [00:00<00:01, 238kB/s][A
+Downloading data:  59%|█████▊    | 201k/343k [00:00<00:00, 812kB/s] [ADownloading data: 100%|██████████| 343k/343k [00:00<00:00, 1.22MB/s]
+Downloading data files:  67%|██████▋   | 2/3 [00:02<00:00,  1.01it/s]
+Downloading data:   0%|          | 0.00/171k [00:00<?, ?B/s][A
+Downloading data:  17%|█▋        | 28.7k/171k [00:00<00:00, 204kB/s][ADownloading data: 100%|██████████| 171k/171k [00:00<00:00, 793kB/s] 
+Downloading data files: 100%|██████████| 3/3 [00:02<00:00,  1.07it/s]Downloading data files: 100%|██████████| 3/3 [00:02<00:00,  1.05it/s]
+Extracting data files:   0%|          | 0/3 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 3/3 [00:00<00:00, 2130.53it/s]
+Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+config.json not found in HuggingFace Hub
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Loading cached shuffled indices for dataset at /home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b/cache-a1625ff01ef006c7.arrow
+***** Running training *****
+  Num examples = 1800
+  Num epochs = 1
+  Total optimization steps = 113
+  Total train batch size = 16
+Dataset json downloaded and prepared to /home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b. Subsequent calls will reuse this data.
+Test set: 2210
+pseudolabels accuracy: 0.59
+
+
+======== /store/setfit/scripts/tfew/../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/sst5/train-0-0 =======
+Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
+Iteration:   0%|          | 0/113 [00:00<?, ?it/s][A
+Iteration:   1%|          | 1/113 [00:00<00:12,  8.71it/s][A
+Iteration:   2%|▏         | 2/113 [00:00<00:12,  9.11it/s][A
+Iteration:   4%|▎         | 4/113 [00:00<00:09, 10.94it/s][A
+Iteration:   5%|▌         | 6/113 [00:00<00:08, 12.41it/s][A
+Iteration:   7%|▋         | 8/113 [00:00<00:08, 13.07it/s][A
+Iteration:   9%|▉         | 10/113 [00:00<00:07, 13.14it/s][A
+Iteration:  11%|█         | 12/113 [00:00<00:07, 13.68it/s][A
+Iteration:  12%|█▏        | 14/113 [00:01<00:07, 13.83it/s][A
+Iteration:  14%|█▍        | 16/113 [00:01<00:06, 14.14it/s][A
+Iteration:  16%|█▌        | 18/113 [00:01<00:06, 14.13it/s][A
+Iteration:  18%|█▊        | 20/113 [00:01<00:06, 14.21it/s][A
+Iteration:  19%|█▉        | 22/113 [00:01<00:06, 14.27it/s][A
+Iteration:  21%|██        | 24/113 [00:01<00:06, 14.53it/s][A
+Iteration:  23%|██▎       | 26/113 [00:01<00:05, 14.65it/s][A
+Iteration:  25%|██▍       | 28/113 [00:01<00:05, 14.60it/s][A
+Iteration:  27%|██▋       | 30/113 [00:02<00:05, 14.67it/s][A
+Iteration:  28%|██▊       | 32/113 [00:02<00:05, 14.54it/s][A
+Iteration:  30%|███       | 34/113 [00:02<00:05, 14.63it/s][A
+Iteration:  32%|███▏      | 36/113 [00:02<00:05, 14.61it/s][A
+Iteration:  34%|███▎      | 38/113 [00:02<00:05, 14.70it/s][A
+Iteration:  35%|███▌      | 40/113 [00:02<00:04, 14.65it/s][A
+Iteration:  37%|███▋      | 42/113 [00:02<00:04, 14.55it/s][A
+Iteration:  39%|███▉      | 44/113 [00:03<00:04, 14.62it/s][A
+Iteration:  41%|████      | 46/113 [00:03<00:04, 14.71it/s][A
+Iteration:  42%|████▏     | 48/113 [00:03<00:04, 14.76it/s][A
+Iteration:  44%|████▍     | 50/113 [00:03<00:04, 14.84it/s][A
+Iteration:  46%|████▌     | 52/113 [00:03<00:04, 14.77it/s][A
+Iteration:  48%|████▊     | 54/113 [00:03<00:03, 14.76it/s][A
+Iteration:  50%|████▉     | 56/113 [00:03<00:03, 14.74it/s][A
+Iteration:  51%|█████▏    | 58/113 [00:03<00:03, 14.65it/s][A
+Iteration:  53%|█████▎    | 60/113 [00:04<00:03, 14.60it/s][A
+Iteration:  55%|█████▍    | 62/113 [00:04<00:03, 14.64it/s][A
+Iteration:  57%|█████▋    | 64/113 [00:04<00:03, 14.56it/s][A
+Iteration:  58%|█████▊    | 66/113 [00:04<00:03, 14.55it/s][A
+Iteration:  60%|██████    | 68/113 [00:04<00:03, 14.51it/s][A
+Iteration:  62%|██████▏   | 70/113 [00:04<00:02, 14.51it/s][A
+Iteration:  64%|██████▎   | 72/113 [00:04<00:02, 14.55it/s][A
+Iteration:  65%|██████▌   | 74/113 [00:05<00:02, 14.56it/s][A
+Iteration:  67%|██████▋   | 76/113 [00:05<00:02, 14.57it/s][A
+Iteration:  69%|██████▉   | 78/113 [00:05<00:02, 14.57it/s][A
+Iteration:  71%|███████   | 80/113 [00:05<00:02, 14.55it/s][A
+Iteration:  73%|███████▎  | 82/113 [00:05<00:02, 14.61it/s][A
+Iteration:  74%|███████▍  | 84/113 [00:05<00:01, 14.59it/s][A
+Iteration:  76%|███████▌  | 86/113 [00:05<00:01, 14.63it/s][A
+Iteration:  78%|███████▊  | 88/113 [00:06<00:01, 14.63it/s][A
+Iteration:  80%|███████▉  | 90/113 [00:06<00:01, 14.59it/s][A
+Iteration:  81%|████████▏ | 92/113 [00:06<00:01, 14.67it/s][A
+Iteration:  83%|████████▎ | 94/113 [00:06<00:01, 14.74it/s][A
+Iteration:  85%|████████▍ | 96/113 [00:06<00:01, 14.71it/s][A
+Iteration:  87%|████████▋ | 98/113 [00:06<00:01, 14.76it/s][A
+Iteration:  88%|████████▊ | 100/113 [00:06<00:00, 14.65it/s][A
+Iteration:  90%|█████████ | 102/113 [00:07<00:00, 14.64it/s][A
+Iteration:  92%|█████████▏| 104/113 [00:07<00:00, 14.68it/s][A
+Iteration:  94%|█████████▍| 106/113 [00:07<00:00, 14.66it/s][A
+Iteration:  96%|█████████▌| 108/113 [00:07<00:00, 14.69it/s][A
+Iteration:  97%|█████████▋| 110/113 [00:07<00:00, 14.71it/s][A
+Iteration:  99%|█████████▉| 112/113 [00:07<00:00, 14.58it/s][AIteration: 100%|██████████| 113/113 [00:07<00:00, 14.56it/s]
+Epoch: 100%|██████████| 1/1 [00:07<00:00,  7.76s/it]Epoch: 100%|██████████| 1/1 [00:07<00:00,  7.76s/it]
+***** Running evaluation *****
+Using custom data configuration SetFit--ag_news-ce47c2fb4b0fb53c
+Metrics: {'accuracy': 0.3601809954751131}
+Metrics: {'accuracy': 0.3601809954751131}
+
+
+
+============== ag_news ============
+Downloading and preparing dataset json/SetFit--ag_news to /home/dkorat/.cache/huggingface/datasets/json/SetFit--ag_news-ce47c2fb4b0fb53c/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b...
+Downloading data files:   0%|          | 0/2 [00:00<?, ?it/s]
+Downloading data:   0%|          | 0.00/33.8M [00:00<?, ?B/s][A
+Downloading data:   0%|          | 52.2k/33.8M [00:00<01:19, 425kB/s][A
+Downloading data:   1%|          | 313k/33.8M [00:00<00:24, 1.40MB/s][A
+Downloading data:   4%|▍         | 1.34M/33.8M [00:00<00:07, 4.47MB/s][A
+Downloading data:  16%|█▌        | 5.43M/33.8M [00:00<00:01, 15.4MB/s][A
+Downloading data:  37%|███▋      | 12.5M/33.8M [00:00<00:00, 32.4MB/s][A
+Downloading data:  49%|████▉     | 16.7M/33.8M [00:00<00:00, 35.1MB/s][A
+Downloading data:  72%|███████▏  | 24.2M/33.8M [00:00<00:00, 47.2MB/s][A
+Downloading data:  87%|████████▋ | 29.4M/33.8M [00:00<00:00, 48.5MB/s][ADownloading data: 100%|██████████| 33.8M/33.8M [00:00<00:00, 34.4MB/s]
+Downloading data files:  50%|█████     | 1/2 [00:02<00:02,  2.30s/it]
+Downloading data:   0%|          | 0.00/2.13M [00:00<?, ?B/s][A
+Downloading data:   2%|▏         | 51.2k/2.13M [00:00<00:05, 411kB/s][A
+Downloading data:  13%|█▎        | 278k/2.13M [00:00<00:01, 1.34MB/s][A
+Downloading data:  58%|█████▊    | 1.23M/2.13M [00:00<00:00, 3.99MB/s][ADownloading data: 100%|██████████| 2.13M/2.13M [00:00<00:00, 5.37MB/s]
+Downloading data files: 100%|██████████| 2/2 [00:03<00:00,  1.89s/it]Downloading data files: 100%|██████████| 2/2 [00:03<00:00,  1.95s/it]
+Extracting data files:   0%|          | 0/2 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 2/2 [00:00<00:00, 2032.12it/s]
+Using custom data configuration SetFit--ag_news-ce47c2fb4b0fb53c
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--ag_news-ce47c2fb4b0fb53c/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+config.json not found in HuggingFace Hub
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Loading cached shuffled indices for dataset at /home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b/cache-a1625ff01ef006c7.arrow
+***** Running training *****
+  Num examples = 1480
+  Num epochs = 1
+  Total optimization steps = 93
+  Total train batch size = 16
+Dataset json downloaded and prepared to /home/dkorat/.cache/huggingface/datasets/json/SetFit--ag_news-ce47c2fb4b0fb53c/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b. Subsequent calls will reuse this data.
+Test set: 7600
+pseudolabels accuracy: 0.59
+
+
+======== /store/setfit/scripts/tfew/../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/ag_news/train-0-0 =======
+Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
+Iteration:   0%|          | 0/93 [00:00<?, ?it/s][A
+Iteration:   1%|          | 1/93 [00:00<00:10,  8.77it/s][A
+Iteration:   3%|▎         | 3/93 [00:00<00:08, 10.62it/s][A
+Iteration:   5%|▌         | 5/93 [00:00<00:07, 12.00it/s][A
+Iteration:   8%|▊         | 7/93 [00:00<00:06, 12.63it/s][A
+Iteration:  10%|▉         | 9/93 [00:00<00:06, 12.88it/s][A
+Iteration:  12%|█▏        | 11/93 [00:00<00:06, 13.28it/s][A
+Iteration:  14%|█▍        | 13/93 [00:00<00:05, 13.48it/s][A
+Iteration:  16%|█▌        | 15/93 [00:01<00:05, 13.74it/s][A
+Iteration:  18%|█▊        | 17/93 [00:01<00:05, 13.87it/s][A
+Iteration:  20%|██        | 19/93 [00:01<00:05, 13.99it/s][A
+Iteration:  23%|██▎       | 21/93 [00:01<00:05, 13.99it/s][A
+Iteration:  25%|██▍       | 23/93 [00:01<00:05, 13.91it/s][A
+Iteration:  27%|██▋       | 25/93 [00:01<00:04, 13.94it/s][A
+Iteration:  29%|██▉       | 27/93 [00:01<00:04, 13.92it/s][A
+Iteration:  31%|███       | 29/93 [00:02<00:04, 13.92it/s][A
+Iteration:  33%|███▎      | 31/93 [00:02<00:04, 13.89it/s][A
+Iteration:  35%|███▌      | 33/93 [00:02<00:04, 14.00it/s][A
+Iteration:  38%|███▊      | 35/93 [00:02<00:04, 14.11it/s][A
+Iteration:  40%|███▉      | 37/93 [00:02<00:03, 14.20it/s][A
+Iteration:  42%|████▏     | 39/93 [00:02<00:03, 14.24it/s][A
+Iteration:  44%|████▍     | 41/93 [00:02<00:03, 14.15it/s][A
+Iteration:  46%|████▌     | 43/93 [00:03<00:03, 14.17it/s][A
+Iteration:  48%|████▊     | 45/93 [00:03<00:03, 13.44it/s][A
+Iteration:  51%|█████     | 47/93 [00:03<00:03, 13.54it/s][A
+Iteration:  53%|█████▎    | 49/93 [00:03<00:03, 13.55it/s][A
+Iteration:  55%|█████▍    | 51/93 [00:03<00:03, 13.65it/s][A
+Iteration:  57%|█████▋    | 53/93 [00:03<00:02, 13.69it/s][A
+Iteration:  59%|█████▉    | 55/93 [00:03<00:02, 13.77it/s][A
+Iteration:  61%|██████▏   | 57/93 [00:04<00:02, 13.81it/s][A
+Iteration:  63%|██████▎   | 59/93 [00:04<00:02, 13.88it/s][A
+Iteration:  66%|██████▌   | 61/93 [00:04<00:02, 13.92it/s][A
+Iteration:  68%|██████▊   | 63/93 [00:04<00:02, 13.94it/s][A
+Iteration:  70%|██████▉   | 65/93 [00:04<00:02, 13.83it/s][A
+Iteration:  72%|███████▏  | 67/93 [00:04<00:01, 13.90it/s][A
+Iteration:  74%|███████▍  | 69/93 [00:04<00:01, 13.95it/s][A
+Iteration:  76%|███████▋  | 71/93 [00:05<00:01, 13.91it/s][A
+Iteration:  78%|███████▊  | 73/93 [00:05<00:01, 13.94it/s][A
+Iteration:  81%|████████  | 75/93 [00:05<00:01, 14.02it/s][A
+Iteration:  83%|████████▎ | 77/93 [00:05<00:01, 14.07it/s][A
+Iteration:  85%|████████▍ | 79/93 [00:05<00:00, 14.09it/s][A
+Iteration:  87%|████████▋ | 81/93 [00:05<00:00, 14.08it/s][A
+Iteration:  89%|████████▉ | 83/93 [00:05<00:00, 14.16it/s][A
+Iteration:  91%|█████████▏| 85/93 [00:06<00:00, 14.05it/s][A
+Iteration:  94%|█████████▎| 87/93 [00:06<00:00, 14.06it/s][A
+Iteration:  96%|█████████▌| 89/93 [00:06<00:00, 14.06it/s][A
+Iteration:  98%|█████████▊| 91/93 [00:06<00:00, 14.06it/s][A
+Iteration: 100%|██████████| 93/93 [00:06<00:00, 14.14it/s][AIteration: 100%|██████████| 93/93 [00:06<00:00, 13.98it/s]
+Epoch: 100%|██████████| 1/1 [00:06<00:00,  6.65s/it]Epoch: 100%|██████████| 1/1 [00:06<00:00,  6.65s/it]
+***** Running evaluation *****
+Using custom data configuration SetFit--enron_spam-5c67eb35f5974df9
+Metrics: {'accuracy': 0.6160526315789474}
+Metrics: {'accuracy': 0.6160526315789474}
+
+
+
+============== enron_spam ============
+Downloading and preparing dataset json/SetFit--enron_spam to /home/dkorat/.cache/huggingface/datasets/json/SetFit--enron_spam-5c67eb35f5974df9/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b...
+Downloading data files:   0%|          | 0/2 [00:00<?, ?it/s]
+Downloading data:   0%|          | 0.00/101M [00:00<?, ?B/s][A
+Downloading data:   0%|          | 51.2k/101M [00:00<04:09, 404kB/s][A
+Downloading data:   0%|          | 92.2k/101M [00:00<04:19, 389kB/s][A
+Downloading data:   0%|          | 198k/101M [00:00<03:01, 554kB/s] [A
+Downloading data:   0%|          | 288k/101M [00:00<02:44, 612kB/s][A
+Downloading data:   0%|          | 392k/101M [00:00<02:20, 717kB/s][A
+Downloading data:   0%|          | 498k/101M [00:00<02:20, 718kB/s][A
+Downloading data:   1%|          | 602k/101M [00:00<02:06, 794kB/s][A
+Downloading data:   1%|          | 738k/101M [00:01<01:53, 881kB/s][A
+Downloading data:   1%|          | 891k/101M [00:01<01:48, 922kB/s][A
+Downloading data:   1%|          | 1.05M/101M [00:01<01:38, 1.02MB/s][A
+Downloading data:   1%|          | 1.22M/101M [00:01<01:29, 1.11MB/s][A
+Downloading data:   1%|▏         | 1.41M/101M [00:01<01:17, 1.29MB/s][A
+Downloading data:   2%|▏         | 1.64M/101M [00:01<01:13, 1.35MB/s][A
+Downloading data:   2%|▏         | 1.86M/101M [00:01<01:03, 1.56MB/s][A
+Downloading data:   2%|▏         | 2.12M/101M [00:01<00:58, 1.70MB/s][A
+Downloading data:   2%|▏         | 2.42M/101M [00:02<00:52, 1.88MB/s][A
+Downloading data:   3%|▎         | 2.73M/101M [00:02<00:50, 1.94MB/s][A
+Downloading data:   3%|▎         | 3.06M/101M [00:02<00:43, 2.24MB/s][A
+Downloading data:   3%|▎         | 3.45M/101M [00:02<00:39, 2.46MB/s][A
+Downloading data:   4%|▍         | 3.86M/101M [00:02<00:36, 2.70MB/s][A
+Downloading data:   4%|▍         | 4.33M/101M [00:02<00:32, 2.98MB/s][A
+Downloading data:   5%|▍         | 4.86M/101M [00:02<00:29, 3.31MB/s][A
+Downloading data:   5%|▌         | 5.41M/101M [00:02<00:26, 3.60MB/s][A
+Downloading data:   6%|▌         | 6.04M/101M [00:03<00:25, 3.77MB/s][A
+Downloading data:   7%|▋         | 6.72M/101M [00:03<00:22, 4.20MB/s][A
+Downloading data:   7%|▋         | 7.47M/101M [00:03<00:20, 4.66MB/s][A
+Downloading data:   8%|▊         | 8.29M/101M [00:03<00:17, 5.16MB/s][A
+Downloading data:   9%|▉         | 9.19M/101M [00:03<00:16, 5.69MB/s][A
+Downloading data:  10%|█         | 10.2M/101M [00:03<00:14, 6.32MB/s][A
+Downloading data:  11%|█         | 11.3M/101M [00:03<00:12, 6.99MB/s][A
+Downloading data:  12%|█▏        | 12.5M/101M [00:04<00:11, 7.70MB/s][A
+Downloading data:  14%|█▎        | 13.8M/101M [00:04<00:10, 8.47MB/s][A
+Downloading data:  15%|█▌        | 15.3M/101M [00:04<00:08, 9.86MB/s][A
+Downloading data:  16%|█▋        | 16.4M/101M [00:04<00:08, 10.3MB/s][A
+Downloading data:  18%|█▊        | 17.8M/101M [00:04<00:07, 10.6MB/s][A
+Downloading data:  19%|█▉        | 19.6M/101M [00:04<00:06, 12.5MB/s][A
+Downloading data:  21%|██        | 21.0M/101M [00:04<00:06, 13.0MB/s][A
+Downloading data:  23%|██▎       | 22.7M/101M [00:04<00:05, 13.5MB/s][A
+Downloading data:  25%|██▍       | 25.1M/101M [00:04<00:04, 16.0MB/s][A
+Downloading data:  26%|██▋       | 26.7M/101M [00:04<00:04, 16.1MB/s][A
+Downloading data:  29%|██▉       | 29.1M/101M [00:05<00:04, 17.4MB/s][A
+Downloading data:  32%|███▏      | 32.1M/101M [00:05<00:03, 20.5MB/s][A
+Downloading data:  34%|███▍      | 34.1M/101M [00:05<00:03, 20.4MB/s][A
+Downloading data:  37%|███▋      | 37.1M/101M [00:05<00:02, 22.6MB/s][A
+Downloading data:  39%|███▉      | 39.5M/101M [00:05<00:02, 23.0MB/s][A
+Downloading data:  42%|████▏     | 42.9M/101M [00:05<00:02, 26.2MB/s][A
+Downloading data:  47%|████▋     | 47.2M/101M [00:05<00:01, 30.5MB/s][A
+Downloading data:  50%|████▉     | 50.2M/101M [00:05<00:01, 29.4MB/s][A
+Downloading data:  54%|█████▍    | 54.5M/101M [00:05<00:01, 32.9MB/s][A
+Downloading data:  59%|█████▊    | 59.2M/101M [00:06<00:01, 37.0MB/s][A
+Downloading data:  62%|██████▏   | 63.1M/101M [00:06<00:01, 37.7MB/s][A
+Downloading data:  67%|██████▋   | 67.9M/101M [00:06<00:00, 40.7MB/s][A
+Downloading data:  72%|███████▏  | 72.3M/101M [00:06<00:00, 41.5MB/s][A
+Downloading data:  78%|███████▊  | 78.7M/101M [00:06<00:00, 46.5MB/s][A
+Downloading data:  83%|████████▎ | 83.7M/101M [00:06<00:00, 47.4MB/s][A
+Downloading data:  89%|████████▊ | 89.7M/101M [00:06<00:00, 50.8MB/s][A
+Downloading data:  94%|█████████▍| 94.9M/101M [00:06<00:00, 51.2MB/s][A
+Downloading data: 100%|█████████▉| 101M/101M [00:06<00:00, 53.3MB/s] [ADownloading data: 100%|██████████| 101M/101M [00:06<00:00, 14.7MB/s]
+Downloading data files:  50%|█████     | 1/2 [00:08<00:08,  8.16s/it]
+Downloading data:   0%|          | 0.00/6.27M [00:00<?, ?B/s][A
+Downloading data:   1%|          | 51.2k/6.27M [00:00<00:15, 390kB/s][A
+Downloading data:   5%|▍         | 312k/6.27M [00:00<00:04, 1.31MB/s][A
+Downloading data:  21%|██        | 1.32M/6.27M [00:00<00:01, 4.50MB/s][A
+Downloading data:  45%|████▍     | 2.80M/6.27M [00:00<00:00, 8.01MB/s][ADownloading data: 100%|██████████| 6.27M/6.27M [00:00<00:00, 11.4MB/s]
+Downloading data files: 100%|██████████| 2/2 [00:10<00:00,  4.61s/it]Downloading data files: 100%|██████████| 2/2 [00:10<00:00,  5.14s/it]
+Extracting data files:   0%|          | 0/2 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 2/2 [00:00<00:00, 1580.07it/s]
+Using custom data configuration SetFit--enron_spam-5c67eb35f5974df9
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--enron_spam-5c67eb35f5974df9/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+config.json not found in HuggingFace Hub
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Loading cached shuffled indices for dataset at /home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b/cache-a1625ff01ef006c7.arrow
+***** Running training *****
+  Num examples = 840
+  Num epochs = 1
+  Total optimization steps = 53
+  Total train batch size = 16
+Dataset json downloaded and prepared to /home/dkorat/.cache/huggingface/datasets/json/SetFit--enron_spam-5c67eb35f5974df9/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b. Subsequent calls will reuse this data.
+Test set: 2000
+pseudolabels accuracy: 0.59
+
+
+======== /store/setfit/scripts/tfew/../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/enron_spam/train-0-0 =======
+Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
+Iteration:   0%|          | 0/53 [00:00<?, ?it/s][A
+Iteration:   2%|▏         | 1/53 [00:00<00:06,  7.62it/s][A
+Iteration:   4%|▍         | 2/53 [00:00<00:06,  8.44it/s][A
+Iteration:   8%|▊         | 4/53 [00:00<00:04,  9.90it/s][A
+Iteration:  11%|█▏        | 6/53 [00:00<00:04, 10.45it/s][A
+Iteration:  15%|█▌        | 8/53 [00:00<00:04, 10.86it/s][A
+Iteration:  19%|█▉        | 10/53 [00:00<00:03, 11.10it/s][A
+Iteration:  23%|██▎       | 12/53 [00:01<00:03, 11.28it/s][A
+Iteration:  26%|██▋       | 14/53 [00:01<00:03, 11.42it/s][A
+Iteration:  30%|███       | 16/53 [00:01<00:03, 11.55it/s][A
+Iteration:  34%|███▍      | 18/53 [00:01<00:03, 11.62it/s][A
+Iteration:  38%|███▊      | 20/53 [00:01<00:02, 11.77it/s][A
+Iteration:  42%|████▏     | 22/53 [00:01<00:02, 11.80it/s][A
+Iteration:  45%|████▌     | 24/53 [00:02<00:02, 11.87it/s][A
+Iteration:  49%|████▉     | 26/53 [00:02<00:02, 11.91it/s][A
+Iteration:  53%|█████▎    | 28/53 [00:02<00:02, 11.92it/s][A
+Iteration:  57%|█████▋    | 30/53 [00:02<00:01, 12.02it/s][A
+Iteration:  60%|██████    | 32/53 [00:02<00:01, 12.09it/s][A
+Iteration:  64%|██████▍   | 34/53 [00:02<00:01, 12.07it/s][A
+Iteration:  68%|██████▊   | 36/53 [00:03<00:01, 12.12it/s][A
+Iteration:  72%|███████▏  | 38/53 [00:03<00:01, 12.08it/s][A
+Iteration:  75%|███████▌  | 40/53 [00:03<00:01, 12.09it/s][A
+Iteration:  79%|███████▉  | 42/53 [00:03<00:00, 12.09it/s][A
+Iteration:  83%|████████▎ | 44/53 [00:03<00:00, 12.09it/s][A
+Iteration:  87%|████████▋ | 46/53 [00:03<00:00, 12.07it/s][A
+Iteration:  91%|█████████ | 48/53 [00:04<00:00, 12.06it/s][A
+Iteration:  94%|█████████▍| 50/53 [00:04<00:00, 12.07it/s][A
+Iteration:  98%|█████████▊| 52/53 [00:04<00:00, 12.06it/s][AIteration: 100%|██████████| 53/53 [00:04<00:00, 11.97it/s]
+Epoch: 100%|██████████| 1/1 [00:04<00:00,  4.43s/it]Epoch: 100%|██████████| 1/1 [00:04<00:00,  4.43s/it]
+***** Running evaluation *****
+Using custom data configuration SetFit--amazon_counterfactual_en-11ed9947c46db2b2
+Metrics: {'accuracy': 0.519}
+Metrics: {'accuracy': 0.519}
+
+
+
+============== amazon_counterfactual_en ============
+Downloading and preparing dataset json/SetFit--amazon_counterfactual_en to /home/dkorat/.cache/huggingface/datasets/json/SetFit--amazon_counterfactual_en-11ed9947c46db2b2/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b...
+Downloading data files:   0%|          | 0/2 [00:00<?, ?it/s]
+Downloading data:   0%|          | 0.00/815k [00:00<?, ?B/s][A
+Downloading data:   6%|▋         | 52.2k/815k [00:00<00:01, 426kB/s][A
+Downloading data:  36%|███▋      | 296k/815k [00:00<00:00, 1.34MB/s][ADownloading data: 100%|██████████| 815k/815k [00:00<00:00, 2.57MB/s]
+Downloading data files:  50%|█████     | 1/2 [00:01<00:01,  1.60s/it]
+Downloading data:   0%|          | 0.00/816k [00:00<?, ?B/s][A
+Downloading data:   6%|▋         | 52.2k/816k [00:00<00:01, 444kB/s][A
+Downloading data:  38%|███▊      | 313k/816k [00:00<00:00, 1.47MB/s][ADownloading data: 100%|██████████| 816k/816k [00:00<00:00, 2.68MB/s]
+Downloading data files: 100%|██████████| 2/2 [00:03<00:00,  1.57s/it]Downloading data files: 100%|██████████| 2/2 [00:03<00:00,  1.57s/it]
+Extracting data files:   0%|          | 0/2 [00:00<?, ?it/s]Extracting data files: 100%|██████████| 2/2 [00:00<00:00, 1359.14it/s]
+Using custom data configuration SetFit--amazon_counterfactual_en-11ed9947c46db2b2
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--amazon_counterfactual_en-11ed9947c46db2b2/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+config.json not found in HuggingFace Hub
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Using custom data configuration SetFit--emotion-ddb0f0516f8def09
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Loading cached shuffled indices for dataset at /home/dkorat/.cache/huggingface/datasets/json/SetFit--emotion-ddb0f0516f8def09/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b/cache-a1625ff01ef006c7.arrow
+***** Running training *****
+  Num examples = 840
+  Num epochs = 1
+  Total optimization steps = 53
+  Total train batch size = 16
+Dataset json downloaded and prepared to /home/dkorat/.cache/huggingface/datasets/json/SetFit--amazon_counterfactual_en-11ed9947c46db2b2/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b. Subsequent calls will reuse this data.
+Test set: 5000
+pseudolabels accuracy: 0.59
+
+
+======== /store/setfit/scripts/tfew/../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/amazon_counterfactual_en/train-0-0 =======
+Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
+Iteration:   0%|          | 0/53 [00:00<?, ?it/s][A
+Iteration:   2%|▏         | 1/53 [00:00<00:06,  8.25it/s][A
+Iteration:   4%|▍         | 2/53 [00:00<00:06,  8.11it/s][A
+Iteration:   8%|▊         | 4/53 [00:00<00:04, 10.19it/s][A
+Iteration:  11%|█▏        | 6/53 [00:00<00:04, 11.05it/s][A
+Iteration:  15%|█▌        | 8/53 [00:00<00:03, 11.71it/s][A
+Iteration:  19%|█▉        | 10/53 [00:00<00:03, 12.03it/s][A
+Iteration:  23%|██▎       | 12/53 [00:01<00:03, 12.13it/s][A
+Iteration:  26%|██▋       | 14/53 [00:01<00:03, 12.46it/s][A
+Iteration:  30%|███       | 16/53 [00:01<00:02, 12.53it/s][A
+Iteration:  34%|███▍      | 18/53 [00:01<00:02, 12.59it/s][A
+Iteration:  38%|███▊      | 20/53 [00:01<00:02, 12.61it/s][A
+Iteration:  42%|████▏     | 22/53 [00:01<00:02, 12.84it/s][A
+Iteration:  45%|████▌     | 24/53 [00:01<00:02, 13.08it/s][A
+Iteration:  49%|████▉     | 26/53 [00:02<00:02, 13.11it/s][A
+Iteration:  53%|█████▎    | 28/53 [00:02<00:01, 13.21it/s][A
+Iteration:  57%|█████▋    | 30/53 [00:02<00:01, 13.40it/s][A
+Iteration:  60%|██████    | 32/53 [00:02<00:01, 13.55it/s][A
+Iteration:  64%|██████▍   | 34/53 [00:02<00:01, 13.62it/s][A
+Iteration:  68%|██████▊   | 36/53 [00:02<00:01, 13.66it/s][A
+Iteration:  72%|███████▏  | 38/53 [00:02<00:01, 13.57it/s][A
+Iteration:  75%|███████▌  | 40/53 [00:02<00:00, 13.61it/s][A
+Iteration:  79%|███████▉  | 42/53 [00:03<00:00, 13.58it/s][A
+Iteration:  83%|████████▎ | 44/53 [00:03<00:00, 13.58it/s][A
+Iteration:  87%|████████▋ | 46/53 [00:03<00:00, 13.68it/s][A
+Iteration:  91%|█████████ | 48/53 [00:03<00:00, 13.68it/s][A
+Iteration:  94%|█████████▍| 50/53 [00:03<00:00, 13.68it/s][A
+Iteration:  98%|█████████▊| 52/53 [00:03<00:00, 13.66it/s][AIteration: 100%|██████████| 53/53 [00:03<00:00, 13.46it/s]
+Epoch: 100%|██████████| 1/1 [00:03<00:00,  3.94s/it]Epoch: 100%|██████████| 1/1 [00:03<00:00,  3.94s/it]
+***** Running evaluation *****
+Downloading builder script:   0%|          | 0.00/1.72k [00:00<?, ?B/s]Downloading builder script: 4.48kB [00:00, 2.24MB/s]                   
+Metrics: {'matthews_correlation': 0.039347896369376925}
+Metrics: {'matthews_correlation': 0.039347896369376925}
+Computing medians for T-Few...
+[0]
+================================================================================
+Summary table:
+
+dataset, measure, 0_avg, 0_std
+amazon_counterfactual_en, matthews_correlation, 3.9, 0.0
+SentEval-CR, accuracy, 84.2, 0.0
+enron_spam, accuracy, 51.9, 0.0
+emotion, accuracy, 50.6, 0.0
+sst5, accuracy, 36.0, 0.0
+ag_news, accuracy, 61.6, 0.0
+Average, N/A, 48.1, 0.0
+================================================================================
+Saved summary table to ../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_0_shot_30_unlabeled_4_iter_top_200/summary_table.csv

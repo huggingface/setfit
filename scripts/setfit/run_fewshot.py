@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
     parser.add_argument("--pseudolabels_path", default=None)
-    parser.add_argument("--num_test_splits", type=int, default=10)
+    parser.add_argument("--num_train_splits", type=int, default=10)
     args = parser.parse_args()
 
     return args
@@ -98,9 +98,9 @@ def main():
     loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
     for dataset, metric in dataset_to_metric.items():
-        few_shot_train_splits, test_data = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
+        few_shot_train_splits, test_data, _ = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
         
-        for split_name, train_data in list(few_shot_train_splits.items())[:args.num_test_splits]:
+        for split_name, train_data in list(few_shot_train_splits.items())[:args.num_train_splits]:
             results_path = create_results_path(dataset, split_name, output_path)
             if os.path.exists(results_path) and not args.override_results:
                 print(f"Skipping finished experiment: {results_path}")
@@ -135,8 +135,7 @@ def main():
                 batch_size=args.batch_size,
                 num_epochs=args.num_epochs,
                 num_iterations=args.num_iterations,
-                pseudolabeled_examples=pseudolabeled_examples,
-                seed=0
+                pseudolabeled_examples=pseudolabeled_examples
             )
             if args.classifier == "pytorch":
                 trainer.freeze()

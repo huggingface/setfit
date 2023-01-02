@@ -1,3 +1,3 @@
 #!/bin/bash
 export CUDA_VISIBLE_DEVICES=6
-tmux new-session -d -s tfew-sst2 './gen.sh 2>&1 | tee gen_out.txt'
+tmux new-session -d -s setfit-pl './run_pl.sh 2>&1 | tee pl.txt'
