@@ -1,3 +1,4 @@
+import copy
 import warnings
 from typing import Callable, Optional, Union
 
@@ -164,12 +165,24 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
     return onnx_model
 
 
+def hummingbird_export(model, data_sample):
+    try:
+        from hummingbird.ml import convert
+    except ImportError:
+        raise ImportError(
+            "Hummingbird-ML library is not installed." "Run 'pip install hummingbird-ml' to use this type of export."
+        )
+    onnx_model = convert(model, "onnx", data_sample)
+    return onnx_model._model
+
+
 def export_onnx(
     model_body: SentenceTransformer,
     model_head: Union[torch.nn.Module, LogisticRegression],
     opset: int,
     output_path: str = "model.onnx",
     ignore_ir_version: bool = True,
+    use_hummingbird: bool = False,
 ) -> None:
     """Export a PyTorch backed SetFit model to ONNX Intermediate Representation.
 
@@ -228,7 +241,15 @@ def export_onnx(
 
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
-        onnx_head = export_sklearn_head_to_onnx(model_head, opset)
+        # Hummingbird-ML can be used as an option to export to standard opset
+        if use_hummingbird:
+            with torch.no_grad():
+                test_input = copy.deepcopy(dummy_inputs)
+                head_input = model_body(test_input)["sentence_embedding"]
+                onnx_head = hummingbird_export(model_head, head_input.detach().numpy())
+        else:
+            onnx_head = export_sklearn_head_to_onnx(model_head, opset)
+
         max_opset = max([x.version for x in onnx_head.opset_import])
 
         if max_opset != opset:
@@ -256,10 +277,11 @@ def export_onnx(
             raise ValueError(msg)
 
         # Combine the onnx body and head by mapping the pooled output to the input of the sklearn model.
+        head_input_name = next(iter(onnx_head.graph.input)).name
         onnx_setfit_model = onnx.compose.merge_models(
             onnx_body,
             onnx_head,
-            io_map=[("logits", "model_head")],
+            io_map=[("logits", head_input_name)],
         )
 
     # Save the final model.
