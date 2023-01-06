@@ -159,11 +159,8 @@ class DistillationSetFitTrainer(SetFitTrainer):
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
-        is_differentiable_head = isinstance(
-            self.student_model.model_head, torch.nn.Module
-        )  # If False, assume using sklearn
 
-        if not is_differentiable_head or self._freeze:
+        if not self.student_model.has_differentiable_head or self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
                 losses.BatchAllTripletLoss,
@@ -232,7 +229,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 use_amp=self.use_amp,
             )
 
-        if not is_differentiable_head or not self._freeze:
+        if not self.student_model.has_differentiable_head or not self._freeze:
             # Train the final classifier
             self.student_model.fit(
                 x_train,

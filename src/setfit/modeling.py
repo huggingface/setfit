@@ -258,6 +258,11 @@ class SetFitModel(PyTorchModelHubMixin):
 
         self.normalize_embeddings = normalize_embeddings
 
+    @property
+    def has_differentiable_head(self) -> bool:
+        # if False, sklearn is assumed to be used instead
+        return isinstance(self.model_head, nn.Module)
+
     def fit(
         self,
         x_train: List[str],
@@ -270,7 +275,7 @@ class SetFitModel(PyTorchModelHubMixin):
         max_length: Optional[int] = None,
         show_progress_bar: Optional[bool] = None,
     ) -> None:
-        if isinstance(self.model_head, nn.Module):  # train with pyTorch
+        if self.has_differentiable_head:  # train with pyTorch
             device = self.model_body.device
             self.model_body.train()
             self.model_head.train()
@@ -393,7 +398,7 @@ class SetFitModel(PyTorchModelHubMixin):
         """
         self.model_body = self.model_body.to(device)
 
-        if isinstance(self.model_head, torch.nn.Module):
+        if self.has_differentiable_head:
             self.model_head = self.model_head.to(device)
 
         return self
