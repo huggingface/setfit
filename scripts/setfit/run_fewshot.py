@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import sys
+import time
 import warnings
 from collections import Counter
 from shutil import copyfile
@@ -55,6 +56,8 @@ def parse_args():
     parser.add_argument("--override_results", default=False, action="store_true")
     parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
+    parser.add_argument("--remove_duplicate_samples", type=bool, default=False)
+    parser.add_argument("--train_time", type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -134,6 +137,7 @@ def main():
                 model.model_body._modules["2"] = models.Normalize()
 
             # Train on current split
+            st_time = time.time()
             trainer = SetFitTrainer(
                 model=model,
                 train_dataset=train_data,
@@ -156,18 +160,19 @@ def main():
                     batch_size=args.batch_size,
                 )
             else:
-                trainer.train()
+                trainer.train(remove_duplicate_samples=args.remove_duplicate_samples)
+            runtime = time.time() - st_time
 
             # Evaluate the model on the test data
             metrics = trainer.evaluate()
             print(f"Metrics: {metrics}")
 
+            results = {"score": metrics[metric] * 100, "measure": metric}
+            if args.train_time:
+                results.update({"train_time": runtime})
+
             with open(results_path, "w") as f_out:
-                json.dump(
-                    {"score": metrics[metric] * 100, "measure": metric},
-                    f_out,
-                    sort_keys=True,
-                )
+                json.dump(results, f_out, sort_keys=True)
 
 
 if __name__ == "__main__":
