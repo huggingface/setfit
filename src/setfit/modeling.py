@@ -683,6 +683,18 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
     return pairs
 
 
+def sentence_pairs_remove_duplicates(sentences: List[InputExample]):
+    key_pairs = set()
+    rm_duplicate_sentences = []
+    for s in sentences:
+        key = tuple(sorted(s.texts))
+        if key not in key_pairs:
+            key_pairs.add(key)
+            if key[0] != key[1]:
+                rm_duplicate_sentences.append(s)
+    return rm_duplicate_sentences
+
+
 class SKLearnWrapper:
     def __init__(self, st_model=None, clf=None):
         self.st_model = st_model

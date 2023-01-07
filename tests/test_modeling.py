@@ -1,3 +1,4 @@
+from itertools import combinations
 from unittest import TestCase
 
 import numpy as np
@@ -9,7 +10,12 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel
-from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from setfit.modeling import (
+    MODEL_HEAD_NAME,
+    sentence_pairs_generation,
+    sentence_pairs_generation_multilabel,
+    sentence_pairs_remove_duplicates,
+)
 
 
 def test_sentence_pairs_generation():
@@ -40,6 +46,21 @@ def test_sentence_pairs_generation_multilabel():
     assert len(pairs) == 12
     assert pairs[0].texts == ["sent 1", "sent 1"]
     assert pairs[0].label == 1.0
+
+
+def test_sentence_pairs_remove_duplicates():
+    sentences = np.array(["sent 1", "sent 2", "sent 3"])
+    labels = np.array(["label 1", "label 2", "label 3"])
+
+    pairs = []
+    n_iterations = 2
+
+    for _ in range(n_iterations):
+        pairs = sentence_pairs_generation(sentences, labels, pairs)
+    no_duplicate_pairs = sentence_pairs_remove_duplicates(pairs)
+
+    assert len(pairs) == len(sentences) * n_iterations * 2
+    assert len(no_duplicate_pairs) <= len(list(combinations(sentences, 2)))
 
 
 def test_setfit_model_body():

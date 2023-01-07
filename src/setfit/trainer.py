@@ -12,7 +12,12 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .modeling import (
+    SupConLoss,
+    sentence_pairs_generation,
+    sentence_pairs_generation_multilabel,
+    sentence_pairs_remove_duplicates,
+)
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -267,6 +272,7 @@ class SetFitTrainer:
         max_length: Optional[int] = None,
         trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         show_progress_bar: bool = True,
+        remove_duplicate_samples: bool = False,
     ):
         """
         Main training entry point.
@@ -294,6 +300,8 @@ class SetFitTrainer:
                 The trial run or the hyperparameter dictionary for hyperparameter search.
             show_progress_bar (`bool`, *optional*, defaults to `True`):
                 Whether to show a bar that indicates training progress.
+            remove_duplicate_samples (`bool`, *optional*, defaults to `False`):
+                Removes duplicate samples from the training set, to improve training speeds on large datasets.
         """
         set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
 
@@ -362,6 +370,12 @@ class SetFitTrainer:
                         train_examples = sentence_pairs_generation(
                             np.array(x_train), np.array(y_train), train_examples
                         )
+
+                if remove_duplicate_samples:
+                    prv_train_len = len(train_examples)
+                    train_examples = sentence_pairs_remove_duplicates(train_examples)
+                    chg_train_perc = (prv_train_len - len(train_examples)) / prv_train_len
+                    logger.info(f"{chg_train_perc:.1%} of training examples removed as duplicates.")
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
