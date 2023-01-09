@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
-import torch
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -78,10 +77,10 @@ class SetFitTrainer:
 
     def __init__(
         self,
-        model: "SetFitModel" = None,
-        train_dataset: "Dataset" = None,
-        eval_dataset: "Dataset" = None,
-        model_init: Callable[[], "SetFitModel"] = None,
+        model: Optional["SetFitModel"] = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class=losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -89,7 +88,7 @@ class SetFitTrainer:
         learning_rate: float = 2e-5,
         batch_size: int = 16,
         seed: int = 42,
-        column_mapping: Dict[str, str] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
@@ -103,6 +102,7 @@ class SetFitTrainer:
 
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
+        self.model_init = model_init
         self.metric = metric
         self.loss_class = loss_class
         self.num_iterations = num_iterations
@@ -119,15 +119,12 @@ class SetFitTrainer:
 
         if model is None:
             if model_init is not None:
-                self.model_init = model_init
                 model = self.call_model_init()
             else:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument")
         else:
             if model_init is not None:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
-
-            self.model_init = model_init
 
         self.model = model
         self.hp_search_backend = None
@@ -190,7 +187,7 @@ class SetFitTrainer:
                 setattr(self, key, value)
             elif number_of_arguments(self.model_init) == 0:  # we do not warn if model_init could be using it
                 logger.warning(
-                    f"Trying to set {key} in the hyperparameter search but there is no corresponding field in "
+                    f"Trying to set {key!r} in the hyperparameter search but there is no corresponding field in "
                     "`SetFitTrainer`, and `model_init` does not take any arguments."
                 )
 
@@ -215,17 +212,17 @@ class SetFitTrainer:
         logger.info(f"Trial: {params}")
         self.apply_hyperparameters(params, final_model=False)
 
-    def call_model_init(self, params: Dict[str, Any] = None):
+    def call_model_init(self, params: Optional[Dict[str, Any]] = None):
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
         elif model_init_argcount == 1:
             model = self.model_init(params)
         else:
-            raise RuntimeError("model_init should have 0 or 1 argument.")
+            raise RuntimeError("`model_init` should have 0 or 1 argument.")
 
         if model is None:
-            raise RuntimeError("model_init should not return None.")
+            raise RuntimeError("`model_init` should not return None.")
 
         return model
 
@@ -234,7 +231,7 @@ class SetFitTrainer:
         Freeze SetFitModel's differentiable head.
         Note: call this function only when using the differentiable head.
         """
-        if not isinstance(self.model.model_head, torch.nn.Module):
+        if not self.model.has_differentiable_head:
             raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
 
         self._freeze = True  # Currently use self._freeze as a switch
@@ -249,7 +246,7 @@ class SetFitTrainer:
             keep_body_frozen (`bool`, *optional*, defaults to `False`):
                 Whether to freeze the body when unfreeze the head.
         """
-        if not isinstance(self.model.model_head, torch.nn.Module):
+        if not self.model.has_differentiable_head:
             raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
 
         self._freeze = False  # Currently use self._freeze as a switch
@@ -267,7 +264,7 @@ class SetFitTrainer:
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
-        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         show_progress_bar: bool = True,
     ):
         """
@@ -297,12 +294,13 @@ class SetFitTrainer:
             show_progress_bar (`bool`, *optional*, defaults to `True`):
                 Whether to show a bar that indicates training progress.
         """
+        set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
+
         if trial:  # Trial and model initialization
-            set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
-            raise ValueError("SetFitTrainer: training requires a train_dataset.")
+            raise ValueError("Training requires a `train_dataset` given to the `SetFitTrainer` initialization.")
 
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
@@ -319,9 +317,8 @@ class SetFitTrainer:
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
-        is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
-        if not is_differentiable_head or self._freeze:
+        if not self.model.has_differentiable_head or self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
                 losses.BatchAllTripletLoss,
@@ -385,7 +382,7 @@ class SetFitTrainer:
                 use_amp=self.use_amp,
             )
 
-        if not is_differentiable_head or not self._freeze:
+        if not self.model.has_differentiable_head or not self._freeze:
             # Train the final classifier
             self.model.fit(
                 x_train,
@@ -516,7 +513,7 @@ class SetFitTrainer:
         organization: Optional[str] = None,
         private: Optional[bool] = None,
         api_endpoint: Optional[str] = None,
-        use_auth_token: Union[bool, str] = None,
+        use_auth_token: Optional[Union[bool, str]] = None,
         git_user: Optional[str] = None,
         git_email: Optional[str] = None,
         config: Optional[dict] = None,

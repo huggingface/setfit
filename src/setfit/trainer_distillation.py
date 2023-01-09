@@ -66,10 +66,10 @@ class DistillationSetFitTrainer(SetFitTrainer):
     def __init__(
         self,
         teacher_model: "SetFitModel",
-        student_model: "SetFitModel" = None,
-        train_dataset: "Dataset" = None,
-        eval_dataset: "Dataset" = None,
-        model_init: Callable[[], "SetFitModel"] = None,
+        student_model: Optional["SetFitModel"] = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         loss_class: torch.nn.Module = losses.CosineSimilarityLoss,
         num_iterations: int = 20,
@@ -77,7 +77,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         learning_rate: float = 2e-5,
         batch_size: int = 16,
         seed: int = 42,
-        column_mapping: Dict[str, str] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
     ) -> None:
@@ -108,7 +108,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
-        trial: Union["optuna.Trial", Dict[str, Any]] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         show_progress_bar: bool = True,
     ):
         """
@@ -134,8 +134,9 @@ class DistillationSetFitTrainer(SetFitTrainer):
             show_progress_bar (`bool`, *optional*, defaults to `True`):
                 Whether to show a bar that indicates training progress.
         """
+        set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
+
         if trial:  # Trial and model initialization
-            set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
@@ -158,11 +159,8 @@ class DistillationSetFitTrainer(SetFitTrainer):
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
-        is_differentiable_head = isinstance(
-            self.student_model.model_head, torch.nn.Module
-        )  # If False, assume using sklearn
 
-        if not is_differentiable_head or self._freeze:
+        if not self.student_model.has_differentiable_head or self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
                 losses.BatchAllTripletLoss,
@@ -231,7 +229,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 use_amp=self.use_amp,
             )
 
-        if not is_differentiable_head or not self._freeze:
+        if not self.student_model.has_differentiable_head or not self._freeze:
             # Train the final classifier
             self.student_model.fit(
                 x_train,

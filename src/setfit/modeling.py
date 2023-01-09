@@ -36,6 +36,58 @@ logger = logging.get_logger(__name__)
 
 MODEL_HEAD_NAME = "model_head.pkl"
 
+MODEL_CARD_TEMPLATE = """---
+license: apache-2.0
+tags:
+- setfit
+- sentence-transformers
+- text-classification
+pipeline_tag: text-classification
+---
+
+# {model_name}
+
+This is a [SetFit model](https://github.com/huggingface/setfit) that can be used for text classification. \
+The model has been trained using an efficient few-shot learning technique that involves:
+
+1. Fine-tuning a [Sentence Transformer](https://www.sbert.net) with contrastive learning.
+2. Training a classification head with features from the fine-tuned Sentence Transformer.
+
+## Usage
+
+To use this model for inference, first install the SetFit library:
+
+```bash
+python -m pip install setfit
+```
+
+You can then run inference as follows:
+
+```python
+from setfit import SetFitModel
+
+# Download from Hub and run inference
+model = SetFitModel.from_pretrained("{model_name}")
+# Run inference
+preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
+```
+
+## BibTeX entry and citation info
+
+```bibtex
+@article{{https://doi.org/10.48550/arxiv.2209.11055,
+doi = {{10.48550/ARXIV.2209.11055}},
+url = {{https://arxiv.org/abs/2209.11055}},
+author = {{Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren}},
+keywords = {{Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences}},
+title = {{Efficient Few-Shot Learning Without Prompts}},
+publisher = {{arXiv}},
+year = {{2022}},
+copyright = {{Creative Commons Attribution 4.0 International}}
+}}
+```
+"""
+
 
 class SetFitBaseModel:
     def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
@@ -77,7 +129,6 @@ class SetFitHead(models.Dense):
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
-        self.linear = None
         if in_features is not None:
             self.linear = nn.Linear(in_features, out_features, bias=bias)
         else:
@@ -147,8 +198,7 @@ class SetFitHead(models.Dense):
     def get_loss_fn(self):
         if self.out_features == 1:  # if single target
             return torch.nn.BCELoss()
-        else:
-            return torch.nn.CrossEntropyLoss()
+        return torch.nn.CrossEntropyLoss()
 
     @property
     def device(self) -> torch.device:
@@ -159,7 +209,7 @@ class SetFitHead(models.Dense):
         """
         return next(self.parameters()).device
 
-    def get_config_dict(self) -> Dict[str, Union[int, float, bool]]:
+    def get_config_dict(self) -> Dict[str, Optional[Union[int, float, bool]]]:
         return {
             "in_features": self.in_features,
             "out_features": self.out_features,
@@ -185,9 +235,9 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def __init__(
         self,
-        model_body: Optional[nn.Module] = None,
-        model_head: Optional[Union[nn.Module, LogisticRegression]] = None,
-        multi_target_strategy: str = None,
+        model_body: Optional[SentenceTransformer] = None,
+        model_head: Optional[Union[SetFitHead, LogisticRegression]] = None,
+        multi_target_strategy: Optional[str] = None,
         l2_weight: float = 1e-2,
         normalize_embeddings: bool = False,
     ) -> None:
@@ -200,11 +250,16 @@ class SetFitModel(PyTorchModelHubMixin):
 
         self.normalize_embeddings = normalize_embeddings
 
+    @property
+    def has_differentiable_head(self) -> bool:
+        # if False, sklearn is assumed to be used instead
+        return isinstance(self.model_head, nn.Module)
+
     def fit(
         self,
         x_train: List[str],
         y_train: List[int],
-        num_epochs: Optional[int] = None,
+        num_epochs: int,
         batch_size: Optional[int] = None,
         learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
@@ -212,7 +267,7 @@ class SetFitModel(PyTorchModelHubMixin):
         max_length: Optional[int] = None,
         show_progress_bar: Optional[bool] = None,
     ) -> None:
-        if isinstance(self.model_head, nn.Module):  # train with pyTorch
+        if self.has_differentiable_head:  # train with pyTorch
             device = self.model_body.device
             self.model_body.train()
             self.model_head.train()
@@ -249,7 +304,7 @@ class SetFitModel(PyTorchModelHubMixin):
         self,
         x_train: List[str],
         y_train: List[int],
-        batch_size: int,
+        batch_size: Optional[int] = None,
         max_length: Optional[int] = None,
         shuffle: bool = True,
     ) -> DataLoader:
@@ -344,11 +399,42 @@ class SetFitModel(PyTorchModelHubMixin):
 
         return outputs
 
+    def to(self, device: Union[str, torch.device]) -> "SetFitModel":
+        """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
+
+        Args:
+            device (Union[str, torch.device]): The identifier of the device to move the model to.
+
+        Returns:
+            SetFitModel: Returns the original model, but now on the desired device.
+        """
+        self.model_body = self.model_body.to(device)
+
+        if self.has_differentiable_head:
+            self.model_head = self.model_head.to(device)
+
+        return self
+
+    def create_model_card(self, path: str, model_name: Optional[str] = "SetFit Model") -> None:
+        """Creates and saves a model card for a SetFit model.
+
+        Args:
+            path (str): The path to save the model card to.
+            model_name (str, *optional*): The name of the model. Defaults to `SetFit Model`.
+        """
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        model_card_content = MODEL_CARD_TEMPLATE.format(model_name=model_name)
+        with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
+            f.write(model_card_content)
+
     def __call__(self, inputs):
         return self.predict(inputs)
 
     def _save_pretrained(self, save_directory: str) -> None:
-        self.model_body.save(path=save_directory)
+        self.model_body.save(path=save_directory, create_model_card=False)
+        self.create_model_card(path=save_directory, model_name=save_directory)
         joblib.dump(self.model_head, f"{save_directory}/{MODEL_HEAD_NAME}")
 
     @classmethod
