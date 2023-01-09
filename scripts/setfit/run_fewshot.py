@@ -16,7 +16,7 @@ from setfit.data import SAMPLE_SIZES
 from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits
 
 
-sys.path.insert(0, "..")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from create_summary_table import create_summary_table  # noqa: E402
 
 
