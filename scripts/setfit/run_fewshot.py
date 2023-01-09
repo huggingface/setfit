@@ -173,7 +173,8 @@ def main():
                     sort_keys=True,
                 )
 
-    # Create a summary_table.csv file from all of the results in `output_path`
+    # Create a summary_table.csv file that computes means and standard deviations
+    # for all of the results in `output_path`.
     create_summary_table(str(output_path))
 
 
