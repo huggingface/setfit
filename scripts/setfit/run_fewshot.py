@@ -16,6 +16,10 @@ from setfit.data import SAMPLE_SIZES
 from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits
 
 
+sys.path.insert(0, "..")
+from create_summary_table import create_summary_table  # noqa: E402
+
+
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
 
@@ -168,6 +172,9 @@ def main():
                     f_out,
                     sort_keys=True,
                 )
+
+    # Create a summary_table.csv file from all of the results in `output_path`
+    create_summary_table(str(output_path))
 
 
 if __name__ == "__main__":
