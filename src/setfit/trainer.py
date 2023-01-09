@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
-import torch
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -232,7 +231,7 @@ class SetFitTrainer:
         Freeze SetFitModel's differentiable head.
         Note: call this function only when using the differentiable head.
         """
-        if not isinstance(self.model.model_head, torch.nn.Module):
+        if not self.model.has_differentiable_head:
             raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
 
         self._freeze = True  # Currently use self._freeze as a switch
@@ -247,7 +246,7 @@ class SetFitTrainer:
             keep_body_frozen (`bool`, *optional*, defaults to `False`):
                 Whether to freeze the body when unfreeze the head.
         """
-        if not isinstance(self.model.model_head, torch.nn.Module):
+        if not self.model.has_differentiable_head:
             raise ValueError("Please use the differentiable head in `SetFitModel` when calling this function.")
 
         self._freeze = False  # Currently use self._freeze as a switch
@@ -318,9 +317,8 @@ class SetFitTrainer:
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
-        is_differentiable_head = isinstance(self.model.model_head, torch.nn.Module)  # If False, assume using sklearn
 
-        if not is_differentiable_head or self._freeze:
+        if not self.model.has_differentiable_head or self._freeze:
             # sentence-transformers adaptation
             if self.loss_class in [
                 losses.BatchAllTripletLoss,
@@ -384,7 +382,7 @@ class SetFitTrainer:
                 use_amp=self.use_amp,
             )
 
-        if not is_differentiable_head or not self._freeze:
+        if not self.model.has_differentiable_head or not self._freeze:
             # Train the final classifier
             self.model.fit(
                 x_train,
