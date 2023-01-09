@@ -373,28 +373,28 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=True
+            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
         )
 
         outputs = self.model_head.predict(embeddings)
 
-        if isinstance(outputs, torch.Tensor) and as_numpy:
+        if as_numpy and self.has_differentiable_head:
             outputs = outputs.cpu().numpy()
-        elif isinstance(outputs, np.ndarray) and not as_numpy:
+        elif not as_numpy and not self.has_differentiable_head:
             outputs = torch.from_numpy(outputs)
 
         return outputs
 
     def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=True
+            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
         )
 
         outputs = self.model_head.predict_proba(embeddings)
 
-        if isinstance(outputs, torch.Tensor) and as_numpy:
+        if as_numpy and self.has_differentiable_head:
             outputs = outputs.cpu().numpy()
-        elif isinstance(outputs, np.ndarray) and not as_numpy:
+        elif not as_numpy and not self.has_differentiable_head:
             outputs = torch.from_numpy(outputs)
 
         return outputs
