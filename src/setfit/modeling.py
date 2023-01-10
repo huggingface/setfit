@@ -480,7 +480,9 @@ class SetFitModel(PyTorchModelHubMixin):
         else:
             head_params = model_kwargs.get("head_params", {})
             if use_differentiable_head:
-                # follow the `model_body`, put `model_head` on the target device
+                # Base `model_head` parameters
+                # - get the sentence embedding dimension from the `model_body`
+                # - follow the `model_body`, put `model_head` on the target device
                 base_head_params = {
                     "in_features": model_body.get_sentence_embedding_dimension(),
                     "device": target_device,
