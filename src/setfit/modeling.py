@@ -478,23 +478,18 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
+            head_params = model_kwargs.get("head_params", {})
             if use_differentiable_head:
-                body_embedding_dim = model_body.get_sentence_embedding_dimension()
-                if "head_params" in model_kwargs.keys():
-                    model_kwargs["head_params"].update({"in_features": body_embedding_dim})
-                    model_kwargs["head_params"].update(
-                        {"device": target_device}
-                    )  # follow the `model_body`, put `model_head` on the target device
-                    model_head = SetFitHead(**model_kwargs["head_params"])
-                else:
-                    model_head = SetFitHead(
-                        in_features=body_embedding_dim, device=target_device
-                    )  # follow the `model_body`, put `model_head` on the target device
+                # follow the `model_body`, put `model_head` on the target device
+                base_head_params = (
+                    {
+                        "device": target_device,
+                        "in_features": model_body.get_sentence_embedding_dimension(),
+                    },
+                )
+                model_head = SetFitHead({**head_params, **base_head_params})
             else:
-                if "head_params" in model_kwargs.keys():
-                    clf = LogisticRegression(**model_kwargs["head_params"])
-                else:
-                    clf = LogisticRegression()
+                clf = LogisticRegression(**head_params)
                 if multi_target_strategy is not None:
                     if multi_target_strategy == "one-vs-rest":
                         multilabel_classifier = OneVsRestClassifier(clf)
