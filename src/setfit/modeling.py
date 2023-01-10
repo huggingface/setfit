@@ -183,23 +183,15 @@ class SetFitHead(models.Dense):
 
     def predict_proba(self, x_test: torch.Tensor) -> torch.Tensor:
         self.eval()
-
         return self(x_test)
 
-    def predict(self, x_test: Union[torch.Tensor, "ndarray"]) -> Union[torch.Tensor, "ndarray"]:
-        is_tensor = isinstance(x_test, torch.Tensor)
-        if not is_tensor:  # then assume it's ndarray
-            x_test = torch.Tensor(x_test).to(self.device)
-
+    def predict(self, x_test: torch.Tensor) -> torch.Tensor:
         probs = self.predict_proba(x_test)
 
         if self.out_features == 1:
             out = torch.where(probs >= 0.5, 1, 0)
         else:
             out = torch.argmax(probs, dim=-1)
-
-        if not is_tensor:
-            return out.cpu().numpy()
 
         return out
 
@@ -379,13 +371,33 @@ class SetFitModel(PyTorchModelHubMixin):
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def predict(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
-        return self.model_head.predict(embeddings)
+    def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+        embeddings = self.model_body.encode(
+            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+        )
 
-    def predict_proba(self, x_test: List[str]) -> Union[torch.Tensor, np.ndarray]:
-        embeddings = self.model_body.encode(x_test, normalize_embeddings=self.normalize_embeddings)
-        return self.model_head.predict_proba(embeddings)
+        outputs = self.model_head.predict(embeddings)
+
+        if as_numpy and self.has_differentiable_head:
+            outputs = outputs.cpu().numpy()
+        elif not as_numpy and not self.has_differentiable_head:
+            outputs = torch.from_numpy(outputs)
+
+        return outputs
+
+    def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+        embeddings = self.model_body.encode(
+            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+        )
+
+        outputs = self.model_head.predict_proba(embeddings)
+
+        if as_numpy and self.has_differentiable_head:
+            outputs = outputs.cpu().numpy()
+        elif not as_numpy and not self.has_differentiable_head:
+            outputs = torch.from_numpy(outputs)
+
+        return outputs
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
         """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
