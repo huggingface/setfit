@@ -487,7 +487,7 @@ class SetFitModel(PyTorchModelHubMixin):
                     "in_features": model_body.get_sentence_embedding_dimension(),
                     "device": target_device,
                 }
-                model_head = SetFitHead({**head_params, **base_head_params})
+                model_head = SetFitHead(**{**head_params, **base_head_params})
             else:
                 clf = LogisticRegression(**head_params)
                 if multi_target_strategy is not None:
