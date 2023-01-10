@@ -481,12 +481,10 @@ class SetFitModel(PyTorchModelHubMixin):
             head_params = model_kwargs.get("head_params", {})
             if use_differentiable_head:
                 # follow the `model_body`, put `model_head` on the target device
-                base_head_params = (
-                    {
-                        "device": target_device,
-                        "in_features": model_body.get_sentence_embedding_dimension(),
-                    },
-                )
+                base_head_params = {
+                    "in_features": model_body.get_sentence_embedding_dimension(),
+                    "device": target_device,
+                }
                 model_head = SetFitHead({**head_params, **base_head_params})
             else:
                 clf = LogisticRegression(**head_params)
