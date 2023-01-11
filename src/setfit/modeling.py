@@ -1,7 +1,9 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+import warnings
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -14,14 +16,14 @@ import joblib
 import numpy as np
 import requests
 import torch
-import torch.nn as nn
+from torch import nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
+from tqdm.auto import trange, tqdm
 
 from . import logging
 from .data import SetFitDataset
@@ -208,7 +210,7 @@ class SetFitHead(models.Dense):
 
         return out
 
-    def get_loss_fn(self):
+    def get_loss_fn(self) -> nn.Module:
         return torch.nn.CrossEntropyLoss()
 
     @property
@@ -232,9 +234,9 @@ class SetFitHead(models.Dense):
     @staticmethod
     def _init_weight(module):
         if isinstance(module, nn.Linear):
-            torch.nn.init.xavier_uniform_(module.weight)
+            nn.init.xavier_uniform_(module.weight)
             if module.bias is not None:
-                torch.nn.init.constant_(module.bias, 1e-2)
+                nn.init.constant_(module.bias, 1e-2)
 
     def __repr__(self):
         return "SetFitHead({})".format(self.get_config_dict())
@@ -270,25 +272,29 @@ class SetFitModel(PyTorchModelHubMixin):
         self,
         x_train: List[str],
         y_train: List[int],
-        num_epochs: int,
-        batch_size: Optional[int] = None,
-        learning_rate: Optional[float] = None,
-        body_learning_rate: Optional[float] = None,
+        classifier_num_epochs: int,
+        classifier_batch_size: Optional[int] = None,
+        classifier_learning_rate: Optional[Tuple[float, float]] = (None, None),
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
-        show_progress_bar: Optional[bool] = None,
+        show_progress_bar: bool = True,
+        end_to_end: bool = False,
+        **kwargs
     ) -> None:
         if self.has_differentiable_head:  # train with pyTorch
             device = self.model_body.device
             self.model_body.train()
             self.model_head.train()
+            if not end_to_end:
+                self.freeze("body")
 
-            dataloader = self._prepare_dataloader(x_train, y_train, batch_size, max_length)
+            dataloader = self._prepare_dataloader(x_train, y_train, classifier_batch_size, max_length)
             criterion = self.model_head.get_loss_fn()
-            optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
+            embedding_learning_rate, classifier_learning_rate = classifier_learning_rate
+            optimizer = self._prepare_optimizer(classifier_learning_rate, embedding_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-            for epoch_idx in tqdm(range(num_epochs), desc="Epoch", disable=not show_progress_bar):
-                for batch in dataloader:
+            for epoch_idx in trange(classifier_num_epochs, desc="Epoch", disable=not show_progress_bar):
+                for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar, leave=False):
                     features, labels = batch
                     optimizer.zero_grad()
 
@@ -298,15 +304,18 @@ class SetFitModel(PyTorchModelHubMixin):
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
-                        outputs = torch.nn.functional.normalize(outputs, p=2, dim=1)
+                        outputs = nn.functional.normalize(outputs, p=2, dim=1)
                     outputs = self.model_head(outputs)
                     logits = outputs["logits"]
 
-                    loss = criterion(logits, labels)
+                    loss: torch.Tensor = criterion(logits, labels)
                     loss.backward()
                     optimizer.step()
 
                 scheduler.step()
+
+            if not end_to_end:
+                self.unfreeze("body")
         else:  # train with sklearn
             embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
@@ -349,16 +358,16 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def _prepare_optimizer(
         self,
-        learning_rate: float,
-        body_learning_rate: Optional[float],
+        classifier_learning_rate: float,
+        embedding_learning_rate: Optional[float],
         l2_weight: float,
     ) -> torch.optim.Optimizer:
-        body_learning_rate = body_learning_rate or learning_rate
+        embedding_learning_rate = embedding_learning_rate or classifier_learning_rate
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
-                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": l2_weight},
-                {"params": self.model_head.parameters(), "lr": learning_rate, "weight_decay": l2_weight},
+                {"params": self.model_body.parameters(), "lr": embedding_learning_rate, "weight_decay": l2_weight},
+                {"params": self.model_head.parameters(), "lr": classifier_learning_rate, "weight_decay": l2_weight},
             ],
         )
 
@@ -368,25 +377,30 @@ class SetFitModel(PyTorchModelHubMixin):
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=True)
 
-        if component is None or component == "head":
+        if (component is None or component == "head") and self.has_differentiable_head:
             self._freeze_or_not(self.model_head, to_freeze=True)
 
-    def unfreeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+    def unfreeze(self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None) -> None:
+        if keep_body_frozen is not None:
+            warnings.warn("`keep_body_frozen` is deprecated. Please either pass \"head\", \"body\" or no arguments to unfreeze both.")
+
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=False)
 
-        if component is None or component == "head":
+        if (component is None or component == "head") and self.has_differentiable_head:
             self._freeze_or_not(self.model_head, to_freeze=False)
 
-    def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool) -> None:
+    def _freeze_or_not(self, model: nn.Module, to_freeze: bool) -> None:
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
-        embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+    def encode(self, inputs: List[str]) -> Union[torch.Tensor, "ndarray"]:
+        return self.model_body.encode(
+            inputs, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
         )
 
+    def predict(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+        embeddings = self.encode(inputs)
         outputs = self.model_head.predict(embeddings)
 
         if as_numpy and self.has_differentiable_head:
@@ -396,11 +410,8 @@ class SetFitModel(PyTorchModelHubMixin):
 
         return outputs
 
-    def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
-        embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
-        )
-
+    def predict_proba(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+        embeddings = self.encode(inputs)
         outputs = self.model_head.predict_proba(embeddings)
 
         if as_numpy and self.has_differentiable_head:
@@ -419,6 +430,9 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             SetFitModel: Returns the original model, but now on the desired device.
         """
+        # Note that we must also set _target_device, or any SentenceTransformer.fit() call will reset
+        # the body location
+        self.model_body._target_device = device if isinstance(device, torch.device) else torch.device(device)
         self.model_body = self.model_body.to(device)
 
         if self.has_differentiable_head:

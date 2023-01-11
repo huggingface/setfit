@@ -9,8 +9,7 @@ from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
 from setfit.modeling import SetFitModel, SupConLoss
-from setfit.trainer import Trainer
-from setfit.training_args import TrainingArguments
+from setfit.trainer import SetFitTrainer
 from setfit.utils import BestRun
 
 
@@ -21,7 +20,7 @@ logging.enable_propagation()
 class SetFitTrainerTest(TestCase):
     def setUp(self):
         self.model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
-        self.args = TrainingArguments(num_iterations=1)
+        self.num_iterations = 1
 
     def test_trainer_works_with_model_init(self):
         def get_model():
@@ -31,11 +30,11 @@ class SetFitTrainerTest(TestCase):
         dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
         )
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model_init=get_model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
         trainer.train()
@@ -46,11 +45,11 @@ class SetFitTrainerTest(TestCase):
         dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
         )
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
         trainer.train()
@@ -59,30 +58,36 @@ class SetFitTrainerTest(TestCase):
 
     def test_trainer_works_with_default_columns(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
-        trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
+        trainer = SetFitTrainer(
+            model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
+        )
         trainer.train()
         metrics = trainer.evaluate()
         self.assertEqual(metrics["accuracy"], 1.0)
 
     def test_trainer_raises_error_with_missing_label(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
+        trainer = SetFitTrainer(
+            model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
+        )
         with pytest.raises(ValueError):
             trainer.train()
 
     def test_trainer_raises_error_with_missing_text(self):
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
-        trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
+        trainer = SetFitTrainer(
+            model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
+        )
         with pytest.raises(ValueError):
             trainer.train()
 
     def test_column_mapping_with_missing_text(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
+            num_iterations=self.num_iterations,
             column_mapping={"label_new": "label"},
         )
         with pytest.raises(ValueError):
@@ -91,11 +96,11 @@ class SetFitTrainerTest(TestCase):
     def test_column_mapping_multilabel(self):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]})
 
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 
@@ -123,12 +128,12 @@ class SetFitTrainerTest(TestCase):
                 "accuracy": accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
             }
 
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
             metric=compute_metrics,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 
@@ -148,12 +153,12 @@ class SetFitTrainerTest(TestCase):
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
         )
 
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
             metric="this-metric-does-not-exist",  # invalid metric value
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 
@@ -161,6 +166,15 @@ class SetFitTrainerTest(TestCase):
 
         with self.assertRaises(FileNotFoundError):
             trainer.evaluate()
+
+    def test_trainer_raises_error_with_wrong_warmup_proportion(self):
+        # warmup_proportion must not be > 1.0
+        with pytest.raises(ValueError):
+            SetFitTrainer(warmup_proportion=1.1)
+
+        # warmup_proportion must not be < 0.0
+        with pytest.raises(ValueError):
+            SetFitTrainer(warmup_proportion=-0.1)
 
 
 class SetFitTrainerDifferentiableHeadTest(TestCase):
@@ -173,22 +187,28 @@ class SetFitTrainerDifferentiableHeadTest(TestCase):
             use_differentiable_head=True,
             head_params={"out_features": 3},
         )
-        self.args = TrainingArguments(num_iterations=1)
+        self.num_iterations = 1
 
+    @pytest.mark.skip(reason="The `trainer.train` argument removals were a hard deprecation, so this test would throw an error.")
     def test_trainer_max_length_exceeds_max_acceptable_length(self):
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=self.dataset,
             eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
         trainer.unfreeze(keep_body_frozen=True)
         with self.assertLogs(level=logging.WARNING) as cm:
             max_length = 4096
             max_acceptable_length = self.model.model_body.get_max_seq_length()
-            args = TrainingArguments(num_iterations=1, max_length=max_length)
-            trainer.train(args)
+            trainer.train(
+                num_epochs=1,
+                batch_size=3,
+                learning_rate=1e-2,
+                l2_weight=0.0,
+                max_length=max_length,
+            )
             self.assertEqual(
                 cm.output,
                 [
@@ -199,21 +219,28 @@ class SetFitTrainerDifferentiableHeadTest(TestCase):
                 ],
             )
 
+    @pytest.mark.skip(reason="The `trainer.train` argument removals were a hard deprecation, so this test would throw an error.")
     def test_trainer_max_length_is_smaller_than_max_acceptable_length(self):
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=self.dataset,
             eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
+        trainer.unfreeze(keep_body_frozen=True)
 
         # An alternative way of `assertNoLogs`, which is new in Python 3.10
         try:
             with self.assertLogs(level=logging.WARNING) as cm:
                 max_length = 32
-                args = TrainingArguments(num_iterations=1, max_length=max_length)
-                trainer.train(args)
+                trainer.train(
+                    num_epochs=1,
+                    batch_size=3,
+                    learning_rate=1e-2,
+                    l2_weight=0.0,
+                    max_length=max_length,
+                )
                 self.assertEqual(cm.output, [])
         except AssertionError as e:
             if e.args[0] != "no logs of level WARNING or higher triggered on root":
@@ -225,7 +252,7 @@ class SetFitTrainerMultilabelTest(TestCase):
         self.model = SetFitModel.from_pretrained(
             "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
         )
-        self.args = TrainingArguments(num_iterations=1)
+        self.num_iterations = 1
 
     def test_trainer_multilabel_support_callable_as_metric(self):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]})
@@ -239,12 +266,12 @@ class SetFitTrainerMultilabelTest(TestCase):
                 "accuracy": multilabel_accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
             }
 
-        trainer = Trainer(
+        trainer = SetFitTrainer(
             model=self.model,
-            args=self.args,
             train_dataset=dataset,
             eval_dataset=dataset,
             metric=compute_metrics,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 
@@ -266,7 +293,7 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
         self.dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
         )
-        self.args = TrainingArguments(num_iterations=1)
+        self.num_iterations = 1
 
     def test_hyperparameter_search(self):
         class MyTrialShortNamer(TrialShortNamer):
@@ -295,10 +322,10 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
         def hp_name(trial):
             return MyTrialShortNamer.shortname(trial.params)
 
-        trainer = Trainer(
-            args=self.args,
+        trainer = SetFitTrainer(
             train_dataset=self.dataset,
             eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
             model_init=model_init,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
@@ -321,12 +348,11 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
 def test_trainer_works_with_non_default_loss_class(loss_class):
     dataset = Dataset.from_dict({"text": ["a 1", "b 1", "c 1", "a 2", "b 2", "c 2"], "label": [0, 1, 2, 0, 1, 2]})
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
-    args = TrainingArguments(num_iterations=1)
-    trainer = Trainer(
+    trainer = SetFitTrainer(
         model=model,
-        args=args,
         train_dataset=dataset,
         eval_dataset=dataset,
+        num_iterations=1,
         loss_class=loss_class,
     )
     trainer.train()

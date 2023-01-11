@@ -4,21 +4,20 @@ import pytest
 from datasets import Dataset
 from sentence_transformers.losses import CosineSimilarityLoss
 
-from setfit import DistillationTrainer, Trainer
+from setfit import DistillationSetFitTrainer, SetFitTrainer
 from setfit.modeling import SetFitModel
-from setfit.training_args import TrainingArguments
 
 
 class DistillationSetFitTrainerTest(TestCase):
     def setUp(self):
         self.teacher_model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
         self.student_model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L3-v2")
-        self.args = TrainingArguments(num_iterations=1)
+        self.num_iterations = 1
 
     def test_trainer_works_with_default_columns(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
         # train a teacher model
-        teacher_trainer = Trainer(
+        teacher_trainer = SetFitTrainer(
             model=self.teacher_model,
             train_dataset=dataset,
             eval_dataset=dataset,
@@ -30,7 +29,7 @@ class DistillationSetFitTrainerTest(TestCase):
         metrics = teacher_trainer.evaluate()
         teacher_model = teacher_trainer.model
 
-        student_trainer = DistillationTrainer(
+        student_trainer = DistillationSetFitTrainer(
             teacher_model=teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
@@ -47,36 +46,36 @@ class DistillationSetFitTrainerTest(TestCase):
 
     def test_trainer_raises_error_with_missing_label(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = DistillationTrainer(
+        trainer = DistillationSetFitTrainer(
             teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
-            args=self.args,
+            num_iterations=self.num_iterations,
         )
         with pytest.raises(ValueError):
             trainer.train()
 
     def test_trainer_raises_error_with_missing_text(self):
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
-        trainer = DistillationTrainer(
+        trainer = DistillationSetFitTrainer(
             teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
-            args=self.args,
+            num_iterations=self.num_iterations,
         )
         with pytest.raises(ValueError):
             trainer.train()
 
     def test_column_mapping_with_missing_text(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = DistillationTrainer(
+        trainer = DistillationSetFitTrainer(
             teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
-            args=self.args,
+            num_iterations=self.num_iterations,
             column_mapping={"label_new": "label"},
         )
         with pytest.raises(ValueError):
@@ -85,12 +84,12 @@ class DistillationSetFitTrainerTest(TestCase):
     def test_column_mapping_multilabel(self):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]})
 
-        trainer = DistillationTrainer(
+        trainer = DistillationSetFitTrainer(
             teacher_model=self.teacher_model,
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
-            args=self.args,
+            num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 

@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -9,8 +9,11 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from torch.utils.data import DataLoader
 from transformers.trainer_utils import set_seed
 
-from . import SetFitTrainer, logging
+from setfit.training_args import TrainingArguments
+
+from . import logging
 from .modeling import SupConLoss, sentence_pairs_generation_cos_sim
+from .trainer import Trainer
 
 
 if TYPE_CHECKING:
@@ -23,7 +26,7 @@ logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
 
-class DistillationSetFitTrainer(SetFitTrainer):
+class DistillationTrainer(Trainer):
     """Trainer to compress a SetFit model with knowledge distillation.
 
     Args:
@@ -67,6 +70,108 @@ class DistillationSetFitTrainer(SetFitTrainer):
         self,
         teacher_model: "SetFitModel",
         student_model: Optional["SetFitModel"] = None,
+        args: TrainingArguments = None,
+        train_dataset: Optional["Dataset"] = None,
+        eval_dataset: Optional["Dataset"] = None,
+        model_init: Optional[Callable[[], "SetFitModel"]] = None,
+        metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
+        loss_class: torch.nn.Module = losses.CosineSimilarityLoss,
+        column_mapping: Optional[Dict[str, str]] = None,
+    ) -> None:
+        super().__init__(
+            model=student_model,
+            args=args,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            model_init=model_init,
+            metric=metric,
+            loss_class=loss_class,
+            column_mapping=column_mapping,
+        )
+
+        self.teacher_model = teacher_model
+        self.student_model = self.model
+
+    def train_embeddings(
+        self,
+        x_train: List[str],
+        y_train: List[int],
+        args: Optional[TrainingArguments] = None,
+    ):
+        args = args or self.args or TrainingArguments()
+
+        # sentence-transformers adaptation
+        if self.loss_class in [
+            losses.BatchAllTripletLoss,
+            losses.BatchHardTripletLoss,
+            losses.BatchSemiHardTripletLoss,
+            losses.BatchHardSoftMarginTripletLoss,
+            SupConLoss,
+        ]:
+            train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
+            train_data_sampler = SentenceLabelDataset(train_examples)
+
+            batch_size = min(args.embedding_batch_size, len(train_data_sampler))
+            train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
+
+            if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
+                train_loss = self.loss_class(
+                    model=self.student_model.model_body,
+                    distance_metric=args.distance_metric,
+                )
+            elif self.loss_class is SupConLoss:
+                train_loss = self.loss_class(model=self.student_model)
+            else:
+                train_loss = self.loss_class(
+                    model=self.student_model.model_body,
+                    distance_metric=args.distance_metric,
+                    margin=args.margin,
+                )
+
+            train_steps = len(train_dataloader) * args.embedding_num_epochs
+        else:
+            train_examples = []
+
+            # **************** student training *********************
+            # Only this snippet differs from Trainer.train_embeddings
+            x_train_embd_student = self.teacher_model.model_body.encode(x_train)
+            y_train = self.teacher_model.model_head.predict(x_train_embd_student)
+
+            cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
+
+            train_examples = []
+            for _ in range(args.num_iterations):
+                train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
+            # **************** student training END *****************
+
+            batch_size = args.embedding_batch_size
+            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+            train_loss = self.loss_class(self.student_model.model_body)
+            train_steps = len(train_dataloader) * args.embedding_num_epochs
+
+        logger.info("***** Running training *****")
+        logger.info(f"  Num examples = {len(train_examples)}")
+        logger.info(f"  Num epochs = {args.embedding_num_epochs}")
+        logger.info(f"  Total optimization steps = {train_steps}")
+        logger.info(f"  Total train batch size = {batch_size}")
+
+        warmup_steps = math.ceil(train_steps * args.warmup_proportion)
+        self.student_model.model_body.fit(
+            train_objectives=[(train_dataloader, train_loss)],
+            epochs=args.embedding_num_epochs,
+            steps_per_epoch=train_steps,
+            optimizer_params={"lr": args.embedding_learning_rate},
+            warmup_steps=warmup_steps,
+            show_progress_bar=args.show_progress_bar,
+            use_amp=args.use_amp,
+        )
+
+
+class DistillationSetFitTrainer(DistillationTrainer):
+    def __init__(
+        self,
+        teacher_model: "SetFitModel",
+        student_model: Optional["SetFitModel"] = None,
         train_dataset: Optional["Dataset"] = None,
         eval_dataset: Optional["Dataset"] = None,
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
@@ -80,164 +185,25 @@ class DistillationSetFitTrainer(SetFitTrainer):
         column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
-    ) -> None:
-        super(DistillationSetFitTrainer, self).__init__(
-            model=student_model,
+    ):
+        args = TrainingArguments(
+            num_iterations=num_iterations,
+            num_epochs=num_epochs,
+            embedding_learning_rate=learning_rate,
+            classifier_learning_rate=learning_rate,
+            batch_size=batch_size,
+            seed=seed,
+            use_amp=use_amp,
+            warmup_proportion=warmup_proportion,
+        )
+        super().__init__(
+            teacher_model=teacher_model,
+            student_model=student_model,
+            args=args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             model_init=model_init,
             metric=metric,
             loss_class=loss_class,
-            num_iterations=num_iterations,
-            num_epochs=num_epochs,
-            learning_rate=learning_rate,
-            batch_size=batch_size,
-            seed=seed,
             column_mapping=column_mapping,
-            use_amp=use_amp,
-            warmup_proportion=warmup_proportion,
         )
-
-        self.teacher_model = teacher_model
-        self.student_model = self.model
-
-    def train(
-        self,
-        num_epochs: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        learning_rate: Optional[float] = None,
-        body_learning_rate: Optional[float] = None,
-        l2_weight: Optional[float] = None,
-        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
-        show_progress_bar: bool = True,
-    ):
-        """
-        Main training entry point.
-
-        Args:
-            num_epochs (`int`, *optional*):
-                Temporary change the number of epochs to train the Sentence Transformer body/head for.
-                If ignore, will use the value given in initialization.
-            batch_size (`int`, *optional*):
-                Temporary change the batch size to use for contrastive training or logistic regression.
-                If ignore, will use the value given in initialization.
-            learning_rate (`float`, *optional*):
-                Temporary change the learning rate to use for contrastive training or SetFitModel's head in logistic regression.
-                If ignore, will use the value given in initialization.
-            body_learning_rate (`float`, *optional*):
-                Temporary change the learning rate to use for SetFitModel's body in logistic regression only.
-                If ignore, will be the same as `learning_rate`.
-            l2_weight (`float`, *optional*):
-                Temporary change the weight of L2 regularization for SetFitModel's differentiable head in logistic regression.
-            trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
-                The trial run or the hyperparameter dictionary for hyperparameter search.
-            show_progress_bar (`bool`, *optional*, defaults to `True`):
-                Whether to show a bar that indicates training progress.
-        """
-        set_seed(self.seed)  # Seed must be set before instantiating the model when using model_init.
-
-        if trial:  # Trial and model initialization
-            self._hp_search_setup(trial)  # sets trainer parameters and initializes model
-
-        if self.train_dataset is None:
-            raise ValueError(
-                "Training requires a `train_dataset` given to the `DistillationSetFitTrainer` initialization."
-            )
-
-        self._validate_column_mapping(self.train_dataset)
-        train_dataset = self.train_dataset
-        if self.column_mapping is not None:
-            logger.info("Applying column mapping to training dataset")
-            train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
-
-        x_train = train_dataset["text"]
-        y_train = train_dataset["label"]
-        if self.loss_class is None:
-            logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
-            self.loss_class = losses.CosineSimilarityLoss
-
-        num_epochs = num_epochs or self.num_epochs
-        batch_size = batch_size or self.batch_size
-        learning_rate = learning_rate or self.learning_rate
-
-        if not self.student_model.has_differentiable_head or self._freeze:
-            # sentence-transformers adaptation
-            if self.loss_class in [
-                losses.BatchAllTripletLoss,
-                losses.BatchHardTripletLoss,
-                losses.BatchSemiHardTripletLoss,
-                losses.BatchHardSoftMarginTripletLoss,
-                SupConLoss,
-            ]:
-                train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-                train_data_sampler = SentenceLabelDataset(train_examples)
-
-                batch_size = min(batch_size, len(train_data_sampler))
-                train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
-
-                if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
-                    train_loss = self.loss_class(
-                        model=self.student_model,
-                        distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-                    )
-                elif self.loss_class is SupConLoss:
-                    train_loss = self.loss_class(model=self.student_model)
-                else:
-
-                    train_loss = self.loss_class(
-                        model=self.student_model,
-                        distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,
-                        margin=0.25,
-                    )
-
-                train_steps = len(train_dataloader) * self.num_epochs
-            else:
-                train_examples = []
-
-                # **************** student training ****************
-                x_train_embd_student = self.teacher_model.model_body.encode(x_train)
-                y_train = self.teacher_model.model_head.predict(x_train_embd_student)
-
-                cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
-
-                train_examples = []
-                for _ in range(self.num_iterations):
-                    train_examples = sentence_pairs_generation_cos_sim(
-                        np.array(x_train), train_examples, cos_sim_matrix
-                    )
-
-                # **************** student training END ****************
-
-                train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-                train_loss = self.loss_class(self.student_model.model_body)
-                train_steps = len(train_dataloader) * num_epochs
-
-            logger.info("***** Running training *****")
-            logger.info(f"  Num examples = {len(train_examples)}")
-            logger.info(f"  Num epochs = {num_epochs}")
-            logger.info(f"  Total optimization steps = {train_steps}")
-            logger.info(f"  Total train batch size = {batch_size}")
-
-            warmup_steps = math.ceil(train_steps * self.warmup_proportion)
-            self.student_model.model_body.fit(
-                train_objectives=[(train_dataloader, train_loss)],
-                epochs=num_epochs,
-                steps_per_epoch=train_steps,
-                optimizer_params={"lr": learning_rate},
-                warmup_steps=warmup_steps,
-                show_progress_bar=show_progress_bar,
-                use_amp=self.use_amp,
-            )
-
-        if not self.student_model.has_differentiable_head or not self._freeze:
-            # Train the final classifier
-            self.student_model.fit(
-                x_train,
-                y_train,
-                num_epochs=num_epochs,
-                batch_size=batch_size,
-                learning_rate=learning_rate,
-                body_learning_rate=body_learning_rate,
-                l2_weight=l2_weight,
-                show_progress_bar=show_progress_bar,
-            )
