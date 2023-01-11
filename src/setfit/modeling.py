@@ -386,6 +386,10 @@ class SetFitModel(PyTorchModelHubMixin):
             warnings.warn(
                 '`keep_body_frozen` is deprecated. Please either pass "head", "body" or no arguments to unfreeze both.'
             )
+            # If the body must stay frozen, only unfreeze the head. Eventually, this entire if-branch
+            # can be removed.
+            if keep_body_frozen and not component:
+                component = "head"
 
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=False)
