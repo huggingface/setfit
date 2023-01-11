@@ -124,7 +124,7 @@ class SetFitModelDifferentiableHeadTest(TestCase):
 
         outputs = model.model_body(features)
         outputs = model.model_head(outputs)
-        loss = criterion(outputs["prediction"], labels)
+        loss = criterion(outputs["logits"], labels)
         loss.backward()
         optimizer.step()
 
@@ -151,7 +151,7 @@ class SetFitModelDifferentiableHeadTest(TestCase):
         model = self._build_model(num_classes=1)
 
         assert type(model.model_head) is SetFitHead
-        assert model.model_head.out_features == 1
+        assert model.model_head.out_features == 2
 
     def test_setfit_multi_targets_differentiable_head(self):
         assert type(self.model.model_head) is SetFitHead
