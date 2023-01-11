@@ -2,6 +2,13 @@ import math
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
+
+# Google Colab runs on Python 3.7, so we need this to be compatible
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 import evaluate
 import numpy as np
 from sentence_transformers import InputExample, losses
@@ -107,10 +114,6 @@ class Trainer:
                 raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
 
         self.model = model
-        # Adopt Trainer.(un)freeze from SetFitModel.(un)freeze
-        self.freeze = self.model.freeze
-        self.unfreeze = self.model.unfreeze
-
         self.hp_search_backend = None
         self._freeze = True  # If True, will train the body only; otherwise, train the body and head
 
@@ -202,6 +205,14 @@ class Trainer:
             raise RuntimeError("`model_init` should not return None.")
 
         return model
+
+    def freeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+        return self.model.freeze(component)
+
+    def unfreeze(
+        self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None
+    ) -> None:
+        return self.model.unfreeze(component, keep_body_frozen=keep_body_frozen)
 
     def train(
         self, args: Optional[TrainingArguments] = None, trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None
