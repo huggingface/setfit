@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from copy import copy
 from dataclasses import dataclass, fields, field
-from typing import Callable, Tuple, Union
+import inspect
+from typing import Any, Callable, Dict, Tuple, Union
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 
 
@@ -64,5 +67,17 @@ class TrainingArguments:
         # filter out fields that are defined as field(init=False)
         return {field.name: getattr(self, field.name) for field in fields(self) if field.init}
 
-    def copy(self):
+    @classmethod
+    def from_dict(cls, arguments: Dict[str, Any], ignore_extra: bool = False) -> TrainingArguments:
+        if ignore_extra:
+            return cls(**{
+                key: value for key, value in arguments.items()
+                if key in inspect.signature(cls).parameters
+            })
+        return cls(**arguments)
+
+    def copy(self) -> TrainingArguments:
         return copy(self)
+
+    def update(self, arguments: Dict[str, Any], ignore_extra: bool = False) -> TrainingArguments:
+        return TrainingArguments.from_dict({**self.to_dict(), **arguments}, ignore_extra=ignore_extra)

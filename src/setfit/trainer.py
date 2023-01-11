@@ -162,18 +162,11 @@ class Trainer:
             params (`Dict[str, Any]`): The parameters, usually from `BestRun.hyperparameters`
             final_model (`bool`, *optional*, defaults to `False`): If `True`, replace the `model_init()` function with a fixed model based on the parameters.
         """
-        for key, value in params.items():
-            if hasattr(self, key):
-                old_attr = getattr(self, key, None)
-                # Casting value to the proper type
-                if old_attr is not None:
-                    value = type(old_attr)(value)
-                setattr(self, key, value)
-            elif number_of_arguments(self.model_init) == 0:  # we do not warn if model_init could be using it
-                logger.warning(
-                    f"Trying to set {key!r} in the hyperparameter search but there is no corresponding field in "
-                    "`SetFitTrainer`, and `model_init` does not take any arguments."
-                )
+
+        if self.args:
+            self.args = self.args.update(params, ignore_extra=True)
+        else:
+            self.args = TrainingArguments.from_dict(params, ignore_extra=True)
 
         self.model = self.model_init(params)
         if final_model:
@@ -397,7 +390,7 @@ class Trainer:
         if backend is None:
             backend = default_hp_search_backend()
             if backend is None:
-                raise RuntimeError("optuna should be installed. " "To install optuna run `pip install optuna`. ")
+                raise RuntimeError("optuna should be installed. To install optuna run `pip install optuna`. ")
         backend = HPSearchBackend(backend)
         if backend == HPSearchBackend.OPTUNA and not is_optuna_available():
             raise RuntimeError("You picked the optuna backend, but it is not installed. Use `pip install optuna`.")
