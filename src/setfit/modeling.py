@@ -1,9 +1,8 @@
 import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-import time
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
-import warnings
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -16,14 +15,14 @@ import joblib
 import numpy as np
 import requests
 import torch
-from torch import nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
+from torch import nn
 from torch.utils.data import DataLoader
-from tqdm.auto import trange, tqdm
+from tqdm.auto import tqdm, trange
 
 from . import logging
 from .data import SetFitDataset
@@ -279,7 +278,7 @@ class SetFitModel(PyTorchModelHubMixin):
         max_length: Optional[int] = None,
         show_progress_bar: bool = True,
         end_to_end: bool = False,
-        **kwargs
+        **kwargs,
     ) -> None:
         if self.has_differentiable_head:  # train with pyTorch
             device = self.model_body.device
@@ -380,9 +379,13 @@ class SetFitModel(PyTorchModelHubMixin):
         if (component is None or component == "head") and self.has_differentiable_head:
             self._freeze_or_not(self.model_head, to_freeze=True)
 
-    def unfreeze(self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None) -> None:
+    def unfreeze(
+        self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None
+    ) -> None:
         if keep_body_frozen is not None:
-            warnings.warn("`keep_body_frozen` is deprecated. Please either pass \"head\", \"body\" or no arguments to unfreeze both.")
+            warnings.warn(
+                '`keep_body_frozen` is deprecated. Please either pass "head", "body" or no arguments to unfreeze both.'
+            )
 
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=False)

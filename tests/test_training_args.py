@@ -4,6 +4,7 @@ import pytest
 
 from setfit.training_args import TrainingArguments
 
+
 class TestTrainingArguments(TestCase):
     def test_training_args_raises_error_with_wrong_warmup_proportion(self):
         # warmup_proportion must not be > 1.0

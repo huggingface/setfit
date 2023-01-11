@@ -189,7 +189,9 @@ class SetFitTrainerDifferentiableHeadTest(TestCase):
         )
         self.num_iterations = 1
 
-    @pytest.mark.skip(reason="The `trainer.train` argument removals were a hard deprecation, so this test would throw an error.")
+    @pytest.mark.skip(
+        reason="The `trainer.train` argument removals were a hard deprecation, so this test would throw an error."
+    )
     def test_trainer_max_length_exceeds_max_acceptable_length(self):
         trainer = SetFitTrainer(
             model=self.model,
@@ -219,7 +221,9 @@ class SetFitTrainerDifferentiableHeadTest(TestCase):
                 ],
             )
 
-    @pytest.mark.skip(reason="The `trainer.train` argument removals were a hard deprecation, so this test would throw an error.")
+    @pytest.mark.skip(
+        reason="The `trainer.train` argument removals were a hard deprecation, so this test would throw an error."
+    )
     def test_trainer_max_length_is_smaller_than_max_acceptable_length(self):
         trainer = SetFitTrainer(
             model=self.model,

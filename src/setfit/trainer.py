@@ -1,6 +1,6 @@
 import math
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 import warnings
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 import evaluate
 import numpy as np
@@ -214,7 +214,9 @@ class Trainer:
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
 
         if self.train_dataset is None:
-            raise ValueError(f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization.")
+            raise ValueError(
+                f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization."
+            )
 
         self._validate_column_mapping(self.train_dataset)
         train_dataset = self.train_dataset
