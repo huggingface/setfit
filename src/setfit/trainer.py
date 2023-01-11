@@ -215,8 +215,20 @@ class Trainer:
         return self.model.unfreeze(component, keep_body_frozen=keep_body_frozen)
 
     def train(
-        self, args: Optional[TrainingArguments] = None, trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None
+        self,
+        args: Optional[TrainingArguments] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
+        **kwargs,
     ):
+        if kwargs:
+            warnings.warn(
+                f"`{self.__class__.__name__}.train` does not accept keyword arguments anymore. "
+                f"Please provide training arguments via a `TrainingArguments` instance to the `{self.__class__.__name__}` "
+                f"initialisation or the `{self.__class__.__name__}.train` method.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         args = args or self.args or TrainingArguments()
 
         set_seed(args.seed)  # Seed must be set before instantiating the model when using model_init.
