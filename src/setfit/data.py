@@ -248,7 +248,7 @@ class SetFitDataset(TorchDataset):
     def __len__(self) -> int:
         return len(self.x)
 
-    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
+    def __getitem__(self, idx: int)->Tuple[TokenizerOutput, Union[int, List[int]]]: 
         feature = self.tokenizer(
             self.x[idx],
             max_length=self.max_length,
