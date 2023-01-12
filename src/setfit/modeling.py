@@ -704,7 +704,7 @@ def negative_sentence_pairs_generate(
 
 
 def sentence_pairs_generation(
-    sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
+    sentences: "np.ndarray[str]", labels: "np.ndarray[int]", max_pairs: int, unique_pairs: bool
 ) -> List[InputExample]:
     max_pos_pairs = max_pairs / 2
     positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs)
