@@ -11,7 +11,12 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .modeling import (
+    SupConLoss,
+    negative_sentence_pairs_generate,
+    positive_sentence_pairs_generate,
+    sentence_pairs_generation_multilabel,
+)
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -94,6 +99,7 @@ class SetFitTrainer:
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
         margin: float = 0.25,
         samples_per_label: int = 2,
+        unique_pairs: bool = False,
     ):
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
             raise ValueError(
@@ -116,6 +122,7 @@ class SetFitTrainer:
         self.distance_metric = distance_metric
         self.margin = margin
         self.samples_per_label = samples_per_label
+        self.unique_pairs = unique_pairs
 
         if model is None:
             if model_init is not None:
@@ -349,17 +356,22 @@ class SetFitTrainer:
 
                 train_steps = len(train_dataloader) * self.num_epochs
             else:
-                train_examples = []
-
-                for _ in range(self.num_iterations):
-                    if self.model.multi_target_strategy is not None:
+                if self.model.multi_target_strategy is not None:  # TODO
+                    train_examples = []
+                    for _ in range(self.num_iterations):
                         train_examples = sentence_pairs_generation_multilabel(
                             np.array(x_train), np.array(y_train), train_examples
                         )
-                    else:
-                        train_examples = sentence_pairs_generation(
-                            np.array(x_train), np.array(y_train), train_examples
-                        )
+                else:
+                    max_pos_samples = self.num_iterations * len(x_train)
+                    pos_samples = positive_sentence_pairs_generate(
+                        np.array(x_train), np.array(y_train), max_pos_samples, self.unique_pairs
+                    )
+                    max_neg_samples = (2 * max_pos_samples) - len(pos_samples)
+                    neg_samples = negative_sentence_pairs_generate(
+                        np.array(x_train), np.array(y_train), max_neg_samples, self.unique_pairs
+                    )
+                    train_examples = pos_samples + neg_samples
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)

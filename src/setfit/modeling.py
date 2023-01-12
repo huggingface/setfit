@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from itertools import combinations, combinations_with_replacement, zip_longest
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
@@ -681,6 +682,75 @@ def sentence_pairs_generation_multilabel(sentences, labels, pairs):
             # Prepare a negative pair of sentences and update our lists
             pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
     # Return a 2-tuple of our sentence pairs and labels
+    return pairs
+
+
+def positive_sentence_pairs_generate(
+    sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
+) -> List[InputExample]:
+    """Generates all unique or upto a max no. of combinations of positive sentence pairs.
+
+    Samples positive combinations of sentences (without replacement) and maximises
+        sampling of different classes in the pairs being generated.
+
+    Args:
+        sentences: an array of sentences
+        labels: an array of the label_id for each sentence in `sentences`
+        max_pairs: returns when this many pairs are generated
+        unique_pairs: if true will return sentences if all unique combinations,
+            before max_pairs count is reached
+
+    Returns:
+        List of positive sentence pairs (upto the no. of unique_pairs or max_pairs)
+    """
+    pairs = []
+    while True:
+        positive_combinators = []
+        for _label in np.unique(labels):
+            label_sentences = sentences[np.where(labels == _label)]
+            positive_combinators.append(combinations_with_replacement(label_sentences, 2))
+
+        for pos_pairs in zip_longest(*positive_combinators):
+            for pos_pair in pos_pairs:
+                if pos_pair is not None:
+                    pairs.append(InputExample(texts=[*pos_pair], label=1.0))
+                    if len(pairs) == max_pairs:
+                        return pairs
+
+        if unique_pairs:
+            break
+    logger.warning(f"** All ({len(pairs):,}) positive unique pairs generated")
+    return pairs
+
+
+def negative_sentence_pairs_generate(
+    sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
+) -> List[InputExample]:
+    """Generates all or upto a max sample no. of negative combinations.
+
+    Randomly samples negative combinations of sentences (without replacement)
+
+    Args:
+        sentences: an array of sentences
+        labels: an array of the label_id for each sentence in `sentences`
+        max_pairs: returns when this many pairs are generated
+        unique_pairs: if true will return sentences if all unique combinations,
+            before max_pairs count is reached
+
+    Returns:
+        List of negative sentence pairs (upto the no. of unique_pairs or max_pairs)
+    """
+    pairs = []
+    while True:
+        sent_labels = [(sent, label) for sent, label in zip(sentences, labels)]
+        for (_sentence, _label), (sentence, label) in combinations(sent_labels, 2):
+            if _label != label:
+                pairs.append(InputExample(texts=[_sentence, sentence], label=0.0))
+                if len(pairs) == max_pairs:
+                    return pairs
+        if unique_pairs:
+            break
+    logger.warning(f"** All ({len(pairs):,}) negative unique pairs generated")
     return pairs
 
 
