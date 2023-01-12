@@ -222,8 +222,8 @@ class SetFitDataset(TorchDataset):
     Args:
         x (`List[str]`):
             A list of input data as texts that will be fed into `SetFitModel`.
-        y (`List[int]` for single-label classification and `List[List[int]]` for multi-label classification):
-            A list of input data's labels.
+        y (`Union[List[int], List[List[int]]]`):
+            A list of input data's labels. Can be a nested list for multi-label classification.
         tokenizer (`PreTrainedTokenizerBase`):
             The tokenizer from `SetFitModel`'s body.
         max_length (`int`, defaults to `32`):
