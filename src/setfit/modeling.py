@@ -673,7 +673,7 @@ def positive_sentence_pairs_generate(
 
 
 def negative_sentence_pairs_generate(
-    sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
+    sentences: "np.ndarray[str]", labels: "np.ndarray[int]", max_pairs: int, unique_pairs: bool
 ) -> List[InputExample]:
     """Generates all or upto a max sample no. of negative combinations.
 
