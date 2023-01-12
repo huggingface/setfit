@@ -634,57 +634,6 @@ class SupConLoss(nn.Module):
         return loss
 
 
-def sentence_pairs_generation(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    num_classes = np.unique(labels)
-    idx = [np.where(labels == i)[0] for i in num_classes]
-
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        label = labels[first_idx]
-        second_idx = np.random.choice(idx[np.where(num_classes == label)[0][0]])
-        positive_sentence = sentences[second_idx]
-        # Prepare a positive pair and update the sentences and labels
-        # lists, respectively
-        pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-        negative_idx = np.where(labels != label)[0]
-        negative_sentence = sentences[np.random.choice(negative_idx)]
-        # Prepare a negative pair of sentences and update our lists
-        pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
-
-
-def sentence_pairs_generation_multilabel(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        sample_labels = np.where(labels[first_idx, :] == 1)[0]
-        if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
-            continue
-        else:
-
-            for _label in sample_labels:
-                second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
-                positive_sentence = sentences[second_idx]
-                # Prepare a positive pair and update the sentences and labels
-                # lists, respectively
-                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-            # Search for sample that don't have a label in common with current
-            # sentence
-            negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
-            negative_sentence = sentences[np.random.choice(negative_idx)]
-            # Prepare a negative pair of sentences and update our lists
-            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
-
-
 def positive_sentence_pairs_generate(
     sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
 ) -> List[InputExample]:
@@ -751,6 +700,45 @@ def negative_sentence_pairs_generate(
         if unique_pairs:
             break
     logger.warning(f"** All ({len(pairs):,}) negative unique pairs generated")
+    return pairs
+
+
+def sentence_pairs_generation(
+    sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
+) -> List[InputExample]:
+    max_pos_pairs = max_pairs / 2
+    positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs)
+
+    max_neg_pairs = max_pairs - len(positive_pairs)
+    negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_neg_pairs, unique_pairs)
+
+    return positive_pairs + negative_pairs
+
+
+def sentence_pairs_generation_multilabel(sentences, labels, pairs):
+    # Initialize two empty lists to hold the (sentence, sentence) pairs and
+    # labels to indicate if a pair is positive or negative
+    for first_idx in range(len(sentences)):
+        current_sentence = sentences[first_idx]
+        sample_labels = np.where(labels[first_idx, :] == 1)[0]
+        if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
+            continue
+        else:
+
+            for _label in sample_labels:
+                second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
+                positive_sentence = sentences[second_idx]
+                # Prepare a positive pair and update the sentences and labels
+                # lists, respectively
+                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
+
+            # Search for sample that don't have a label in common with current
+            # sentence
+            negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
+            negative_sentence = sentences[np.random.choice(negative_idx)]
+            # Prepare a negative pair of sentences and update our lists
+            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
+    # Return a 2-tuple of our sentence pairs and labels
     return pairs
 
 

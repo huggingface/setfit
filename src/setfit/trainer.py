@@ -11,12 +11,7 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import (
-    SupConLoss,
-    negative_sentence_pairs_generate,
-    positive_sentence_pairs_generate,
-    sentence_pairs_generation_multilabel,
-)
+from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -363,15 +358,10 @@ class SetFitTrainer:
                             np.array(x_train), np.array(y_train), train_examples
                         )
                 else:
-                    max_pos_samples = self.num_iterations * len(x_train)
-                    pos_samples = positive_sentence_pairs_generate(
-                        np.array(x_train), np.array(y_train), max_pos_samples, self.unique_pairs
+                    max_pairs = self.num_iterations * len(x_train) * 2
+                    train_examples = sentence_pairs_generation(
+                        np.array(x_train), np.array(y_train), max_pairs, self.unique_pairs
                     )
-                    max_neg_samples = (2 * max_pos_samples) - len(pos_samples)
-                    neg_samples = negative_sentence_pairs_generate(
-                        np.array(x_train), np.array(y_train), max_neg_samples, self.unique_pairs
-                    )
-                    train_examples = pos_samples + neg_samples
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
