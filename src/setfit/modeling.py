@@ -269,7 +269,7 @@ class SetFitModel(PyTorchModelHubMixin):
     def fit(
         self,
         x_train: List[str],
-        y_train: List[int],
+        y_train: Union[List[int], List[List[int]]],
         num_epochs: int,
         batch_size: Optional[int] = None,
         learning_rate: Optional[float] = None,
@@ -314,7 +314,7 @@ class SetFitModel(PyTorchModelHubMixin):
     def _prepare_dataloader(
         self,
         x_train: List[str],
-        y_train: List[int],
+        y_train: Union[List[int], List[List[int]]],
         batch_size: Optional[int] = None,
         max_length: Optional[int] = None,
         shuffle: bool = True,
