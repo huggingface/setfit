@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
@@ -222,8 +222,8 @@ class SetFitDataset(TorchDataset):
     Args:
         x (`List[str]`):
             A list of input data as texts that will be fed into `SetFitModel`.
-        y (`List[int]`):
-            A list of input data's labels.
+        y (`Union[List[int], List[List[int]]]`):
+            A list of input data's labels. Can be a nested list for multi-label classification.
         tokenizer (`PreTrainedTokenizerBase`):
             The tokenizer from `SetFitModel`'s body.
         max_length (`int`, defaults to `32`):
@@ -234,7 +234,7 @@ class SetFitDataset(TorchDataset):
     def __init__(
         self,
         x: List[str],
-        y: List[int],
+        y: Union[List[int], List[List[int]]],
         tokenizer: "PreTrainedTokenizerBase",
         max_length: int = 32,
     ) -> None:
@@ -248,7 +248,7 @@ class SetFitDataset(TorchDataset):
     def __len__(self) -> int:
         return len(self.x)
 
-    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, int]:
+    def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, Union[int, List[int]]]:
         feature = self.tokenizer(
             self.x[idx],
             max_length=self.max_length,
