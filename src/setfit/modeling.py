@@ -635,7 +635,7 @@ class SupConLoss(nn.Module):
 
 
 def positive_sentence_pairs_generate(
-    sentences: np.ndarray[str], labels: np.ndarray[int], max_pairs: int, unique_pairs: bool
+    sentences: "np.ndarray[str]", labels: "np.ndarray[int]", max_pairs: int, unique_pairs: bool
 ) -> List[InputExample]:
     """Generates all unique or upto a max no. of combinations of positive sentence pairs.
 
