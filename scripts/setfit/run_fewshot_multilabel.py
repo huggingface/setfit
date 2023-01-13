@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
 
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import SetFitBaseModel, SKLearnWrapper, sentence_pairs_generation_multilabel
+from setfit.modeling import SetFitBaseModel, SKLearnWrapper, sentence_pairs_generation
 from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
 
 
@@ -37,7 +37,7 @@ def parse_args():
         default=["go_emotions"],
     )
     parser.add_argument("--sample_sizes", type=int, nargs="+", default=SAMPLE_SIZES)
-    parser.add_argument("--num_epochs", type=int, default=20)
+    parser.add_argument("--num_epochs", type=int, default=20)  # should this be iterations?
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--max_seq_length", type=int, default=256)
     parser.add_argument(
@@ -124,9 +124,7 @@ class RunFewShot:
 
         # sentence-transformers adaptation
         batch_size = self.args.batch_size
-        train_examples = []
-        for _ in range(self.args.num_epochs):
-            train_examples = sentence_pairs_generation_multilabel(np.array(x_train), y_train, train_examples)
+        train_examples = sentence_pairs_generation(np.array(x_train), y_train, self.args.num_epochs, multilabel=True)
 
         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
         train_loss = self.loss_class(self.model)

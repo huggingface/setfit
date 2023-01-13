@@ -11,7 +11,7 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .modeling import SupConLoss, sentence_pairs_generation
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -312,6 +312,7 @@ class SetFitTrainer:
 
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
+        multilabel = True if self.model.multi_target_strategy is not None else False
         if self.loss_class is None:
             logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
             self.loss_class = losses.CosineSimilarityLoss
@@ -351,16 +352,9 @@ class SetFitTrainer:
 
                 train_steps = len(train_dataloader) * self.num_epochs
             else:
-                if self.model.multi_target_strategy is not None:  # TODO
-                    train_examples = []
-                    for _ in range(self.num_iterations):
-                        train_examples = sentence_pairs_generation_multilabel(
-                            np.array(x_train), np.array(y_train), train_examples
-                        )
-                else:
-                    train_examples = sentence_pairs_generation(
-                        np.array(x_train), np.array(y_train), self.num_iterations, self.unique_pairs
-                    )
+                train_examples = sentence_pairs_generation(
+                    np.array(x_train), np.array(y_train), self.num_iterations, self.unique_pairs, multilabel
+                )
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)

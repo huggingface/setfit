@@ -9,7 +9,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel
-from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation
 
 
 def test_sentence_pairs_generation():
@@ -23,6 +23,12 @@ def test_sentence_pairs_generation():
     assert pairs[0].texts == ["sent 1", "sent 1"]
     assert pairs[0].label == 1.0
 
+
+def test_sentence_unique_pairs_generation():
+    sentences = np.array(["sent 1", "sent 2", "sent 3"])
+    labels = np.array(["label 1", "label 2", "label 3"])
+    n_iterations = 2
+
     unique_pairs = sentence_pairs_generation(sentences, labels, n_iterations, unique_pairs=True)
 
     assert len(unique_pairs) == 6
@@ -35,16 +41,27 @@ def test_sentence_pairs_generation():
 def test_sentence_pairs_generation_multilabel():
     sentences = np.array(["sent 1", "sent 2", "sent 3"])
     labels = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
-
-    pairs = []
     n_iterations = 2
 
-    for _ in range(n_iterations):
-        pairs = sentence_pairs_generation_multilabel(sentences, labels, pairs)
+    pairs = sentence_pairs_generation(sentences, labels, n_iterations, multilabel=True)
 
     assert len(pairs) == 12
     assert pairs[0].texts == ["sent 1", "sent 1"]
     assert pairs[0].label == 1.0
+
+
+def test_sentence_unique_pairs_generation_multilabel():
+    sentences = np.array(["sent 1", "sent 2", "sent 3"])
+    labels = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
+    n_iterations = 2
+
+    unique_pairs = sentence_pairs_generation(sentences, labels, n_iterations, unique_pairs=True, multilabel=True)
+
+    assert len(unique_pairs) == 6
+    assert unique_pairs[0].texts == ["sent 1", "sent 1"]
+    assert unique_pairs[0].label == 1.0
+    assert unique_pairs[3].texts == ["sent 1", "sent 2"]
+    assert unique_pairs[3].label == 0.0
 
 
 def test_setfit_model_body():
@@ -242,7 +259,3 @@ def test_to_torch_head():
         model.to(device)
         assert model.model_body.device == device
         assert model.model_head.device == device
-
-
-if __name__ == "__main__":
-    test_sentence_pairs_generation()

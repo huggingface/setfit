@@ -635,7 +635,7 @@ class SupConLoss(nn.Module):
 
 
 def positive_sentence_pairs_generate(
-    sentences: np.ndarray, labels: np.ndarray, max_pairs: int, unique_pairs: bool
+    sentences: np.ndarray, labels: np.ndarray, max_pairs: int, unique_pairs: bool = False, multilabel: bool = False
 ) -> List[InputExample]:
     """Generates all unique or upto a max no. of combinations of positive sentence pairs.
 
@@ -643,20 +643,28 @@ def positive_sentence_pairs_generate(
         sampling of different classes in the pairs being generated.
 
     Args:
-        sentences (ArrayLike str): an array of all sentences
-        labels (ArrayLike int): an array of the label_id for each item in `sentences`
+        sentences: an array of all sentences
+        labels: an array of the label_id for each item in `sentences`
         max_pairs: returns when this many pairs are generated
         unique_pairs: if true will return sentences if all unique combinations,
             before max_pairs count is reached
+        multilabel: set to process "multilabel" labels array
 
     Returns:
         List of positive sentence pairs (upto the no. of unique_pairs or max_pairs)
     """
     pairs = []
+    if multilabel:
+        label_ids = np.arange(labels.shape[1])  # based on index = 1,0
+    else:
+        label_ids = np.unique(labels)  # based on class int
     while True:
         positive_combinators = []
-        for _label in np.unique(labels):
-            label_sentences = sentences[np.where(labels == _label)]
+        for _label in label_ids:
+            if multilabel:
+                label_sentences = sentences[np.where(labels[:, _label] == 1)[0]]
+            else:
+                label_sentences = sentences[np.where(labels == _label)]
             positive_combinators.append(combinations_with_replacement(label_sentences, 2))
 
         for pos_pairs in zip_longest(*positive_combinators):
@@ -673,18 +681,23 @@ def positive_sentence_pairs_generate(
 
 
 def negative_sentence_pairs_generate(
-    sentences: np.ndarray, labels: np.ndarray, max_pairs: int, unique_pairs: bool
+    sentences: np.ndarray,
+    labels: np.ndarray,
+    max_pairs: int,
+    unique_pairs: bool = False,
+    multilabel: bool = False,
 ) -> List[InputExample]:
     """Generates all or upto a max sample no. of negative combinations.
 
     Randomly samples negative combinations of sentences (without replacement)
 
     Args:
-        sentences (ArrayLike str): an array of all sentences
-        labels (ArrayLike int): an array of the label_id for each item in `sentences`
+        sentences: an array of all sentences
+        labels: an array of the label_id for each item in `sentences`
         max_pairs: returns when this many pairs are generated
         unique_pairs: if true will return sentences if all unique combinations,
             before max_pairs count is reached
+        multilabel: set to process "multilabel" labels array
 
     Returns:
         List of negative sentence pairs (upto the no. of unique_pairs or max_pairs)
@@ -693,7 +706,8 @@ def negative_sentence_pairs_generate(
     while True:
         sent_labels = [(sent, label) for sent, label in zip(sentences, labels)]
         for (_sentence, _label), (sentence, label) in combinations(sent_labels, 2):
-            if _label != label:
+            # logical_and checks if labels are both set for each class
+            if (multilabel and not any(np.logical_and(_label, label))) or (not multilabel and _label != label):
                 pairs.append(InputExample(texts=[_sentence, sentence], label=0.0))
                 if len(pairs) == max_pairs:
                     return pairs
@@ -704,7 +718,11 @@ def negative_sentence_pairs_generate(
 
 
 def sentence_pairs_generation(
-    sentences: np.ndarray, labels: np.ndarray, num_iterations: int, unique_pairs: bool = False
+    sentences: np.ndarray,
+    labels: np.ndarray,
+    num_iterations: int,
+    unique_pairs: bool = False,
+    multilabel: bool = False,
 ) -> List[InputExample]:
     """Generates positive and negative sentence pairs for contrastive learning.
 
@@ -719,39 +737,12 @@ def sentence_pairs_generation(
         List of sentence pairs
     """
     max_pos_pairs = num_iterations * len(sentences)
-    positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs)
+    positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs, multilabel)
 
     max_neg_pairs = (num_iterations * len(sentences) * 2) - len(positive_pairs)
-    negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_neg_pairs, unique_pairs)
+    negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_neg_pairs, unique_pairs, multilabel)
 
     return positive_pairs + negative_pairs
-
-
-def sentence_pairs_generation_multilabel(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        sample_labels = np.where(labels[first_idx, :] == 1)[0]
-        if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
-            continue
-        else:
-
-            for _label in sample_labels:
-                second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
-                positive_sentence = sentences[second_idx]
-                # Prepare a positive pair and update the sentences and labels
-                # lists, respectively
-                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-            # Search for sample that don't have a label in common with current
-            # sentence
-            negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
-            negative_sentence = sentences[np.random.choice(negative_idx)]
-            # Prepare a negative pair of sentences and update our lists
-            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
 
 
 def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
