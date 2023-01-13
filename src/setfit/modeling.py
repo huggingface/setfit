@@ -218,7 +218,7 @@ class SetFitHead(models.Dense):
         probs = self.predict_proba(x_test)
 
         if self.out_features == 1 or self.multitarget:
-            out = np.where(probs >= 0.5, 1, 0)  # TODO 0.5 is not suitable. I will set this as threshold.
+            out = np.where(probs >= 0.5, 1, 0)  # TODO 0.5 is not suitable. I will set this as threshold in Next PR.
         else:
             out = np.argmax(probs, dim=-1)
         return out
@@ -538,7 +538,7 @@ class SetFitModel(PyTorchModelHubMixin):
                 base_head_params = {
                     "in_features": model_body.get_sentence_embedding_dimension(),
                     "device": target_device,
-                    "use_multitarget": use_multitarget,
+                    "multitarget": use_multitarget,
                 }
                 model_head = SetFitHead(**{**head_params, **base_head_params})
             else:
