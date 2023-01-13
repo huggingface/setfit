@@ -635,7 +635,7 @@ class SupConLoss(nn.Module):
 
 
 def positive_sentence_pairs_generate(
-    sentences: "np.ndarray[str]", labels: "np.ndarray[int]", max_pairs: int, unique_pairs: bool
+    sentences: np.ndarray, labels: np.ndarray, max_pairs: int, unique_pairs: bool
 ) -> List[InputExample]:
     """Generates all unique or upto a max no. of combinations of positive sentence pairs.
 
@@ -643,8 +643,8 @@ def positive_sentence_pairs_generate(
         sampling of different classes in the pairs being generated.
 
     Args:
-        sentences: an array of sentences
-        labels: an array of the label_id for each sentence in `sentences`
+        sentences (ArrayLike str): an array of all sentences
+        labels (ArrayLike int): an array of the label_id for each item in `sentences`
         max_pairs: returns when this many pairs are generated
         unique_pairs: if true will return sentences if all unique combinations,
             before max_pairs count is reached
@@ -673,15 +673,15 @@ def positive_sentence_pairs_generate(
 
 
 def negative_sentence_pairs_generate(
-    sentences: "np.ndarray[str]", labels: "np.ndarray[int]", max_pairs: int, unique_pairs: bool
+    sentences: np.ndarray, labels: np.ndarray, max_pairs: int, unique_pairs: bool
 ) -> List[InputExample]:
     """Generates all or upto a max sample no. of negative combinations.
 
     Randomly samples negative combinations of sentences (without replacement)
 
     Args:
-        sentences: an array of sentences
-        labels: an array of the label_id for each sentence in `sentences`
+        sentences (ArrayLike str): an array of all sentences
+        labels (ArrayLike int): an array of the label_id for each item in `sentences`
         max_pairs: returns when this many pairs are generated
         unique_pairs: if true will return sentences if all unique combinations,
             before max_pairs count is reached
@@ -704,12 +704,24 @@ def negative_sentence_pairs_generate(
 
 
 def sentence_pairs_generation(
-    sentences: "np.ndarray[str]", labels: "np.ndarray[int]", max_pairs: int, unique_pairs: bool
+    sentences: np.ndarray, labels: np.ndarray, num_iterations: int, unique_pairs: bool = False
 ) -> List[InputExample]:
-    max_pos_pairs = max_pairs / 2
+    """Generates positive and negative sentence pairs for contrastive learning.
+
+    Args:
+        sentences (ArrayLike str): an array of all sentences
+        labels (ArrayLike int): an array of the label_id for each item in `sentences`
+        num_iterations: sets the number of contastive sample pairs to be generated
+        unique_pairs: when true will only return upto the number of unique sentence
+            pair combinations avaliable
+
+    Returns:
+        List of sentence pairs
+    """
+    max_pos_pairs = num_iterations * len(sentences)
     positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs)
 
-    max_neg_pairs = max_pairs - len(positive_pairs)
+    max_neg_pairs = (num_iterations * len(sentences) * 2) - len(positive_pairs)
     negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_neg_pairs, unique_pairs)
 
     return positive_pairs + negative_pairs

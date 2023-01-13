@@ -358,9 +358,8 @@ class SetFitTrainer:
                             np.array(x_train), np.array(y_train), train_examples
                         )
                 else:
-                    max_pairs = self.num_iterations * len(x_train) * 2
                     train_examples = sentence_pairs_generation(
-                        np.array(x_train), np.array(y_train), max_pairs, self.unique_pairs
+                        np.array(x_train), np.array(y_train), self.num_iterations, self.unique_pairs
                     )
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
