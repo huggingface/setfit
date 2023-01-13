@@ -7,9 +7,14 @@ from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
+from setfit import logging
 from setfit.modeling import SetFitModel, SupConLoss
 from setfit.trainer import SetFitTrainer
 from setfit.utils import BestRun
+
+
+logging.set_verbosity_warning()
+logging.enable_propagation()
 
 
 class SetFitTrainerTest(TestCase):
@@ -170,6 +175,74 @@ class SetFitTrainerTest(TestCase):
         # warmup_proportion must not be < 0.0
         with pytest.raises(ValueError):
             SetFitTrainer(warmup_proportion=-0.1)
+
+
+class SetFitTrainerDifferentiableHeadTest(TestCase):
+    def setUp(self):
+        self.dataset = Dataset.from_dict(
+            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+        self.model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2",
+            use_differentiable_head=True,
+            head_params={"out_features": 3},
+        )
+        self.num_iterations = 1
+
+    def test_trainer_max_length_exceeds_max_acceptable_length(self):
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=self.dataset,
+            eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+        trainer.unfreeze(keep_body_frozen=True)
+        with self.assertLogs(level=logging.WARNING) as cm:
+            max_length = 4096
+            max_acceptable_length = self.model.model_body.get_max_seq_length()
+            trainer.train(
+                num_epochs=1,
+                batch_size=3,
+                learning_rate=1e-2,
+                l2_weight=0.0,
+                max_length=max_length,
+            )
+            self.assertEqual(
+                cm.output,
+                [
+                    (
+                        f"WARNING:setfit.modeling:The specified `max_length`: {max_length} is greater than the maximum length "
+                        f"of the current model body: {max_acceptable_length}. Using {max_acceptable_length} instead."
+                    )
+                ],
+            )
+
+    def test_trainer_max_length_is_smaller_than_max_acceptable_length(self):
+        trainer = SetFitTrainer(
+            model=self.model,
+            train_dataset=self.dataset,
+            eval_dataset=self.dataset,
+            num_iterations=self.num_iterations,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+        trainer.unfreeze(keep_body_frozen=True)
+
+        # An alternative way of `assertNoLogs`, which is new in Python 3.10
+        try:
+            with self.assertLogs(level=logging.WARNING) as cm:
+                max_length = 32
+                trainer.train(
+                    num_epochs=1,
+                    batch_size=3,
+                    learning_rate=1e-2,
+                    l2_weight=0.0,
+                    max_length=max_length,
+                )
+                self.assertEqual(cm.output, [])
+        except AssertionError as e:
+            if e.args[0] != "no logs of level WARNING or higher triggered on root":
+                raise AssertionError(e)
 
 
 class SetFitTrainerMultilabelTest(TestCase):

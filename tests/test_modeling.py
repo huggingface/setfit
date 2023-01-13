@@ -124,12 +124,14 @@ class SetFitModelDifferentiableHeadTest(TestCase):
 
         outputs = model.model_body(features)
         outputs = model.model_head(outputs)
-        loss = criterion(outputs["prediction"], labels)
+        loss = criterion(outputs["logits"], labels)
         loss.backward()
         optimizer.step()
 
         cls.model = model
         cls.out_features = num_classes
+        cls.x_train = x_train
+        cls.y_train = y_train
 
     @staticmethod
     def _build_model(num_classes: int) -> SetFitModel:
@@ -149,7 +151,7 @@ class SetFitModelDifferentiableHeadTest(TestCase):
         model = self._build_model(num_classes=1)
 
         assert type(model.model_head) is SetFitHead
-        assert model.model_head.out_features == 1
+        assert model.model_head.out_features == 2
 
     def test_setfit_multi_targets_differentiable_head(self):
         assert type(self.model.model_head) is SetFitHead
@@ -176,6 +178,18 @@ class SetFitModelDifferentiableHeadTest(TestCase):
             assert not (param.grad == 0).all().item(), f"All gradients of {name} in the model body are zeros."
             assert not param.grad.isnan().any().item(), f"Gradients of {name} in the model body have NaN."
             assert not param.grad.isinf().any().item(), f"Gradients of {name} in the model body have Inf."
+
+    def test_max_length_is_larger_than_max_acceptable_length(self):
+        max_length = int(1e6)
+        dataloader = self.model._prepare_dataloader(self.x_train, self.y_train, batch_size=1, max_length=max_length)
+
+        assert dataloader.dataset.max_length == self.model.model_body.get_max_seq_length()
+
+    def test_max_length_is_smaller_than_max_acceptable_length(self):
+        max_length = 32
+        dataloader = self.model._prepare_dataloader(self.x_train, self.y_train, batch_size=1, max_length=max_length)
+
+        assert dataloader.dataset.max_length == max_length
 
 
 def test_setfit_from_pretrained_local_model_without_head(tmp_path):
@@ -214,3 +228,30 @@ def test_setfithead_multitarget_from_pretrained():
 
     y_pred_probs = model.predict_proba("Test text")
     assert not np.isclose(y_pred_probs.sum(), 1)  # Should not sum to one
+
+
+def test_to_logistic_head():
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    devices = (
+        [torch.device("cpu"), torch.device("cuda", 0), torch.device("cpu")]
+        if torch.cuda.is_available()
+        else [torch.device("cpu")]
+    )
+    for device in devices:
+        model.to(device)
+        assert model.model_body.device == device
+
+
+def test_to_torch_head():
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
+    )
+    devices = (
+        [torch.device("cpu"), torch.device("cuda", 0), torch.device("cpu")]
+        if torch.cuda.is_available()
+        else [torch.device("cpu")]
+    )
+    for device in devices:
+        model.to(device)
+        assert model.model_body.device == device
+        assert model.model_head.device == device

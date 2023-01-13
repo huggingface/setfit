@@ -6,15 +6,31 @@ from setuptools import find_packages, setup
 
 README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
+MAINTAINER = "Lewis Tunstall, Tom Aarsen"
+MAINTAINER_EMAIL = "lewis@huggingface.co"
+
 INTEGRATIONS_REQUIRE = ["optuna"]
 
-REQUIRED_PKGS = ["datasets==2.3.2", "sentence-transformers==2.2.2", "evaluate==0.3.0"]
+REQUIRED_PKGS = ["datasets>=2.3.0", "sentence-transformers>=2.2.1", "evaluate>=0.3.0"]
 
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 
-TESTS_REQUIRE = ["pytest", "pytest-cov"]
+ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 
-EXTRAS_REQUIRE = {"optuna": INTEGRATIONS_REQUIRE, "quality": QUALITY_REQUIRE, "tests": TESTS_REQUIRE}
+OPENVINO_REQUIRE = ["hummingbird-ml", "openvino>=2022.3"]
+
+TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
+
+COMPAT_TESTS_REQUIRE = [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE
+
+EXTRAS_REQUIRE = {
+    "optuna": INTEGRATIONS_REQUIRE,
+    "quality": QUALITY_REQUIRE,
+    "tests": TESTS_REQUIRE,
+    "onnx": ONNX_REQUIRE,
+    "openvino": ONNX_REQUIRE + OPENVINO_REQUIRE,
+    "compat_tests": COMPAT_TESTS_REQUIRE,
+}
 
 
 def combine_requirements(base_keys):
@@ -26,12 +42,12 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 
 setup(
     name="setfit",
-    version="0.5.0.dev0",
+    version="0.6.0.dev0",
     description="Efficient few-shot learning with Sentence Transformers",
     long_description=README_TEXT,
     long_description_content_type="text/markdown",
-    author="SetFit",
-    author_email="lewis@huggingface.co",
+    maintainer=MAINTAINER,
+    maintainer_email=MAINTAINER_EMAIL,
     url="https://github.com/SetFit/setfit",
     download_url="https://github.com/SetFit/setfit/tags",
     license="Apache 2.0",

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
@@ -99,18 +99,15 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     samples = []
     for label in range(num_labels):
         data = shuffled_dataset.filter(lambda example: int(example[label_column]) == label)
-        num_samples = min(len(data) // 2, num_samples)
-        samples.append(data.select([i for i in range(num_samples)]))
+        num_label_samples = min(len(data), num_samples)
+        samples.append(data.select([i for i in range(num_label_samples)]))
 
     all_samples = concatenate_datasets(samples)
     return all_samples.shuffle(seed=seed)
 
 
 def create_fewshot_splits(
-    dataset: Dataset,
-    sample_sizes: List[int],
-    add_data_augmentation: bool = False,
-    dataset_name: str = None,
+    dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: Optional[str] = None
 ) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
@@ -226,7 +223,7 @@ class SetFitDataset(TorchDataset):
         x (`List[str]`):
             A list of input data as texts that will be fed into `SetFitModel`.
         y (`Union[List[int], List[List[int]]]`):
-            A list of input data's labels.
+            A list of input data's labels. Can be a nested list for multi-label classification.
         tokenizer (`PreTrainedTokenizerBase`):
             The tokenizer from `SetFitModel`'s body.
         max_length (`int`, defaults to `32`):

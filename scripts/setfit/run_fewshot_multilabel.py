@@ -100,6 +100,7 @@ class RunFewShot:
             self.args.model, max_seq_length=args.max_seq_length, add_normalization_layer=args.add_normalization_layer
         )
         self.model = self.model_wrapper.model
+        self.model_original_state = copy.deepcopy(self.model.state_dict())
 
     def get_classifier(self, sbert_model: SentenceTransformer) -> SKLearnWrapper:
         if self.args.classifier == "logistic_regression":
@@ -113,7 +114,7 @@ class RunFewShot:
 
     def train(self, data: Dataset) -> SKLearnWrapper:
         "Trains a SetFit model on the given few-shot training data."
-        self.model.load_state_dict(copy.deepcopy(self.model_wrapper.model_original_state))
+        self.model.load_state_dict(copy.deepcopy(self.model_original_state))
 
         x_train = data["text"]
         y_train = data.remove_columns("text").to_pandas().values

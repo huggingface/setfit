@@ -3,6 +3,8 @@ import json
 import os
 import pathlib
 import sys
+import warnings
+from collections import Counter
 from shutil import copyfile
 from warnings import simplefilter
 
@@ -98,6 +100,19 @@ def main():
 
     for dataset, metric in dataset_to_metric.items():
         few_shot_train_splits, test_data = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
+        print(f"Evaluating {dataset} using {metric!r}.")
+
+        # Report on an imbalanced test set
+        counter = Counter(test_data["label"])
+        label_samples = sorted(counter.items(), key=lambda label_samples: label_samples[1])
+        smallest_n_samples = label_samples[0][1]
+        largest_n_samples = label_samples[-1][1]
+        # If the largest class is more than 50% larger than the smallest
+        if largest_n_samples > smallest_n_samples * 1.5:
+            warnings.warn(
+                "The test set has a class imbalance "
+                f"({', '.join(f'label {label} w. {n_samples} samples' for label, n_samples in label_samples)})."
+            )
 
         for split_name, train_data in few_shot_train_splits.items():
             results_path = create_results_path(dataset, split_name, output_path)
