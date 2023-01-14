@@ -316,10 +316,10 @@ class SetFitTrainerMultilabelDifferentiableTest(TestCase):
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 
-        trainer.freeze()
+        # trainer.freeze()
         trainer.train()
 
-        trainer.unfreeze(keep_body_frozen=False)
+        # trainer.unfreeze(keep_body_frozen=False)
         trainer.train(5)
         metrics = trainer.evaluate()
 

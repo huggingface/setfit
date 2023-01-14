@@ -226,7 +226,7 @@ class SetFitHead(models.Dense):
 
     def get_loss_fn(self):
         if self.out_features == 1 or self.multitarget:  # if sigmoid output
-            return torch.nn.BCELoss()
+            return torch.nn.BCEWithLogitsLoss()
         else:
             return torch.nn.CrossEntropyLoss()
 
