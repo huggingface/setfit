@@ -226,7 +226,7 @@ def test_setfithead_multitarget_from_pretrained():
     y_pred = model.predict("Test text")
     assert len(y_pred) == 5
 
-    y_pred_probs = model.predict_proba("Test text", as_numpy = True)
+    y_pred_probs = model.predict_proba("Test text", as_numpy=True)
     assert not np.isclose(y_pred_probs.sum(), 1)  # Should not sum to one
 
 
