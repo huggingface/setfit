@@ -221,13 +221,13 @@ def test_setfithead_multitarget_from_pretrained():
     )
     assert isinstance(model.model_head, SetFitHead)
     assert model.model_head.multitarget
-    assert isinstance(model.model_head.get_loss_fn(), torch.nn.BCELoss)
+    assert isinstance(model.model_head.get_loss_fn(), torch.nn.BCEWithLogitsLoss)
 
     y_pred = model.predict("Test text")
     assert len(y_pred) == 5
 
     y_pred_probs = model.predict_proba("Test text", as_numpy = True)
-    assert not torch.isclose(y_pred_probs.sum(), 1)  # Should not sum to one
+    assert not np.isclose(y_pred_probs.sum(), 1)  # Should not sum to one
 
 
 def test_to_logistic_head():
