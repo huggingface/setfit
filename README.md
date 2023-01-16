@@ -158,10 +158,15 @@ Based on our experiments, `SetFitHead` can achieve similar performance as using 
 
 To train SetFit models on multilabel datasets, specify the `multi_target_strategy` argument when loading the pretrained model:
 
+**Example using a scikit-learn:**
+
 ```python
 from setfit import SetFitModel
 
-model = SetFitModel.from_pretrained(model_id, multi_target_strategy="one-vs-rest")
+model = SetFitModel.from_pretrained(
+    model_id,
+    multi_target_strategy="one-vs-rest"
+    )
 ```
 
 This will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:
@@ -172,7 +177,19 @@ This will initialise a multilabel classification head from `sklearn` - the follo
 
 From here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.
 
-**Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.
+**Example using a SetFitHead:**
+
+```python
+from setfit import SetFitModel
+
+model = SetFitModel.from_pretrained(
+    model_id,
+    multi_target_strategy="one-vs-rest"
+    use_differentiable_head=True,
+    head_params={"out_features": num_classes},
+    )
+```
+**Note:** If you use the differentiable head, it will automatically use `BCEWithLogitsLoss` for training. Predict function uses `sigmoid`, then labels whose probabilities are greater than or equal to 0.5 are returned as 1, and the others are returned as 0.
 
 ### Zero-shot text classification
 
