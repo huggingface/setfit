@@ -464,7 +464,7 @@ class SetFitModel(PyTorchModelHubMixin):
         normalize_embeddings: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
-        model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
+        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=use_auth_token)
         target_device = model_body._target_device
         model_body.to(target_device)  # put `model_body` on the target device
 
