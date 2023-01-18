@@ -346,8 +346,6 @@ class SetFitTrainer:
                         distance_metric=self.distance_metric,
                         margin=self.margin,
                     )
-
-                train_steps = len(train_dataloader) * self.num_epochs
             else:
                 train_examples = []
 
@@ -363,12 +361,13 @@ class SetFitTrainer:
 
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
-                train_steps = len(train_dataloader) * num_epochs
+
+            train_steps = len(train_dataloader)
 
             logger.info("***** Running training *****")
             logger.info(f"  Num examples = {len(train_examples)}")
             logger.info(f"  Num epochs = {num_epochs}")
-            logger.info(f"  Total optimization steps = {train_steps}")
+            logger.info(f"  Total optimization steps = {train_steps * num_epochs}")
             logger.info(f"  Total train batch size = {batch_size}")
 
             warmup_steps = math.ceil(train_steps * self.warmup_proportion)
