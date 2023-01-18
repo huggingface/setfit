@@ -158,26 +158,26 @@ Based on our experiments, `SetFitHead` can achieve similar performance as using 
 
 To train SetFit models on multilabel datasets, specify the `multi_target_strategy` argument when loading the pretrained model:
 
-**Example using a scikit-learn:**
+#### Example using a classification head from `scikit-learn`:
 
 ```python
 from setfit import SetFitModel
 
 model = SetFitModel.from_pretrained(
     model_id,
-    multi_target_strategy="one-vs-rest"
-    )
+    multi_target_strategy="one-vs-rest",
+)
 ```
 
 This will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:
 
-* `one-vs-rest`: use a `OneVsRestClassifier` head.
-* `multi-output`: use a `MultiOutputClassifier` head.
-* `classifier-chain`: use a `ClassifierChain` head.
+* `one-vs-rest`: uses a `OneVsRestClassifier` head.
+* `multi-output`: uses a `MultiOutputClassifier` head.
+* `classifier-chain`: uses a `ClassifierChain` head.
 
 From here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.
 
-**Example using a SetFitHead:**
+#### Example using the differentiable `SetFitHead`:
 
 ```python
 from setfit import SetFitModel
@@ -187,9 +187,9 @@ model = SetFitModel.from_pretrained(
     multi_target_strategy="one-vs-rest"
     use_differentiable_head=True,
     head_params={"out_features": num_classes},
-    )
+)
 ```
-**Note:** If you use the differentiable head, it will automatically use `BCEWithLogitsLoss` for training. Predict function uses `sigmoid`, then labels whose probabilities are greater than or equal to 0.5 are returned as 1, and the others are returned as 0.
+**Note:** If you use the differentiable `SetFitHead` classifier head, it will automatically use `BCEWithLogitsLoss` for training. The prediction involves a `sigmoid` after which probabilities are rounded to 1 or 0. Furthermore, the `"one-vs-rest"` and `"multi-output"` multi-target strategies are equivalent for the differentiable `SetFitHead`.
 
 ### Zero-shot text classification
 
