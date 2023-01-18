@@ -91,9 +91,18 @@ def load_pseudolabeled_examples(pseudolabels_json: str) -> List[InputExample]:
     with open(pseudolabels_json) as f:
         metadata = json.load(f)
     
-    orig_dataset = load_dataset(f"SetFit/{metadata['dataset']}", split=metadata['split'])
-    sliced_dataset = orig_dataset.shuffle(seed=metadata["seed"]).select(range(metadata['num_examples']))
-    pairs_dataset = create_pairs_dataset(sliced_dataset, num_iterations=metadata['iterations'])
+    # print(f"HHHH SETFIT: {metadata['split']}")
+    # orig_dataset = load_dataset(f"SetFit/{metadata['dataset']}", split=metadata['split'])
+    # sliced_dataset = orig_dataset.shuffle(seed=metadata["seed"]).select(range(metadata['num_examples']))
+    # pairs_dataset = create_pairs_dataset(sliced_dataset, num_iterations=metadata['iterations'])
+
+    _, _, unlabeled_splits = load_data_splits(dataset=dataset_and_subset, sample_sizes=sample_sizes)
+    split_data = unlabeled_splits[f"unlabeled-{metadata['num_shot']}-{metadata['split']}"]
+    unlabeled_examples = split_data.shuffle(metadata["seed"]).select(range(metadata['num_examples']))
+    pairs_dataset = [ex for ex in create_pairs_dataset(unlabeled_examples, metadata['iterations'])]
+
+    print(f"HHHH SETFIT: {pairs_dataset[0]}")
+    exit()
 
     pseudolabels, labels = [], []
     
@@ -106,7 +115,11 @@ def load_pseudolabeled_examples(pseudolabels_json: str) -> List[InputExample]:
 
     matching = [a == b for a, b in zip(pseudolabels, labels)]
     accuracy = sum(matching) / len(matching)
+    
     print(f"pseudolabels accuracy: {accuracy}")
+    print(f"original pseudolabels accuracy: {metadata['accuracy']}")
+    print(f"pseudolabels accuracy {'=' if accuracy == metadata['accuracy'] else '!'}= original pseudolabels accuracy")
+    # assert abs(accuracy - metadata["accuracy"]) < 0.001
     return examples
 
 def load_data_splits(
@@ -116,6 +129,7 @@ def load_data_splits(
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
     train_split = load_dataset(f"SetFit/{dataset}", split="train")
+    print("Original train split:", len(train_split))
     train_splits, unlabeled_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, dataset)
     test_split = load_dataset(f"SetFit/{dataset}", split="test")
     print(f"Test set: {len(test_split)}")

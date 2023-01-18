@@ -16,7 +16,7 @@ from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET
 # ignore all future warnings
 simplefilter(action="ignore", category=FutureWarning)
 
-PSEUDOLABELS_DIR = "data/pseudolabeled/emotion_pairs/"
+PSEUDOLABELS_DIR = "data/pseudolabeled/"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -54,7 +54,7 @@ def parse_args():
 
 
 def create_results_path(dataset: str, split_name: str, output_path: str) -> LiteralString:
-    results_path = os.path.join(output_path, dataset, split_name, "results.json")
+    results_path = os.path.join(output_path, split_name, "results.json")
     print(f"\n\n======== {os.path.dirname(results_path)} =======")
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     return results_path
@@ -70,13 +70,7 @@ def write_metrics(metrics, results_path, metric) -> None:
 def main():
     args = parse_args()
     parent_directory = pathlib.Path(__file__).parent.absolute()
-    output_path = (
-        parent_directory
-        / "results"
-        / f"{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-iterations_{args.num_iterations}-batch_{args.batch_size}-{args.exp_name}".rstrip(
-            "-"
-        )
-    )
+    output_path = parent_directory / "results" / args.dataset / args.exp_name
     os.makedirs(output_path, exist_ok=True)
 
     # Save a copy of this training script and the run command in results directory
@@ -87,6 +81,7 @@ def main():
 
     # Configure loss function
     loss_class = LOSS_NAME_TO_CLASS[args.loss]
+    dataset = args.dataset
 
     metric = TEST_DATASET_TO_METRIC.get(dataset, DEV_DATASET_TO_METRIC.get(dataset, 'accuracy'))
 
@@ -107,27 +102,26 @@ def main():
         few_shot_train_splits, test_data, _ = load_data_splits(dataset, [0], args.add_data_augmentation)
         zeroshot_train_data = few_shot_train_splits[split_name]
 
-        results_path = create_results_path(dataset, "train-0-0", output_path)
+        results_path = create_results_path(dataset, "train-0-data_aug", output_path)
         if os.path.exists(results_path) and not args.override_results:
             print(f"Skipping finished experiment: {results_path}")
-            continue
+        else:
+            # Train on current split
+            trainer = SetFitTrainer(
+                model=model,
+                train_dataset=zeroshot_train_data,
+                eval_dataset=test_data,
+                metric=metric,
+                loss_class=loss_class,
+                batch_size=args.batch_size,
+                num_epochs=args.num_epochs,
+                num_iterations=args.num_iterations,
+            )
+            trainer.train()
 
-        # Train on current split
-        trainer = SetFitTrainer(
-            model=model,
-            train_dataset=zeroshot_train_data,
-            eval_dataset=test_data,
-            metric=metric,
-            loss_class=loss_class,
-            batch_size=args.batch_size,
-            num_epochs=args.num_epochs,
-            num_iterations=args.num_iterations,
-        )
-        trainer.train()
-
-        # Evaluate the model on the test data
-        metrics = trainer.evaluate()
-        write_metrics(metrics, results_path, metric)
+            # Evaluate the model on the test data
+            metrics = trainer.evaluate()
+            write_metrics(metrics, results_path, metric)
 
     ############ Train on pseudo-labeled data (Few-Shot / Zero-Shot) ############
     if args.pseudolabels_path is not None:
@@ -136,27 +130,26 @@ def main():
         results_path = create_results_path(dataset, split_name, output_path)
         if os.path.exists(results_path) and not args.override_results:
             print(f"Skipping finished experiment: {results_path}")
-            continue
-
-        # Train on current split
-        trainer = SetFitTrainer(
-            model=model,
-            train_dataset=train_data,
-            eval_dataset=test_data,
-            metric=metric,
-            loss_class=loss_class,
-            batch_size=args.batch_size,
-            num_epochs=args.num_epochs,
-            num_iterations=args.num_iterations,
-            pseudolabeled_examples=pseudolabeled_examples
-        )
-        
-        trainer.train()
+        else:
+            # Train on current split
+            trainer = SetFitTrainer(
+                model=model,
+                train_dataset=train_data,
+                eval_dataset=test_data,
+                metric=metric,
+                loss_class=loss_class,
+                batch_size=args.batch_size,
+                num_epochs=args.num_epochs,
+                num_iterations=args.num_iterations,
+                pseudolabeled_examples=pseudolabeled_examples
+            )
+            
+            trainer.train()
 
     # Evaluate the model on the test data
     metrics = trainer.evaluate()
     print(f"Metrics: {metrics}")
-    print_and_write_metrics(metrics, results_path, metric)
+    write_metrics(metrics, results_path, metric)
 
 
 if __name__ == "__main__":

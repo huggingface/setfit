@@ -118,7 +118,6 @@ def create_summary_table(results_path: str) -> None:
         compute_tfew_medians(unzipped_path)
 
     sample_sizes = get_sample_sizes(unzipped_path)
-    print(sample_sizes)
     header_row = ["dataset", "measure"]
     for sample_size in sample_sizes:
         header_row.append(f"{sample_size}_avg")
