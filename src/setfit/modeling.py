@@ -111,7 +111,7 @@ class SetFitHead(models.Dense):
             The embedding dimension from the output of the SetFit body. If `None`, defaults to `LazyLinear`.
         out_features (`int`, defaults to `2`):
             The number of targets. If set `out_features` to 1 for binary classification, it will be changed to 2 as 2-class classification.
-        temperature (`float`):
+        temperature (`float`, defaults to `1.0`):
             A logits' scaling factor. Higher values makes the model less confident and higher values makes
             it more confident.
         eps (`float`, defaults to `1e-5`):
@@ -120,7 +120,7 @@ class SetFitHead(models.Dense):
             Whether to add bias to the head.
         device (`torch.device`, str, *optional*):
             The device the model will be sent to. If `None`, will check whether GPU is available.
-        multitarget (`bool`, *optional*, defaults to `True`):
+        multitarget (`bool`, defaults to `False`):
             Enable multi-target classification by making `out_features` binary predictions instead
             of a single multinomial prediction.
     """
