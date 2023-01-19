@@ -278,5 +278,5 @@ class SetFitDataset(TorchDataset):
         # convert to tensors
         features = {k: torch.Tensor(v).int() for k, v in features.items()}
         labels = torch.Tensor(labels)
-        labels = labels.long() if len(labels.size())== 1 else labels.float()
+        labels = labels.long() if len(labels.size()) == 1 else labels.float()
         return features, labels
