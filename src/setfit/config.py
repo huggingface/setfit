@@ -5,7 +5,7 @@ from transformers import PretrainedConfig
 
 
 @dataclass
-class SetFitModelConfig:
+class SetFitConfig:
     """
     Config for SetFitModel.
 

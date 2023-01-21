@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
-from .config import SetFitModelConfig
+from .config import SetFitConfig
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -214,17 +214,17 @@ class SetFitModel(PyTorchModelHubMixin):
         self.normalize_embeddings = normalize_embeddings
 
     @property
-    def config(self) -> SetFitModelConfig:
+    def config(self) -> SetFitConfig:
         model_body_config = self.model_body._modules["0"]._modules["auto_model"].config
 
         model_head_config = None
         if isinstance(self.model_head, SetFitHead):
             model_head_config = self.model_head.get_config_dict()
 
-        return SetFitModelConfig(model_body=model_body_config, model_head=model_head_config)
+        return SetFitConfig(model_body=model_body_config, model_head=model_head_config)
 
     @config.setter
-    def config(self, config: SetFitModelConfig) -> None:
+    def config(self, config: SetFitConfig) -> None:
         self.model_body._modules["0"]._modules["auto_model"].config = config.model_body
 
     def fit(
