@@ -7,13 +7,13 @@ from transformers import PretrainedConfig
 @dataclass
 class SetFitConfig:
     """
-    Config for SetFitModel.
+    Configuration for SetFitModel.
 
-    Parameters:
+    Args:
         model_body (`PretrainedConfig`):
-            Config of the model_body transformer.
+            Configuration of the Sentence Transformer body.
         model_head (`Optional[Any]`):
-            Config of the model_head.
+            Configuration of the head.
     """
 
     model_body: PretrainedConfig
