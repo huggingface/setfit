@@ -262,10 +262,13 @@ def test_to_torch_head():
 
 
 @torch_cuda_available
-def test_to_sentence_transformer_device_reset():
+@pytest.mark.parametrize("use_differentiable_head", [True, False])
+def test_to_sentence_transformer_device_reset(use_differentiable_head):
     # This should initialize SentenceTransformer() without a specific device
     # which sets the model to CUDA iff CUDA is available.
-    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=use_differentiable_head
+    )
     # If we move the entire model to CPU, we expect it to stay on CPU forever,
     # Even after encoding or fitting
     model.to("cpu")
