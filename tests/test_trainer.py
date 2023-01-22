@@ -260,6 +260,49 @@ class SetFitTrainerMultilabelTest(TestCase):
         )
 
 
+class SetFitTrainerMultilabelDifferentiableTest(TestCase):
+    def setUp(self):
+        self.model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2",
+            multi_target_strategy="one-vs-rest",
+            use_differentiable_head=True,
+            head_params={"out_features": 2},
+        )
+        self.args = TrainingArguments(num_iterations=1)
+
+    def test_trainer_multilabel_support_callable_as_metric(self):
+        dataset = Dataset.from_dict({"text_new": ["", "a", "b", "ab"], "label_new": [[0, 0], [1, 0], [0, 1], [1, 1]]})
+
+        multilabel_f1_metric = evaluate.load("f1", "multilabel")
+        multilabel_accuracy_metric = evaluate.load("accuracy", "multilabel")
+
+        def compute_metrics(y_pred, y_test):
+            return {
+                "f1": multilabel_f1_metric.compute(predictions=y_pred, references=y_test, average="micro")["f1"],
+                "accuracy": multilabel_accuracy_metric.compute(predictions=y_pred, references=y_test)["accuracy"],
+            }
+
+        trainer = Trainer(
+            model=self.model,
+            args=self.args,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            metric=compute_metrics,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+
+        trainer.train()
+        metrics = trainer.evaluate()
+
+        self.assertEqual(
+            {
+                "f1": 1.0,
+                "accuracy": 1.0,
+            },
+            metrics,
+        )
+
+
 @require_optuna
 class TrainerHyperParameterOptunaIntegrationTest(TestCase):
     def setUp(self):
