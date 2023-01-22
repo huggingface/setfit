@@ -429,6 +429,9 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             SetFitModel: Returns the original model, but now on the desired device.
         """
+        # Note that we must also set _target_device, or any SentenceTransformer.fit() call will reset
+        # the body location
+        self.model_body._target_device = device if isinstance(device, torch.device) else torch.device(device)
         self.model_body = self.model_body.to(device)
 
         if self.has_differentiable_head:
