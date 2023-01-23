@@ -124,8 +124,6 @@ class DistillationTrainer(Trainer):
                     distance_metric=args.distance_metric,
                     margin=args.margin,
                 )
-
-            train_steps = len(train_dataloader) * args.embedding_num_epochs
         else:
             train_examples = []
 
@@ -144,19 +142,18 @@ class DistillationTrainer(Trainer):
             batch_size = args.embedding_batch_size
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
             train_loss = self.loss_class(self.student_model.model_body)
-            train_steps = len(train_dataloader) * args.embedding_num_epochs
 
+        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {len(train_examples)}")
         logger.info(f"  Num epochs = {args.embedding_num_epochs}")
-        logger.info(f"  Total optimization steps = {train_steps}")
+        logger.info(f"  Total optimization steps = {total_train_steps}")
         logger.info(f"  Total train batch size = {batch_size}")
 
-        warmup_steps = math.ceil(train_steps * args.warmup_proportion)
+        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
         self.student_model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
             epochs=args.embedding_num_epochs,
-            steps_per_epoch=train_steps,
             optimizer_params={"lr": args.body_embedding_learning_rate},
             warmup_steps=warmup_steps,
             show_progress_bar=args.show_progress_bar,
