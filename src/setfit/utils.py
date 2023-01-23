@@ -86,41 +86,23 @@ def create_pairs_dataset(dataset, num_iterations: int=20) -> Dict[str, Dataset]:
     pairs_dataset = Dataset.from_dict(dict(text_a=text_a_list, text_b=text_b_list, label=labels))
     return pairs_dataset
 
-def load_pseudolabeled_examples(pseudolabels_json: str) -> List[InputExample]:
-    examples = []
+def load_pseudolabeled_examples(pseudolabels_json: str, top_n: int) -> List[InputExample]:
+    pseudolabels, labels, entropies, examples = [], [], [], []
     with open(pseudolabels_json) as f:
-        metadata = json.load(f)
-    
-    # print(f"HHHH SETFIT: {metadata['split']}")
-    # orig_dataset = load_dataset(f"SetFit/{metadata['dataset']}", split=metadata['split'])
-    # sliced_dataset = orig_dataset.shuffle(seed=metadata["seed"]).select(range(metadata['num_examples']))
-    # pairs_dataset = create_pairs_dataset(sliced_dataset, num_iterations=metadata['iterations'])
-
-    _, _, unlabeled_splits = load_data_splits(dataset=dataset_and_subset, sample_sizes=sample_sizes)
-    split_data = unlabeled_splits[f"unlabeled-{metadata['num_shot']}-{metadata['split']}"]
-    unlabeled_examples = split_data.shuffle(metadata["seed"]).select(range(metadata['num_examples']))
-    pairs_dataset = [ex for ex in create_pairs_dataset(unlabeled_examples, metadata['iterations'])]
-
-    print(f"HHHH SETFIT: {pairs_dataset[0]}")
-    exit()
-
-    pseudolabels, labels = [], []
-    
-    for idx, pseudolabel in metadata['examples']:
-        text_a = pairs_dataset[idx]["text_a"]
-        text_b = pairs_dataset[idx]["text_b"]
-        examples.append(InputExample(texts=[text_a, text_b], label=float(pseudolabel)))
-        pseudolabels.append(pseudolabel)
-        labels.append(pairs_dataset[idx]["label"])
+        for i, row in enumerate(f):
+            if i == top_n:
+                break
+            data = json.loads(row)
+            pseudolabels.append(data["pred"])
+            labels.append(data["label"])
+            examples.append(InputExample(texts=[data["text_a"], data["text_b"]], label=float(data["pred"])))
 
     matching = [a == b for a, b in zip(pseudolabels, labels)]
-    accuracy = sum(matching) / len(matching)
+    pl_accuracy = sum(matching) / len(matching)
     
-    print(f"pseudolabels accuracy: {accuracy}")
-    print(f"original pseudolabels accuracy: {metadata['accuracy']}")
-    print(f"pseudolabels accuracy {'=' if accuracy == metadata['accuracy'] else '!'}= original pseudolabels accuracy")
-    # assert abs(accuracy - metadata["accuracy"]) < 0.001
-    return examples
+    print(f"Loaded pseudolabels accuracy: {pl_accuracy:.4f}")
+    return examples, pl_accuracy
+
 
 def load_data_splits(
     dataset: str, sample_sizes: List[int], add_data_augmentation: bool = False

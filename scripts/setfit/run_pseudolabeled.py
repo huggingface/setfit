@@ -44,33 +44,37 @@ def parse_args():
     parser.add_argument("--add_normalization_layer", default=False, action="store_true")
     parser.add_argument("--optimizer_name", default="AdamW")
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--override_results", default=False, action="store_true")
+    parser.add_argument("--allow_skip_exp", default=False, action="store_true")
     parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False, action="store_true")
     parser.add_argument("--pseudolabels_path", default=None)
     parser.add_argument("--train_split", type=int)
+    parser.add_argument("--top_n", type=int)
     args = parser.parse_args()
     return args
 
 
 def create_results_path(dataset: str, split_name: str, output_path: str) -> LiteralString:
-    results_path = os.path.join(output_path, split_name, "results.json")
-    print(f"\n\n======== {os.path.dirname(results_path)} =======")
-    os.makedirs(os.path.dirname(results_path), exist_ok=True)
+    results_path = pathlib.Path(output_path) / dataset / split_name / "results.json"
+    os.makedirs(results_path.parent, exist_ok=True)
     return results_path
 
-def write_metrics(metrics, results_path, metric) -> None:
+
+def write_metrics(metrics, results_path, metric, pseudolabels_accuracy: float=None) -> None:
+    metrics_dict = {"score": metrics[metric] * 100, "measure": metric}
+    if pseudolabels_accuracy is not None:
+        metrics_dict["pseudolabels_accuracy"] = str(pseudolabels_accuracy)
+
+    metrics_json = json.dumps(metrics_dict, indent=2, sort_keys=True)
+    print(f"Evaluation results: \n {metrics_json}")
     with open(results_path, "w") as f_out:
-        json.dump(
-            {"score": metrics[metric] * 100, "measure": metric},
-            f_out,
-            sort_keys=True,
-        )
+        f_out.write(metrics_json)
+
 
 def main():
     args = parse_args()
-    parent_directory = pathlib.Path(__file__).parent.absolute()
-    output_path = parent_directory / "results" / args.dataset / args.exp_name
+    parent_directory = pathlib.Path(__file__).parent.resolve()
+    output_path = parent_directory / "results" / args.exp_name
     os.makedirs(output_path, exist_ok=True)
 
     # Save a copy of this training script and the run command in results directory
@@ -103,7 +107,7 @@ def main():
         zeroshot_train_data = few_shot_train_splits[split_name]
 
         results_path = create_results_path(dataset, "train-0-data_aug", output_path)
-        if os.path.exists(results_path) and not args.override_results:
+        if os.path.exists(results_path) and args.allow_skip_exp:
             print(f"Skipping finished experiment: {results_path}")
         else:
             # Train on current split
@@ -125,10 +129,12 @@ def main():
 
     ############ Train on pseudo-labeled data (Few-Shot / Zero-Shot) ############
     if args.pseudolabels_path is not None:
-        pseudolabeled_examples = load_pseudolabeled_examples(PSEUDOLABELS_DIR + args.pseudolabels_path)
+        pseudolabeled_examples, pl_accuracy = load_pseudolabeled_examples(PSEUDOLABELS_DIR + args.pseudolabels_path, args.top_n)
 
         results_path = create_results_path(dataset, split_name, output_path)
-        if os.path.exists(results_path) and not args.override_results:
+        experiment_name = str(results_path).split('results')[1].strip("/")
+
+        if os.path.exists(results_path) and args.allow_skip_exp:
             print(f"Skipping finished experiment: {results_path}")
         else:
             # Train on current split
@@ -146,10 +152,10 @@ def main():
             
             trainer.train()
 
-    # Evaluate the model on the test data
-    metrics = trainer.evaluate()
-    print(f"Metrics: {metrics}")
-    write_metrics(metrics, results_path, metric)
+            # Evaluate the model on the test data
+            metrics = trainer.evaluate()
+            print(f"Experiment: \n{experiment_name}\n")
+            write_metrics(metrics, results_path, metric, pseudolabels_accuracy=pl_accuracy)
 
 
 if __name__ == "__main__":

@@ -3,60 +3,27 @@ GPU available: True, used: True
 TPU available: False, using: 0 TPU cores
 IPU available: False, using: 0 IPUs
 Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/SetFit___json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/da492aad5680612e4028e7f6ddc04b1dfcec4b64db470ed7cc5f2bb265b9b6b5)
 Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-Parameter 'indices'=range(0, 50) of the transform datasets.arrow_dataset.Dataset.select couldn't be hashed properly, a random hash was used instead. Make sure your transforms and parameters are serializable with pickle or dill for the dataset fingerprinting and caching to work. If you reuse this transform, the caching mechanism will consider it to be different from the previous calls and recompute everything. This warning is only showed once. Subsequent hashing failures won't be showed.
+Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/SetFit___json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/da492aad5680612e4028e7f6ddc04b1dfcec4b64db470ed7cc5f2bb265b9b6b5)
 LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [6]
-Traceback (most recent call last):
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/runpy.py", line 193, in _run_module_as_main
-    "__main__", mod_spec)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/runpy.py", line 85, in _run_code
-    exec(code, run_globals)
-  File "/store/setfit/scripts/tfew/t-few/src/pl_train.py", line 106, in <module>
-    main(config)
-  File "/store/setfit/scripts/tfew/t-few/src/pl_train.py", line 67, in main
-    trainer.fit(model, datamodule)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/trainer/trainer.py", line 741, in fit
-    self._fit_impl, model, train_dataloaders, val_dataloaders, datamodule, ckpt_path
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/trainer/trainer.py", line 685, in _call_and_handle_interrupt
-    return trainer_fn(*args, **kwargs)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/trainer/trainer.py", line 777, in _fit_impl
-    self._run(model, ckpt_path=ckpt_path)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/trainer/trainer.py", line 1145, in _run
-    self.accelerator.setup(self)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/accelerators/gpu.py", line 46, in setup
-    return super().setup(trainer)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/accelerators/accelerator.py", line 91, in setup
-    self.setup_training_type_plugin()
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/accelerators/accelerator.py", line 360, in setup_training_type_plugin
-    self.training_type_plugin.setup()
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/plugins/training_type/single_device.py", line 71, in setup
-    self.model_to_device()
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/plugins/training_type/single_device.py", line 68, in model_to_device
-    self._model.to(self.root_device)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/pytorch_lightning/core/mixins/device_dtype_mixin.py", line 111, in to
-    return super().to(*args, **kwargs)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/nn/modules/module.py", line 989, in to
-    return self._apply(convert)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/nn/modules/module.py", line 641, in _apply
-    module._apply(fn)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/nn/modules/module.py", line 641, in _apply
-    module._apply(fn)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/nn/modules/module.py", line 641, in _apply
-    module._apply(fn)
-  [Previous line repeated 5 more times]
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/nn/modules/module.py", line 664, in _apply
-    param_applied = fn(param)
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/nn/modules/module.py", line 987, in convert
-    return t.to(device, dtype if t.is_floating_point() or t.is_complex() else None, non_blocking)
-torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 40.00 MiB (GPU 0; 39.42 GiB total capacity; 1.79 GiB already allocated; 3.06 MiB free; 1.79 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+Missing logger folder: /store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0/log
+
+  | Name  | Type                       | Params
+-----------------------------------------------------
+0 | model | T5ForConditionalGeneration | 2.9 B 
+-----------------------------------------------------
+540 K     Trainable params
+2.9 B     Non-trainable params
+2.9 B     Total params
+11,402.764Total estimated model params size (MB)
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [6]
 Start experiment t03b_pretrained/sst5/train-0-0/seed0
 {
     "exp_dir": "/store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0",
     "exp_name": "t03b_pretrained/sst5/train-0-0/seed0",
     "allow_skip_exp": 0,
-    "seed": 3,
+    "seed": 0,
     "model": "EncDec",
     "max_seq_len": 256,
     "origin_model": "bigscience/T0_3B",
@@ -66,7 +33,7 @@ Start experiment t03b_pretrained/sst5/train-0-0/seed0
     "subset": null,
     "few_shot": true,
     "num_shot": 1,
-    "few_shot_random_seed": 3,
+    "few_shot_random_seed": 0,
     "train_template_idx": -1,
     "eval_template_idx": -1,
     "batch_size": 8,
@@ -80,8 +47,8 @@ Start experiment t03b_pretrained/sst5/train-0-0/seed0
     "train_split": 0,
     "prompts_dataset": "pairs",
     "prompts_subset": null,
-    "unlabeled_examples": 50,
-    "unlabeled_iterations": 8,
+    "unlabeled_examples": 5000,
+    "unlabeled_iterations": 10,
     "compute_precision": "bf16",
     "compute_strategy": "none",
     "num_steps": 0,
@@ -149,12 +116,15 @@ Start experiment t03b_pretrained/sst5/train-0-0/seed0
     "dev_score_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0/dev_scores.json",
     "test_pred_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0/test_pred.txt",
     "test_score_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0/test_scores.json",
-    "finish_flag_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0/exp_completed.txt"
+    "finish_flag_file": "/store/setfit/scripts/tfew/results/t03b_pretrained/sst5/train-0-0/seed0/exp_completed.txt",
+    "pseudolabels_dir": "data/pseudolabeled/sst5/0_shot/seed_0/5000_unlabeled/10_iterations",
+    "predictions_path": "data/pseudolabeled/sst5/0_shot/seed_0/5000_unlabeled/10_iterations/split_0_pseudolabeled.jsonl",
+    "unlabeled_dataset_path": "data/pseudolabeled/sst5/0_shot/seed_0/5000_unlabeled/10_iterations/split_0_unlabeled.jsonl"
 }
 Mark experiment t03b_pretrained/sst5/train-0-0/seed0 as claimed
 
 **********************************************************************
-'init' took 36.861s (36,860,973,913ns)
+'init' took 32.610s (32,610,358,194ns)
 **********************************************************************
 
 
@@ -163,74 +133,15 @@ Mark experiment t03b_pretrained/sst5/train-0-0/seed0 as claimed
 ============== sst5 ============
 Original train split: 8544
 Test set: 2210
-HHHH T-FEW: {'text_a': 'a stirring , funny and finally transporting re-imagining of beauty and the beast and 1930s horror films', 'text_b': 'this is a stunning film , a one-of-a-kind tour de force .', 'label': 1.0, 'idx': 0}
 Train size 0
 Eval size 2210
-Unlabeled size 800
-Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-config.json not found in HuggingFace Hub
-model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+Unlabeled size 100000
 
+**********************************************************************
+'trainer.fit()' took 18.283s (18,282,653,315ns)
+**********************************************************************
 
-
-============== sst5 ============
-Original train split: 8544
-Test set: 2210
-Traceback (most recent call last):
-  File "../setfit/run_pseudolabeled.py", line 156, in <module>
-    main()
-  File "../setfit/run_pseudolabeled.py", line 128, in main
-    pseudolabeled_examples = load_pseudolabeled_examples(PSEUDOLABELS_DIR + args.pseudolabels_path)
-  File "/store/setfit/src/setfit/utils.py", line 99, in load_pseudolabeled_examples
-    _, _, unlabeled_splits = load_data_splits(dataset=dataset_and_subset, sample_sizes=sample_sizes)
-NameError: name 'dataset_and_subset' is not defined
-Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-config.json not found in HuggingFace Hub
-model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
-Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-Using custom data configuration SetFit--sst5-6a5b6ab74c5504bf
-Reusing dataset json (/home/dkorat/.cache/huggingface/datasets/json/SetFit--sst5-6a5b6ab74c5504bf/0.0.0/ac0ca5f5289a6cf108e706efcf040422dbbfa8e658dee6a819f20d76bb84d26b)
-***** Running training *****
-  Num examples = 1600
-  Num epochs = 1
-  Total optimization steps = 100
-  Total train batch size = 16
-
-
-
-============== sst5 ============
-Original train split: 8544
-Test set: 2210
-
-
-
-============== sst5 ============
-Original train split: 8544
-Test set: 2210
-
-
-======== /store/setfit/scripts/tfew/../setfit/results/sst5/ftfew_0_shot_50_unlabeled_8_iter_top_200_seed_3_pl_aug/train-0-data_aug =======
-Epoch:   0%|          | 0/1 [00:00<?, ?it/s]
-Iteration:   0%|          | 0/100 [00:00<?, ?it/s][AIteration:   0%|          | 0/100 [00:03<?, ?it/s]
-Epoch:   0%|          | 0/1 [00:03<?, ?it/s]
-Traceback (most recent call last):
-  File "../setfit/run_pseudolabeled.py", line 156, in <module>
-    main()
-  File "../setfit/run_pseudolabeled.py", line 120, in main
-    trainer.train()
-  File "/store/setfit/src/setfit/trainer.py", line 385, in train
-    use_amp=self.use_amp,
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/sentence_transformers/SentenceTransformer.py", line 722, in fit
-    loss_value.backward()
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/_tensor.py", line 489, in backward
-    self, gradient, retain_graph, create_graph, inputs=inputs
-  File "/home/dkorat/anaconda3/envs/baselines-tfew/lib/python3.7/site-packages/torch/autograd/__init__.py", line 199, in backward
-    allow_unreachable=True, accumulate_grad=True)  # Calls into the C++ engine to run the backward pass
-torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 90.00 MiB (GPU 0; 39.42 GiB total capacity; 1.23 GiB already allocated; 63.06 MiB free; 1.37 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+Train size 0
+Eval size 2210
+Unlabeled size 100000
+Validating: 0it [00:00, ?it/s]Validating: 0it [00:00, ?it/s]

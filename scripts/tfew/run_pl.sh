@@ -3,17 +3,21 @@ clear;
 export num_shot_tfew=0
 export num_shot_setfit=0
 
-export datasets=(sst5) # emotion)
-export num_iterations=8 #80
-export num_unlabeled=50 #1000
-export top_n_list=(200 1000 5000 10000)
+export datasets=(sst5 emotion amazon_counterfactual_en enron_spam SentEval-CR)
+export num_iterations=10
+export num_unlabeled=5000 #1000
+export top_n_list=(200 1000)
 export splits=(0 1)
-export seeds=(3 4)
+export seeds=(0 1)
+export setfit_data_aug=1
 
 ## DEBUG
-export splits=(0)
-export seeds=(3)
-export top_n_list=(200)
+# export num_iterations=4
+# export num_unlabeled=50
+# export splits=(0)
+# export seeds=(0)
+# export setfit_data_aug=0
+# export top_n_list=(200)
 
 
 if [[ $num_shot_tfew -eq 0 ]]
@@ -23,9 +27,9 @@ else
   export tfew_train_steps=2000
 fi
 
-for seed in ${seeds[@]}
+for dataset in ${datasets[@]}
 do
-  for dataset in ${datasets[@]}
+  for seed in ${seeds[@]}
   do
       for train_split in ${splits[@]}
       do
@@ -47,22 +51,27 @@ do
           unlabeled_examples=${num_unlabeled} \
           num_steps=${tfew_train_steps}
 
-      # SetFit Zero-Shot using Category Names
-      # python ../setfit/run_pseudolabeled.py --sample_size=${num_shot_setfit} --dataset=${dataset} --override_results --train_split=0 \
-      #             --exp_name=f"tfew_${num_shot_tfew}_shot_seed_${seed}_aug" --add_data_augmentation
+        # SetFit Zero-Shot using Category Names
+        # python ../setfit/run_pseudolabeled.py --sample_size=${num_shot_setfit} --dataset=${dataset} --train_split=0 \
+        #             --exp_name=f"${num_shot_tfew}_shot_seed_${seed}_aug" --add_data_augmentation
 
-      for top_n in ${top_n_list[@]}
-      do
-          python ../setfit/run_pseudolabeled.py --sample_size=${num_shot_setfit} --dataset=${dataset} --override_results --train_split=${train_split} \
-                  --pseudolabels_path="${dataset}/${num_shot_tfew}_shot/seed_${seed}/${num_unlabeled}_unlabeled/${num_iterations}_iterations/top_${top_n}/seed_${seed}_split_${train_split}.json" \
-                  --exp_name=f"tfew_${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}_seed_${seed}"
-          
-          python ../setfit/run_pseudolabeled.py --sample_size=${num_shot_setfit} --dataset=${dataset} --override_results --train_split=${train_split} \
-                  --pseudolabels_path="${dataset}/${num_shot_tfew}_shot/seed_${seed}/${num_unlabeled}_unlabeled/${num_iterations}_iterations/top_${top_n}/seed_${seed}_split_${train_split}.json" \
-                  --exp_name=f"tfew_${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}_seed_${seed}_pl_aug" --add_data_augmentation
-      done
+        for top_n in ${top_n_list[@]}
+        do
+            python ../setfit/run_pseudolabeled.py --sample_size=${num_shot_setfit} --dataset=${dataset} --train_split=${train_split} \
+                    --pseudolabels_path="${dataset}/${num_shot_tfew}_shot/seed_${seed}/${num_unlabeled}_unlabeled/${num_iterations}_iterations/split_${train_split}_pseudolabeled.jsonl" \
+                    --exp_name="${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}_seed_${seed}" \
+                    --top_n=${top_n}
+            python ../create_summary_table.py --path ../setfit/results/${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}_seed_${seed}
+
+            if [[ $setfit_data_aug -eq 1 ]]
+            then
+              python ../setfit/run_pseudolabeled.py --sample_size=${num_shot_setfit} --dataset=${dataset} --train_split=${train_split} \
+                      --pseudolabels_path="${dataset}/${num_shot_tfew}_shot/seed_${seed}/${num_unlabeled}_unlabeled/${num_iterations}_iterations/split_${train_split}_pseudolabeled.jsonl" \
+                      --exp_name="${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}_seed_${seed}_pl_aug" --add_data_augmentation \
+                      --top_n=${top_n}
+              python ../create_summary_table.py --path ../setfit/results/${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}_seed_${seed}_pl_aug
+            fi
+        done
     done
-    # python ../create_summary_table.py --path ../setfit/results/paraphrase-mpnet-base-v2-CosineSimilarityLoss-logistic_regression-iterations_20-batch_16-ftfew_${num_shot_tfew}_shot_${num_unlabeled}_unlabeled_${num_iterations}_iter_top_${top_n}
   done
 done
-
