@@ -312,7 +312,7 @@ class Trainer:
         self.model.model_body.fit(
             train_objectives=[(train_dataloader, train_loss)],
             epochs=args.embedding_num_epochs,
-            optimizer_params={"lr": args.embedding_learning_rate},
+            optimizer_params={"lr": args.body_embedding_learning_rate},
             warmup_steps=warmup_steps,
             show_progress_bar=args.show_progress_bar,
             use_amp=args.use_amp,
@@ -493,8 +493,8 @@ class SetFitTrainer(Trainer):
         args = TrainingArguments(
             num_iterations=num_iterations,
             num_epochs=num_epochs,
-            classifier_learning_rate=learning_rate,
-            embedding_learning_rate=learning_rate,
+            body_learning_rate=learning_rate,
+            head_learning_rate=learning_rate,
             batch_size=batch_size,
             seed=seed,
             use_amp=use_amp,

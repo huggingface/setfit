@@ -25,8 +25,12 @@ class TrainingArguments:
 
     num_iterations: int = 20
 
-    embedding_learning_rate: float = 2e-5
-    classifier_learning_rate: Union[float, Tuple[float, float]] = (1e-5, 1e-2)
+    # As with batch_size and num_epochs, the first value in the tuple is the learning rate
+    # for the embeddings step, while the second value is the learning rate for the classifier step.
+    body_learning_rate: Union[float, Tuple[float, float]] = field(default=(2e-5, 1e-5), repr=False)
+    body_embedding_learning_rate: float = None
+    body_classifier_learning_rate: float = None
+    head_learning_rate: float = 1e-2
 
     seed: int = 42
     use_amp: bool = False
@@ -42,6 +46,7 @@ class TrainingArguments:
     end_to_end: bool = False
 
     def __post_init__(self):
+        # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
         if isinstance(self.batch_size, int):
             self.batch_size = (self.batch_size, self.batch_size)
         if self.embedding_batch_size is None:
@@ -49,6 +54,7 @@ class TrainingArguments:
         if self.classifier_batch_size is None:
             self.classifier_batch_size = self.batch_size[1]
 
+        # Set `self.embedding_num_epochs` and `self.classifier_num_epochs` using values from `self.num_epochs`
         if isinstance(self.num_epochs, int):
             self.num_epochs = (self.num_epochs, self.num_epochs)
         if self.embedding_num_epochs is None:
@@ -56,8 +62,14 @@ class TrainingArguments:
         if self.classifier_num_epochs is None:
             self.classifier_num_epochs = self.num_epochs[1]
 
-        if isinstance(self.classifier_learning_rate, float):
-            self.classifier_learning_rate = (self.embedding_learning_rate, self.classifier_learning_rate)
+        # Set `self.body_embedding_learning_rate` and `self.body_classifier_learning_rate` using
+        # values from `self.body_learning_rate`
+        if isinstance(self.body_learning_rate, float):
+            self.body_learning_rate = (self.body_learning_rate, self.body_learning_rate)
+        if self.body_embedding_learning_rate is None:
+            self.body_embedding_learning_rate = self.body_learning_rate[0]
+        if self.body_classifier_learning_rate is None:
+            self.body_classifier_learning_rate = self.body_learning_rate[1]
 
         if self.warmup_proportion < 0.0 or self.warmup_proportion > 1.0:
             raise ValueError(

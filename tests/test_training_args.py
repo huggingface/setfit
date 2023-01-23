@@ -72,20 +72,42 @@ class TestTrainingArguments(TestCase):
 
         base = TrainingArguments()
 
-        args = TrainingArguments(classifier_learning_rate=learning_rate_A)
-        assert args.classifier_learning_rate == (base.embedding_learning_rate, learning_rate_A)
-        assert args.embedding_learning_rate == base.embedding_learning_rate
+        args = TrainingArguments(body_learning_rate=learning_rate_A)
+        assert args.body_learning_rate == (learning_rate_A, learning_rate_A)
+        assert args.body_embedding_learning_rate == learning_rate_A
+        assert args.body_classifier_learning_rate == learning_rate_A
+        assert args.head_learning_rate == base.head_learning_rate
 
-        args = TrainingArguments(classifier_learning_rate=learning_rate_A, embedding_learning_rate=learning_rate_B)
-        assert args.classifier_learning_rate == (learning_rate_B, learning_rate_A)
-        assert args.embedding_learning_rate == learning_rate_B
+        args = TrainingArguments(body_learning_rate=(learning_rate_A, learning_rate_B))
+        assert args.body_learning_rate == (learning_rate_A, learning_rate_B)
+        assert args.body_embedding_learning_rate == learning_rate_A
+        assert args.body_classifier_learning_rate == learning_rate_B
+        assert args.head_learning_rate == base.head_learning_rate
 
         args = TrainingArguments(
-            classifier_learning_rate=(learning_rate_C, learning_rate_A), embedding_learning_rate=learning_rate_B
+            body_learning_rate=(learning_rate_A, learning_rate_B), head_learning_rate=learning_rate_C
         )
-        assert args.classifier_learning_rate == (learning_rate_C, learning_rate_A)
-        assert args.embedding_learning_rate == learning_rate_B
+        assert args.body_learning_rate == (learning_rate_A, learning_rate_B)
+        assert args.body_embedding_learning_rate == learning_rate_A
+        assert args.body_classifier_learning_rate == learning_rate_B
+        assert args.head_learning_rate == learning_rate_C
 
-        args = TrainingArguments(classifier_learning_rate=(learning_rate_C, learning_rate_A))
-        assert args.classifier_learning_rate == (learning_rate_C, learning_rate_A)
-        assert args.embedding_learning_rate == base.embedding_learning_rate
+        args = TrainingArguments(
+            body_learning_rate=learning_rate_A,
+            body_embedding_learning_rate=learning_rate_B,
+            head_learning_rate=learning_rate_C,
+        )
+        # Perhaps not ideal, but body_learning_rate is never used directly:
+        assert args.body_learning_rate == (learning_rate_A, learning_rate_A)
+        assert args.body_embedding_learning_rate == learning_rate_B
+        assert args.body_classifier_learning_rate == learning_rate_A
+        assert args.head_learning_rate == learning_rate_C
+
+        args = TrainingArguments(
+            body_classifier_learning_rate=learning_rate_A,
+            body_embedding_learning_rate=learning_rate_B,
+            head_learning_rate=learning_rate_C,
+        )
+        assert args.body_embedding_learning_rate == learning_rate_B
+        assert args.body_classifier_learning_rate == learning_rate_A
+        assert args.head_learning_rate == learning_rate_C

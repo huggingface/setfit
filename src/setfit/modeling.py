@@ -283,7 +283,8 @@ class SetFitModel(PyTorchModelHubMixin):
         y_train: Union[List[int], List[List[int]]],
         classifier_num_epochs: int,
         classifier_batch_size: Optional[int] = None,
-        classifier_learning_rate: Optional[Tuple[float, float]] = (None, None),
+        body_classifier_learning_rate: Optional[float] = None,
+        head_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
         show_progress_bar: bool = True,
@@ -299,8 +300,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
             dataloader = self._prepare_dataloader(x_train, y_train, classifier_batch_size, max_length)
             criterion = self.model_head.get_loss_fn()
-            embedding_learning_rate, classifier_learning_rate = classifier_learning_rate
-            optimizer = self._prepare_optimizer(classifier_learning_rate, embedding_learning_rate, l2_weight)
+            optimizer = self._prepare_optimizer(head_learning_rate, body_classifier_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
             for epoch_idx in trange(classifier_num_epochs, desc="Epoch", disable=not show_progress_bar):
                 for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar, leave=False):
@@ -367,16 +367,20 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def _prepare_optimizer(
         self,
-        classifier_learning_rate: float,
-        embedding_learning_rate: Optional[float],
+        head_learning_rate: float,
+        body_classifier_learning_rate: Optional[float],
         l2_weight: float,
     ) -> torch.optim.Optimizer:
-        embedding_learning_rate = embedding_learning_rate or classifier_learning_rate
+        body_classifier_learning_rate = body_classifier_learning_rate or head_learning_rate
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
-                {"params": self.model_body.parameters(), "lr": embedding_learning_rate, "weight_decay": l2_weight},
-                {"params": self.model_head.parameters(), "lr": classifier_learning_rate, "weight_decay": l2_weight},
+                {
+                    "params": self.model_body.parameters(),
+                    "lr": body_classifier_learning_rate,
+                    "weight_decay": l2_weight,
+                },
+                {"params": self.model_head.parameters(), "lr": head_learning_rate, "weight_decay": l2_weight},
             ],
         )
 
