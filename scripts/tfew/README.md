@@ -4,10 +4,11 @@ These scripts run the baselines based on the `T-Few` paper: [_Few-Shot Parameter
 
 ## Setup
 
-To run the scripts, first create a Python virtual environment, e.g. with `conda`:
+To run the scripts, first create a Python virtual environment, e.g. with `conda`, and install SetFit from source:
 
 ```
 conda create -n baselines-tfew python=3.7 && conda activate baselines-tfew
+python -m pip install -e '.[dev]'
 ```
 
 Next, clone our `T-Few` fork, and install the required dependencies:
