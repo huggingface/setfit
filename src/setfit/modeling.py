@@ -352,7 +352,11 @@ class SetFitModel(PyTorchModelHubMixin):
             max_length=max_length,
         )
         dataloader = DataLoader(
-            dataset, batch_size=batch_size, collate_fn=SetFitDataset.collate_fn, shuffle=shuffle, pin_memory=True
+            dataset,
+            batch_size=batch_size,
+            collate_fn=dataset.collate_fn,
+            shuffle=shuffle,
+            pin_memory=True,
         )
 
         return dataloader
@@ -367,8 +371,16 @@ class SetFitModel(PyTorchModelHubMixin):
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
-                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": l2_weight},
-                {"params": self.model_head.parameters(), "lr": learning_rate, "weight_decay": l2_weight},
+                {
+                    "params": self.model_body.parameters(),
+                    "lr": body_learning_rate,
+                    "weight_decay": l2_weight,
+                },
+                {
+                    "params": self.model_head.parameters(),
+                    "lr": learning_rate,
+                    "weight_decay": l2_weight,
+                },
             ],
         )
 
@@ -394,7 +406,9 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+            x_test,
+            normalize_embeddings=self.normalize_embeddings,
+            convert_to_tensor=self.has_differentiable_head,
         )
 
         outputs = self.model_head.predict(embeddings)
@@ -408,7 +422,9 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+            x_test,
+            normalize_embeddings=self.normalize_embeddings,
+            convert_to_tensor=self.has_differentiable_head,
         )
 
         outputs = self.model_head.predict_proba(embeddings)
