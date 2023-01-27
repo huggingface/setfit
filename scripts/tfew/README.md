@@ -8,7 +8,7 @@ To run the scripts, first create a Python virtual environment, e.g. with `conda`
 
 ```
 conda create -n baselines-tfew python=3.7 && conda activate baselines-tfew
-python -m pip install -e '.[dev]'
+python -m pip install -e .
 ```
 
 Next, clone our `T-Few` fork, and install the required dependencies:
