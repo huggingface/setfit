@@ -79,6 +79,7 @@ def compute_tfew_medians(results_path: str) -> None:
 
 def get_formatted_ds_metrics(path: str, dataset: str, sample_sizes: List[str]) -> Tuple[str, List[str]]:
     formatted_row = []
+    metric_name = ""
     exact_metrics, exact_stds = {}, {}
 
     for sample_size in sample_sizes:

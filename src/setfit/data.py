@@ -107,7 +107,10 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
 
 
 def create_fewshot_splits(
-    dataset: Dataset, sample_sizes: List[int], add_data_augmentation: bool = False, dataset_name: Optional[str] = None
+    dataset: Dataset,
+    sample_sizes: List[int],
+    add_data_augmentation: bool = False,
+    dataset_name: Optional[str] = None,
 ) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
@@ -254,29 +257,28 @@ class SetFitDataset(TorchDataset):
             max_length=self.max_length,
             padding="max_length",
             truncation=True,
-            return_attention_mask=True,
-            return_token_type_ids=True,
+            return_attention_mask="attention_mask" in self.tokenizer.model_input_names,
+            return_token_type_ids="token_type_ids" in self.tokenizer.model_input_names,
         )
         label = self.y[idx]
 
         return feature, label
 
-    @staticmethod
-    def collate_fn(batch):
-        features = {
-            "input_ids": [],
-            "attention_mask": [],
-            "token_type_ids": [],
-        }
+    def collate_fn(self, batch):
+
+        features = {input_name: [] for input_name in self.tokenizer.model_input_names}
+
         labels = []
         for feature, label in batch:
             features["input_ids"].append(feature["input_ids"])
-            features["attention_mask"].append(feature["attention_mask"])
-            features["token_type_ids"].append(feature["token_type_ids"])
+            if "attention_mask" in features:
+                features["attention_mask"].append(feature["attention_mask"])
+            if "token_type_ids" in features:
+                features["token_type_ids"].append(feature["token_type_ids"])
             labels.append(label)
 
         # convert to tensors
         features = {k: torch.Tensor(v).int() for k, v in features.items()}
-        labels = torch.Tensor(labels).long()
-
+        labels = torch.Tensor(labels)
+        labels = labels.long() if len(labels.size()) == 1 else labels.float()
         return features, labels

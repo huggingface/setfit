@@ -234,6 +234,24 @@ def test_setfit_from_pretrained_local_model_with_head(tmp_path):
     assert isinstance(model, SetFitModel)
 
 
+def test_setfithead_multitarget_from_pretrained():
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2",
+        use_differentiable_head=True,
+        multi_target_strategy="one-vs-rest",
+        head_params={"out_features": 5},
+    )
+    assert isinstance(model.model_head, SetFitHead)
+    assert model.model_head.multitarget
+    assert isinstance(model.model_head.get_loss_fn(), torch.nn.BCEWithLogitsLoss)
+
+    y_pred = model.predict("Test text")
+    assert len(y_pred) == 5
+
+    y_pred_probs = model.predict_proba("Test text", as_numpy=True)
+    assert not np.isclose(y_pred_probs.sum(), 1)  # Should not sum to one
+
+
 def test_to_logistic_head():
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
     devices = (

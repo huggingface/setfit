@@ -113,13 +113,17 @@ class SetFitHead(models.Dense):
         out_features (`int`, defaults to `2`):
             The number of targets. If set `out_features` to 1 for binary classification, it will be changed to 2 as 2-class classification.
         temperature (`float`, defaults to `1.0`):
-            A logits' scaling factor (i.e., number of targets more than 1).
+            A logits' scaling factor. Higher values makes the model less confident and higher values makes
+            it more confident.
         eps (`float`, defaults to `1e-5`):
             A value for numerical stability when scaling logits.
         bias (`bool`, *optional*, defaults to `True`):
             Whether to add bias to the head.
         device (`torch.device`, str, *optional*):
             The device the model will be sent to. If `None`, will check whether GPU is available.
+        multitarget (`bool`, defaults to `False`):
+            Enable multi-target classification by making `out_features` binary predictions instead
+            of a single multinomial prediction.
     """
 
     def __init__(
@@ -130,6 +134,7 @@ class SetFitHead(models.Dense):
         eps: float = 1e-5,
         bias: bool = True,
         device: Optional[Union[torch.device, str]] = None,
+        multitarget: bool = False,
     ) -> None:
         super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
 
@@ -150,6 +155,7 @@ class SetFitHead(models.Dense):
         self.eps = eps
         self.bias = bias
         self._device = device or "cuda" if torch.cuda.is_available() else "cpu"
+        self.multitarget = multitarget
 
         self.to(self._device)
         self.apply(self._init_weight)
@@ -170,7 +176,8 @@ class SetFitHead(models.Dense):
                 make sure to store embeddings under the key: 'sentence_embedding'
                 and the outputs will be under the key: 'prediction'.
             temperature (`float`, *optional*):
-                A logits' scaling factor when using multi-targets (i.e., number of targets more than 1).
+                A logits' scaling factor. Higher values makes the model less
+                confident and higher values makes it more confident.
                 Will override the temperature given during initialization.
         Returns:
         [`Dict[str, torch.Tensor]` or `Tuple[torch.Tensor]`]
@@ -180,12 +187,13 @@ class SetFitHead(models.Dense):
         if isinstance(features, dict):
             assert "sentence_embedding" in features
             is_features_dict = True
-
         x = features["sentence_embedding"] if is_features_dict else features
         logits = self.linear(x)
         logits = logits / (temperature + self.eps)
-        probs = nn.functional.softmax(logits, dim=-1)
-
+        if self.multitarget:  # multiple targets per item
+            probs = torch.sigmoid(logits)
+        else:  # one target per item
+            probs = nn.functional.softmax(logits, dim=-1)
         if is_features_dict:
             features.update(
                 {
@@ -205,11 +213,13 @@ class SetFitHead(models.Dense):
     def predict(self, x_test: torch.Tensor) -> torch.Tensor:
         probs = self.predict_proba(x_test)
 
-        out = torch.argmax(probs, dim=-1)
-
-        return out
+        if self.multitarget:
+            return torch.where(probs >= 0.5, 1, 0)
+        return torch.argmax(probs, dim=-1)
 
     def get_loss_fn(self):
+        if self.multitarget:  # if sigmoid output
+            return torch.nn.BCEWithLogitsLoss()
         return torch.nn.CrossEntropyLoss()
 
     @property
@@ -343,7 +353,11 @@ class SetFitModel(PyTorchModelHubMixin):
             max_length=max_length,
         )
         dataloader = DataLoader(
-            dataset, batch_size=batch_size, collate_fn=SetFitDataset.collate_fn, shuffle=shuffle, pin_memory=True
+            dataset,
+            batch_size=batch_size,
+            collate_fn=dataset.collate_fn,
+            shuffle=shuffle,
+            pin_memory=True,
         )
 
         return dataloader
@@ -358,8 +372,16 @@ class SetFitModel(PyTorchModelHubMixin):
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
-                {"params": self.model_body.parameters(), "lr": body_learning_rate, "weight_decay": l2_weight},
-                {"params": self.model_head.parameters(), "lr": learning_rate, "weight_decay": l2_weight},
+                {
+                    "params": self.model_body.parameters(),
+                    "lr": body_learning_rate,
+                    "weight_decay": l2_weight,
+                },
+                {
+                    "params": self.model_head.parameters(),
+                    "lr": learning_rate,
+                    "weight_decay": l2_weight,
+                },
             ],
         )
 
@@ -385,13 +407,15 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+            x_test,
+            normalize_embeddings=self.normalize_embeddings,
+            convert_to_tensor=self.has_differentiable_head,
         )
 
         outputs = self.model_head.predict(embeddings)
 
         if as_numpy and self.has_differentiable_head:
-            outputs = outputs.cpu().numpy()
+            outputs = outputs.detach().cpu().numpy()
         elif not as_numpy and not self.has_differentiable_head:
             outputs = torch.from_numpy(outputs)
 
@@ -399,13 +423,15 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
-            x_test, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
+            x_test,
+            normalize_embeddings=self.normalize_embeddings,
+            convert_to_tensor=self.has_differentiable_head,
         )
 
         outputs = self.model_head.predict_proba(embeddings)
 
         if as_numpy and self.has_differentiable_head:
-            outputs = outputs.cpu().numpy()
+            outputs = outputs.detach().cpu().numpy()
         elif not as_numpy and not self.has_differentiable_head:
             outputs = torch.from_numpy(outputs)
 
@@ -465,7 +491,7 @@ class SetFitModel(PyTorchModelHubMixin):
         normalize_embeddings: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
-        model_body = SentenceTransformer(model_id, cache_folder=cache_dir)
+        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=use_auth_token)
         target_device = model_body._target_device
         model_body.to(target_device)  # put `model_body` on the target device
 
@@ -504,12 +530,22 @@ class SetFitModel(PyTorchModelHubMixin):
         else:
             head_params = model_kwargs.get("head_params", {})
             if use_differentiable_head:
+                if multi_target_strategy is None:
+                    use_multitarget = False
+                else:
+                    if multi_target_strategy in ["one-vs-rest", "multi-output"]:
+                        use_multitarget = True
+                    else:
+                        raise ValueError(
+                            f"multi_target_strategy '{multi_target_strategy}' is not supported for differentiable head"
+                        )
                 # Base `model_head` parameters
                 # - get the sentence embedding dimension from the `model_body`
                 # - follow the `model_body`, put `model_head` on the target device
                 base_head_params = {
                     "in_features": model_body.get_sentence_embedding_dimension(),
                     "device": target_device,
+                    "multitarget": use_multitarget,
                 }
                 model_head = SetFitHead(**{**head_params, **base_head_params})
             else:
