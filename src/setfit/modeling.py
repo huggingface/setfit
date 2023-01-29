@@ -1,8 +1,8 @@
 import os
 from dataclasses import dataclass
-from itertools import combinations, combinations_with_replacement, zip_longest
+from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Tuple, Union
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -670,6 +670,25 @@ class SupConLoss(nn.Module):
         return loss
 
 
+def shuffle_combinations(iterable: Iterable, replacement: bool = False) -> Generator:
+    """Generates shuffled pair combinations for any iterable data provided.
+
+    Args:
+        iterable: data to generate pair combinations from
+        replacement: enable to include combinations of same samples,
+            equivalent to itertools.combinations_with_replacement
+
+    Returns:
+        Generator of shuffled pairs as a tuple
+    """
+    n = len(iterable)
+    k = 1 if not replacement else 0
+    idxs = np.stack(np.triu_indices(n, k), axis=-1)
+    for i in np.random.RandomState(seed=42).permutation(len(idxs)):
+        _idx, idx = idxs[i, :]
+        yield iterable[_idx], iterable[idx]
+
+
 def positive_sentence_pairs_generate(
     sentences: np.ndarray, labels: np.ndarray, max_pairs: int, unique_pairs: bool = False, multilabel: bool = False
 ) -> List[InputExample]:
@@ -701,7 +720,7 @@ def positive_sentence_pairs_generate(
                 label_sentences = sentences[np.where(labels[:, _label] == 1)[0]]
             else:
                 label_sentences = sentences[np.where(labels == _label)]
-            positive_combinators.append(combinations_with_replacement(label_sentences, 2))
+            positive_combinators.append(shuffle_combinations(label_sentences, replacement=True))
 
         for pos_pairs in zip_longest(*positive_combinators):
             for pos_pair in pos_pairs:
@@ -709,7 +728,6 @@ def positive_sentence_pairs_generate(
                     pairs.append(InputExample(texts=[*pos_pair], label=1.0))
                     if len(pairs) == max_pairs:
                         return pairs
-
         if unique_pairs:
             break
     logger.warning(f"** All ({len(pairs):,}) positive unique pairs generated")
@@ -739,9 +757,9 @@ def negative_sentence_pairs_generate(
         List of negative sentence pairs (upto the no. of unique_pairs or max_pairs)
     """
     pairs = []
+    sentence_labels = list(zip(sentences, labels))
     while True:
-        sent_labels = [(sent, label) for sent, label in zip(sentences, labels)]
-        for (_sentence, _label), (sentence, label) in combinations(sent_labels, 2):
+        for (_sentence, _label), (sentence, label) in shuffle_combinations(sentence_labels):
             # logical_and checks if labels are both set for each class
             if (multilabel and not any(np.logical_and(_label, label))) or (not multilabel and _label != label):
                 pairs.append(InputExample(texts=[_sentence, sentence], label=0.0))
@@ -775,7 +793,8 @@ def sentence_pairs_generation(
     max_pos_pairs = num_iterations * len(sentences)
     positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs, multilabel)
 
-    max_neg_pairs = (num_iterations * len(sentences) * 2) - len(positive_pairs)
+    # max_neg_pairs = (num_iterations * len(sentences) * 2) - len(positive_pairs)
+    max_neg_pairs = len(positive_pairs)  # keeps this in a 50:50 ratio of pos-neg samples
     negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_neg_pairs, unique_pairs, multilabel)
 
     return positive_pairs + negative_pairs
