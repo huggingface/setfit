@@ -797,10 +797,10 @@ def sentence_pairs_generation(
     if unique_pairs:
         extra_pairs = abs(len(positive_pairs) - len(negative_pairs))
         if len(positive_pairs) > len(negative_pairs):
-            logger.warning(f"** Oversampling negative pairs to balance contrastive training samples.")
+            logger.warning("** Oversampling negative pairs to balance contrastive training samples.")
             negative_pairs += negative_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
         if len(negative_pairs) > len(positive_pairs):
-            logger.warning(f"** Oversampling positive pairs to balance contrastive training samples.")
+            logger.warning("** Oversampling positive pairs to balance contrastive training samples.")
             positive_pairs += positive_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
 
     return positive_pairs + negative_pairs
