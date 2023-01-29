@@ -790,12 +790,18 @@ def sentence_pairs_generation(
     Returns:
         List of sentence pairs
     """
-    max_pos_pairs = num_iterations * len(sentences)
-    positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pos_pairs, unique_pairs, multilabel)
+    max_pairs = num_iterations * len(sentences)
+    positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
+    negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
 
-    # max_neg_pairs = (num_iterations * len(sentences) * 2) - len(positive_pairs)
-    max_neg_pairs = len(positive_pairs)  # keeps this in a 50:50 ratio of pos-neg samples
-    negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_neg_pairs, unique_pairs, multilabel)
+    if unique_pairs:
+        extra_pairs = abs(len(positive_pairs) - len(negative_pairs))
+        if len(positive_pairs) > len(negative_pairs):
+            logger.warning(f"** Oversampling negative pairs to balance contrastive training samples.")
+            negative_pairs += negative_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
+        if len(negative_pairs) > len(positive_pairs):
+            logger.warning(f"** Oversampling positive pairs to balance contrastive training samples.")
+            positive_pairs += positive_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
 
     return positive_pairs + negative_pairs
 
