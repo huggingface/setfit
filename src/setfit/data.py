@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-from datasets import Dataset, DatasetDict, concatenate_datasets
+from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
 from torch.utils.data import Dataset as TorchDataset
 
 
@@ -14,6 +14,102 @@ TokenizerOutput = Dict[str, List[int]]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
+def add_templated_examples(
+    dataset: Dataset = None,
+    dataset_name: Optional[str] = None,
+    candidate_labels: Optional[List[str]] = None,
+    template: str = "This sentence is {}",
+    sample_size: int = 2,
+    text_column: str = "text",
+    label_column: str = "label",
+    multi_label: bool = False,
+    label_names_column: str = "label_text",
+) -> Dataset:
+    """Adds templated examples to a Dataset.
+
+    The Dataset is assumed to have a text column with the name `text_column` and a
+    label column with the name `label_column`, which contains one-hot or multi-hot
+    encoded label sequences.
+
+    Args:
+        dataset (`Dataset`): The Dataset to add templated examples to.
+        candidate_labels (`List[str]`): This list of candidate labels to be fed into
+            the template to construct examples. This should align with the
+            `label_column_name` column of `dataset`.
+        template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
+            used to turn each label into a synthetic training example. This template
+            must include a {} for the candidate label to be inserted into the template.
+            For example, the default template is "This sentence is {}." With the
+            candidate label "sports", this would produce an example
+            "This sentence is sports".
+        sample_size (`int`, *optional*, defaults to 2): The number of examples to
+            make for each candidate label.
+        text_column (`str`, *optional*, defaults to `"text"`): The name of the column
+            containing the text of the examples.
+        label_column (`str`, *optional*, defaults to `"label"`): The name of the column
+            containing the labels of the examples.
+        multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple candidate labels can be true.
+
+    Returns:
+        `Dataset`: A copy of the input Dataset with templated examples added.
+
+    Raises:
+        `ValueError`: If the input Dataset is not empty and one or both of the
+            provided column names are missing.
+    """
+    if dataset is None:
+        dataset = Dataset.from_dict({})
+
+    required_columns = {text_column, label_column}
+    column_names = set(dataset.column_names)
+    if column_names:
+        missing_columns = required_columns.difference(column_names)
+        if missing_columns:
+            raise ValueError(f"The following columns are missing from the input dataset: {missing_columns}.")
+
+    if candidate_labels is None:
+        if dataset_name is None:
+            raise ValueError("Must supply at least one of `dataset_name` or `candidate_labels` to `add_templated_examples()`!")
+        candidate_labels = get_candidate_labels(dataset_name, label_names_column)
+
+    empty_label_vector = [0] * len(candidate_labels)
+
+    for label_id, label_name in enumerate(candidate_labels):
+        label_vector = empty_label_vector.copy()
+        label_vector[label_id] = 1
+        example = {
+            text_column: template.format(label_name),
+            label_column: label_vector if multi_label else label_id,
+        }
+        for _ in range(sample_size):
+            dataset = dataset.add_item(example)
+
+    return dataset
+
+
+def get_candidate_labels(dataset_name: str, label_names_column: str = "label_text") -> List[str]:
+    dataset = load_dataset(dataset_name, split="train")
+
+    try:
+        # Extract ClassLabel feature from "label" column
+        label_features = dataset.features["label"]
+        # Label names to classify with
+        candidate_labels = label_features.names
+    except:
+        # Some datasets on the Hugging Face Hub don't have a ClassLabel feature for the label column. 
+        # In these cases, you should compute the candidate labels manually by first computing the id2label mapping.
+
+        # The column with the label names
+        label_names = dataset.unique(label_names_column)
+        # The column with the label IDs
+        label_ids = dataset.unique("label")
+        id2label = dict(zip(label_ids, label_names))
+        # Sort by label ID
+        id2label_sorted = {key: val for key, val in sorted(id2label.items(), key = lambda x: x[0])}
+
+        candidate_labels = list(id2label_sorted.values())
+
+    return candidate_labels
 
 def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]:
     if dataset == "emotion":
@@ -152,69 +248,6 @@ def create_fewshot_splits_multilabel(dataset: Dataset, sample_sizes: List[int]) 
             split_df = create_samples_multilabel(df, sample_size, seed)
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
     return splits_ds
-
-
-def add_templated_examples(
-    dataset: Dataset,
-    candidate_labels: List[str],
-    template: str = "This sentence is {}",
-    sample_size: int = 2,
-    text_column: str = "text",
-    label_column: str = "label",
-    multi_label: bool = False,
-) -> Dataset:
-    """Adds templated examples to a Dataset.
-
-    The Dataset is assumed to have a text column with the name `text_column` and a
-    label column with the name `label_column`, which contains one-hot or multi-hot
-    encoded label sequences.
-
-    Args:
-        dataset (`Dataset`): The Dataset to add templated examples to.
-        candidate_labels (`List[str]`): This list of candidate labels to be fed into
-            the template to construct examples. This should align with the
-            `label_column_name` column of `dataset`.
-        template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
-            used to turn each label into a synthetic training example. This template
-            must include a {} for the candidate label to be inserted into the template.
-            For example, the default template is "This sentence is {}." With the
-            candidate label "sports", this would produce an example
-            "This sentence is sports".
-        sample_size (`int`, *optional*, defaults to 2): The number of examples to
-            make for each candidate label.
-        text_column (`str`, *optional*, defaults to `"text"`): The name of the column
-            containing the text of the examples.
-        label_column (`str`, *optional*, defaults to `"label"`): The name of the column
-            containing the labels of the examples.
-        multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple candidate labels can be true.
-
-    Returns:
-        `Dataset`: A copy of the input Dataset with templated examples added.
-
-    Raises:
-        `ValueError`: If the input Dataset is not empty and one or both of the
-            provided column names are missing.
-    """
-    required_columns = {text_column, label_column}
-    column_names = set(dataset.column_names)
-    if column_names:
-        missing_columns = required_columns.difference(column_names)
-        if missing_columns:
-            raise ValueError(f"The following columns are missing from the input dataset: {missing_columns}.")
-
-    empty_label_vector = [0] * len(candidate_labels)
-
-    for label_id, label_name in enumerate(candidate_labels):
-        label_vector = empty_label_vector.copy()
-        label_vector[label_id] = 1
-        example = {
-            text_column: template.format(label_name),
-            label_column: label_vector if multi_label else label_id,
-        }
-        for _ in range(sample_size):
-            dataset = dataset.add_item(example)
-
-    return dataset
 
 
 class SetFitDataset(TorchDataset):
