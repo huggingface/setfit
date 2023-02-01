@@ -187,8 +187,6 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
         "ade_corpus_v2_classification",
     ],
 )
-
-
 @pytest.mark.parametrize(
     "tokenizer_name",
     ["sentence-transformers/paraphrase-albert-small-v2", "sentence-transformers/distiluse-base-multilingual-cased-v1"],
