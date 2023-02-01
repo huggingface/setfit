@@ -14,6 +14,7 @@ TokenizerOutput = Dict[str, List[int]]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
+
 def add_templated_examples(
     dataset: Dataset = None,
     dataset_name: Optional[str] = None,
@@ -69,7 +70,9 @@ def add_templated_examples(
 
     if candidate_labels is None:
         if dataset_name is None:
-            raise ValueError("Must supply at least one of `dataset_name` or `candidate_labels` to `add_templated_examples()`!")
+            raise ValueError(
+                "Must supply at least one of `dataset_name` or `candidate_labels` to `add_templated_examples()`!"
+            )
         candidate_labels = get_candidate_labels(dataset_name, label_names_column)
 
     empty_label_vector = [0] * len(candidate_labels)
@@ -90,13 +93,13 @@ def add_templated_examples(
 def get_candidate_labels(dataset_name: str, label_names_column: str = "label_text") -> List[str]:
     dataset = load_dataset(dataset_name, split="train")
 
-    try:
+    if "label" in dataset.features:
         # Extract ClassLabel feature from "label" column
         label_features = dataset.features["label"]
         # Label names to classify with
         candidate_labels = label_features.names
-    except:
-        # Some datasets on the Hugging Face Hub don't have a ClassLabel feature for the label column. 
+    else:
+        # Some datasets on the Hugging Face Hub don't have a ClassLabel feature for the label column.
         # In these cases, you should compute the candidate labels manually by first computing the id2label mapping.
 
         # The column with the label names
@@ -105,11 +108,12 @@ def get_candidate_labels(dataset_name: str, label_names_column: str = "label_tex
         label_ids = dataset.unique("label")
         id2label = dict(zip(label_ids, label_names))
         # Sort by label ID
-        id2label_sorted = {key: val for key, val in sorted(id2label.items(), key = lambda x: x[0])}
+        id2label_sorted = {key: val for key, val in sorted(id2label.items(), key=lambda x: x[0])}
 
         candidate_labels = list(id2label_sorted.values())
 
     return candidate_labels
+
 
 def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]:
     if dataset == "emotion":

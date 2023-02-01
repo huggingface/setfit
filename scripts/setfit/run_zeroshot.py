@@ -8,17 +8,16 @@ from collections import Counter
 from shutil import copyfile
 from warnings import simplefilter
 
+from datasets import load_dataset
 from sentence_transformers import models
 from typing_extensions import LiteralString
-from datasets import load_dataset
 
 from setfit import SetFitModel, SetFitTrainer
 from setfit.data import add_templated_examples
-from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits
+from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC
 
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from create_summary_table import create_summary_table  # noqa: E402
 
 
 # ignore all future warnings
@@ -92,13 +91,13 @@ def main():
     metric = DEV_DATASET_TO_METRIC.get(args.eval_dataset, TEST_DATASET_TO_METRIC.get(args.eval_dataset), "accuracy")
 
     if args.reference_dataset is None:
-        reference_dataset = args.eval_dataset 
-    
+        reference_dataset = args.eval_dataset
+
     train_data = add_templated_examples(
         dataset_name=reference_dataset,
         candidate_labels=args.candidate_labels,
         sample_size=args.sample_size,
-        label_names_column=args.label_names_column
+        label_names_column=args.label_names_column,
     )
     test_data = load_dataset(args.eval_dataset, split="test")
 
