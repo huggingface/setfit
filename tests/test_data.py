@@ -11,11 +11,11 @@ from setfit.data import (
     SAMPLE_SIZES,
     SEEDS,
     SetFitDataset,
-    add_templated_examples,
     create_fewshot_splits,
     create_fewshot_splits_multilabel,
     create_samples,
     get_augmented_samples,
+    get_templated_dataset,
     sample_dataset,
 )
 
@@ -41,9 +41,7 @@ def unbalanced_dataset():
 
 
 def test_add_to_empty_dataset_defaults(empty_dataset):
-    augmented_dataset = add_templated_examples(
-        empty_dataset, candidate_labels=["label-0", "label-1"], multi_label=True
-    )
+    augmented_dataset = get_templated_dataset(empty_dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
 
     assert augmented_dataset[:] == {
         "text": [
@@ -57,7 +55,7 @@ def test_add_to_empty_dataset_defaults(empty_dataset):
 
 
 def test_add_to_dataset_defaults(dataset):
-    augmented_dataset = add_templated_examples(dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
+    augmented_dataset = get_templated_dataset(dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
 
     assert augmented_dataset[:] == {
         "text": [
@@ -82,7 +80,7 @@ def test_add_to_dataset_defaults(dataset):
 )
 def test_missing_columns(dataset, text_column, label_column):
     with pytest.raises(ValueError):
-        add_templated_examples(
+        get_templated_dataset(
             dataset,
             candidate_labels=["label-0", "label-1"],
             text_column=text_column,

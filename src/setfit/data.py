@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Tuple, Union
 
 import pandas as pd
 import torch
@@ -15,10 +15,10 @@ SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
 
-def add_templated_examples(
+def get_templated_dataset(
     dataset: Dataset = None,
-    dataset_name: Optional[str] = None,
-    candidate_labels: Optional[List[str]] = None,
+    candidate_labels: List[str] = None,
+    reference_dataset: str = None,
     template: str = "This sentence is {}",
     sample_size: int = 2,
     text_column: str = "text",
@@ -26,30 +26,39 @@ def add_templated_examples(
     multi_label: bool = False,
     label_names_column: str = "label_text",
 ) -> Dataset:
-    """Adds templated examples to a Dataset.
+    """Create templated examples for a reference dataset or refernece labels.
 
-    The Dataset is assumed to have a text column with the name `text_column` and a
+    If `candidate_labels` is supplied, use it for generating the templates.
+    Otherwise, use the labels loaded from `reference_dataset`.
+
+    If input Dataset is supplied, add the examples to it, otherwise create a new Dataset.
+    The input Dataset is assumed to have a text column with the name `text_column` and a
     label column with the name `label_column`, which contains one-hot or multi-hot
     encoded label sequences.
 
     Args:
-        dataset (`Dataset`): The Dataset to add templated examples to.
-        candidate_labels (`List[str]`): This list of candidate labels to be fed into
-            the template to construct examples. This should align with the
-            `label_column_name` column of `dataset`.
+        dataset (`Dataset`): A Dataset to add templated examples to.
+        candidate_labels (`List[str]`, defaults to None): The list of candidate
+        labels to be fed into the template to construct examples.
+        reference_dataset (`str`, defaults to None): A dataset to take labels
+        from, if `candidate_labels` is not supplied.
         template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
             used to turn each label into a synthetic training example. This template
             must include a {} for the candidate label to be inserted into the template.
             For example, the default template is "This sentence is {}." With the
             candidate label "sports", this would produce an example
             "This sentence is sports".
-        sample_size (`int`, *optional*, defaults to 2): The number of examples to
-            make for each candidate label.
+        sample_size (`int`, *optional*, defaults to 2): The number of examples to make for
+        each candidate label.
         text_column (`str`, *optional*, defaults to `"text"`): The name of the column
-            containing the text of the examples.
+        containing the text of the examples.
         label_column (`str`, *optional*, defaults to `"label"`): The name of the column
-            containing the labels of the examples.
-        multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple candidate labels can be true.
+        in `dataset` containing the labels of the examples.
+        multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple
+        candidate labels can be true.
+        label_names_column (`str`, *optional*, defaults to "label_text"): The name of the
+        label column in the `reference_dataset`, to be used in case there is no ClassLabel
+        feature for the label column.
 
     Returns:
         `Dataset`: A copy of the input Dataset with templated examples added.
@@ -68,12 +77,13 @@ def add_templated_examples(
         if missing_columns:
             raise ValueError(f"The following columns are missing from the input dataset: {missing_columns}.")
 
+    if bool(reference_dataset) == bool(candidate_labels):
+        raise ValueError(
+            "Must supply exactly one of `reference_dataset` or `candidate_labels` to `get_templated_dataset()`!"
+        )
+
     if candidate_labels is None:
-        if dataset_name is None:
-            raise ValueError(
-                "Must supply at least one of `dataset_name` or `candidate_labels` to `add_templated_examples()`!"
-            )
-        candidate_labels = get_candidate_labels(dataset_name, label_names_column)
+        candidate_labels = get_candidate_labels(reference_dataset, label_names_column)
 
     empty_label_vector = [0] * len(candidate_labels)
 
@@ -93,12 +103,13 @@ def add_templated_examples(
 def get_candidate_labels(dataset_name: str, label_names_column: str = "label_text") -> List[str]:
     dataset = load_dataset(dataset_name, split="train")
 
-    if "label" in dataset.features:
+    try:
         # Extract ClassLabel feature from "label" column
         label_features = dataset.features["label"]
         # Label names to classify with
         candidate_labels = label_features.names
-    else:
+
+    except AttributeError:
         # Some datasets on the Hugging Face Hub don't have a ClassLabel feature for the label column.
         # In these cases, you should compute the candidate labels manually by first computing the id2label mapping.
 
@@ -113,71 +124,6 @@ def get_candidate_labels(dataset_name: str, label_names_column: str = "label_tex
         candidate_labels = list(id2label_sorted.values())
 
     return candidate_labels
-
-
-def get_augmented_samples(dataset: str, sample_size: int = 2) -> Dict[str, list]:
-    if dataset == "emotion":
-        return {
-            "text": ["The sentence is sadness"] * sample_size
-            + ["The sentence is joy"] * sample_size
-            + ["The sentence is love"] * sample_size
-            + ["The sentence is anger"] * sample_size
-            + ["The sentence is fear"] * sample_size
-            + ["The sentence is surprise"] * sample_size,
-            "label": [0] * sample_size
-            + [1] * sample_size
-            + [2] * sample_size
-            + [3] * sample_size
-            + [4] * sample_size
-            + [5] * sample_size,
-        }
-    elif dataset == "ag_news":
-        return {
-            "text": ["The sentence is world"] * sample_size
-            + ["The sentence is sports"] * sample_size
-            + ["The sentence is business"] * sample_size
-            + ["The sentence is tech"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size + [2] * sample_size + [3] * sample_size,
-        }
-    elif dataset == "amazon_counterfactual_en":
-        return {
-            "text": ["The sentence is not counterfactual"] * sample_size
-            + ["The sentence is counterfactual"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size,
-        }
-    elif dataset == "SentEval-CR":
-        return {
-            "text": ["The sentence is negative"] * sample_size + ["The sentence is positive"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size,
-        }
-    elif dataset == "sst5":
-        return {
-            "text": ["The sentence is very negative"] * sample_size
-            + ["The sentence is negative"] * sample_size
-            + ["The sentence is neutral"] * sample_size
-            + ["The sentence is positive"] * sample_size
-            + ["The sentence is very positive"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size + [2] * sample_size + [3] * sample_size + [4] * sample_size,
-        }
-    elif dataset == "enron_spam":
-        return {
-            "text": ["The sentence is ham"] * sample_size + ["The sentence is spam"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size,
-        }
-    elif dataset == "tweet_eval_stance_abortion":
-        return {
-            "text": ["The sentence is none"] * sample_size
-            + ["The sentence is against"] * sample_size
-            + ["The sentence is favor"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size + [2] * sample_size,
-        }
-    elif dataset == "ade_corpus_v2_classification":
-        return {
-            "text": ["The sentence is not related"] * sample_size + ["The sentence is related"] * sample_size,
-            "label": [0] * sample_size + [1] * sample_size,
-        }
-    else:
-        raise ValueError(f"Dataset {dataset} not supported for data augmentation!")
 
 
 def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFrame:
@@ -210,21 +156,24 @@ def create_fewshot_splits(
     dataset: Dataset,
     sample_sizes: List[int],
     add_data_augmentation: bool = False,
-    dataset_name: Optional[str] = None,
+    dataset_name: str = None,
 ) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
     df = dataset.to_pandas()
 
+    if add_data_augmentation and dataset_name is None:
+        raise ValueError(
+            "If `add_data_augmentation` is True, must supply a `dataset_name` to create_fewshot_splits()!"
+        )
+
     for sample_size in sample_sizes:
+        if add_data_augmentation:
+            augmented_df = get_templated_dataset(reference_dataset=dataset_name, sample_size=sample_size).to_pandas()
         for idx, seed in enumerate(SEEDS):
-            if add_data_augmentation and dataset_name is not None:
-                augmented_samples = get_augmented_samples(dataset_name, sample_size)
-                augmented_df = pd.DataFrame(augmented_samples)
-                samples_df = create_samples(df, sample_size, seed)
-                split_df = pd.concat([samples_df, augmented_df], axis=0).sample(frac=1, random_state=seed)
-            else:
-                split_df = create_samples(df, sample_size, seed)
+            split_df = create_samples(df, sample_size, seed)
+            if add_data_augmentation:
+                split_df = pd.concat([split_df, augmented_df], axis=0).sample(frac=1, random_state=seed)
             splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
     return splits_ds
 

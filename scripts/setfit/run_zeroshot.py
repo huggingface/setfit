@@ -13,7 +13,7 @@ from sentence_transformers import models
 from typing_extensions import LiteralString
 
 from setfit import SetFitModel, SetFitTrainer
-from setfit.data import add_templated_examples
+from setfit.data import get_templated_dataset
 from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC
 
 
@@ -27,8 +27,10 @@ simplefilter(action="ignore", category=FutureWarning)
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="paraphrase-mpnet-base-v2")
-    parser.add_argument("--eval_dataset", default="emotion")
-    parser.add_argument("--reference_dataset", default="emotion")
+    parser.add_argument("--eval_dataset", default="SetFit/emotion")
+    parser.add_argument("--candidate_labels", nargs="+")
+    parser.add_argument("--reference_dataset", default="SetFit/emotion")
+    parser.add_argument("--label_names_column", default="label_text")
     parser.add_argument("--sample_size", type=int, default=8)
     parser.add_argument("--num_iterations", type=int, default=20)
     parser.add_argument("--num_epochs", type=int, default=1)
@@ -88,13 +90,13 @@ def main():
     # Configure loss function
     loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
-    metric = DEV_DATASET_TO_METRIC.get(args.eval_dataset, TEST_DATASET_TO_METRIC.get(args.eval_dataset), "accuracy")
+    metric = DEV_DATASET_TO_METRIC.get(args.eval_dataset, TEST_DATASET_TO_METRIC.get(args.eval_dataset, "accuracy"))
 
     if args.reference_dataset is None:
-        reference_dataset = args.eval_dataset
+        args.reference_dataset = args.eval_dataset
 
-    train_data = add_templated_examples(
-        dataset_name=reference_dataset,
+    train_data = get_templated_dataset(
+        reference_dataset=args.reference_dataset,
         candidate_labels=args.candidate_labels,
         sample_size=args.sample_size,
         label_names_column=args.label_names_column,
