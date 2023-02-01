@@ -177,14 +177,14 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
 @pytest.mark.parametrize(
     "dataset",
     [
-        "emotion",
-        "ag_news",
-        "amazon_counterfactual_en",
-        "SentEval-CR",
-        "sst5",
-        "enron_spam",
-        "tweet_eval_stance_abortion",
-        "ade_corpus_v2_classification",
+        "SetFit/emotion",
+        "SetFit/ag_news",
+        "SetFit/amazon_counterfactual_en",
+        "SetFit/SentEval-CR",
+        "SetFit/sst5",
+        "SetFit/enron_spam",
+        "SetFit/tweet_eval_stance_abortion",
+        "SetFit/ade_corpus_v2_classification",
     ],
 )
 def test_get_augmented_samples(dataset: str):
