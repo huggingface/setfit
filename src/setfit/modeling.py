@@ -702,7 +702,6 @@ def sentence_pairs_generation_multilabel(sentences, labels, pairs):
         if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
             continue
         else:
-
             for _label in sample_labels:
                 second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
                 positive_sentence = sentences[second_idx]

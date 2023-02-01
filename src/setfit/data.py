@@ -302,7 +302,6 @@ class SetFitDataset(TorchDataset):
         return feature, label
 
     def collate_fn(self, batch):
-
         features = {input_name: [] for input_name in self.tokenizer.model_input_names}
 
         labels = []

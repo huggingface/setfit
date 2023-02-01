@@ -183,7 +183,6 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 elif self.loss_class is SupConLoss:
                     train_loss = self.loss_class(model=self.student_model)
                 else:
-
                     train_loss = self.loss_class(
                         model=self.student_model,
                         distance_metric=BatchHardTripletLossDistanceFunction.cosine_distance,

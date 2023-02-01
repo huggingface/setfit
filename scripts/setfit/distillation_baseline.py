@@ -56,7 +56,6 @@ class BaselineDistillation:
     # ------------------------ Student training ----------------------#
     # ----------------------------------------------------------------#
     def standard_model_distillation(self, train_raw_student, x_test, y_test, num_classes):
-
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         value2hot = {}

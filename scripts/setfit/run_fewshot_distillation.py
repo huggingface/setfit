@@ -240,7 +240,6 @@ class RunFewShotDistill:
                     self.trained_teacher_model = teacher_trainer.model
 
                 if self.mode == self.SETFIT_STUDENT:
-
                     # student train data = teacher train data + unlabeled data
                     student_train_dataset = concatenate_datasets([self.teacher_train_dataset, fewshot_ds[name]])
 

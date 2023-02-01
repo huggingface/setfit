@@ -516,7 +516,6 @@ class SetFitTrainer:
         config: Optional[dict] = None,
         skip_lfs_files: bool = False,
     ):
-
         return self.model.push_to_hub(
             repo_path_or_name,
             repo_url,
