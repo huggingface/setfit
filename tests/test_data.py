@@ -120,7 +120,9 @@ def test_create_fewshot_splits_with_augmentation():
     dataset_name = "sst5"
     dataset = load_dataset(f"SetFit/{dataset_name}", split="train")
     num_labels = len(set(dataset["label"]))
-    splits_ds = create_fewshot_splits(dataset, SAMPLE_SIZES, add_data_augmentation=True, dataset_name=dataset_name)
+    splits_ds = create_fewshot_splits(
+        dataset, SAMPLE_SIZES, add_data_augmentation=True, dataset_name=f"SetFit/{dataset_name}"
+    )
     assert len(splits_ds) == len(SAMPLE_SIZES) * len(SEEDS)
 
     split: Dataset
@@ -188,10 +190,10 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
     ],
 )
 def test_get_augmented_samples(dataset: str):
-    dataset_dict = get_templated_dataset(reference_dataset=dataset)
-    assert set(dataset_dict.keys()) == {"text", "label"}
-    assert len(dataset_dict["text"])
-    assert len(dataset_dict["label"])
+    dataset = get_templated_dataset(reference_dataset=dataset)
+    assert set(dataset.column_names) == {"text", "label"}
+    assert len(dataset["text"])
+    assert len(dataset["label"])
 
 
 def test_get_augmented_samples_negative():
