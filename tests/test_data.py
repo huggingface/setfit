@@ -187,6 +187,18 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
         "ade_corpus_v2_classification",
     ],
 )
+def test_get_augmented_samples(dataset: str):
+    dataset_dict = get_templated_dataset(reference_dataset=dataset)
+    assert set(dataset_dict.keys()) == {"text", "label"}
+    assert len(dataset_dict["text"])
+    assert len(dataset_dict["label"])
+
+
+def test_get_augmented_samples_negative():
+    with pytest.raises(ValueError):
+        get_templated_dataset(reference_dataset=None, candidate_labels=None)
+
+
 @pytest.mark.parametrize(
     "tokenizer_name",
     ["sentence-transformers/paraphrase-albert-small-v2", "sentence-transformers/distiluse-base-multilingual-cased-v1"],
