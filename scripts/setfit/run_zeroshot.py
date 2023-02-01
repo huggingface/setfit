@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument("--candidate_labels", nargs="+")
     parser.add_argument("--reference_dataset", default="SetFit/emotion")
     parser.add_argument("--label_names_column", default="label_text")
-    parser.add_argument("--sample_size", type=int, default=8)
+    parser.add_argument("--aug_sample_size", type=int, default=8)
     parser.add_argument("--num_iterations", type=int, default=20)
     parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=16)
@@ -98,7 +98,7 @@ def main():
     train_data = get_templated_dataset(
         reference_dataset=args.reference_dataset,
         candidate_labels=args.candidate_labels,
-        sample_size=args.sample_size,
+        sample_size=args.aug_sample_size,
         label_names_column=args.label_names_column,
     )
     test_data = load_dataset(args.eval_dataset, split="test")
