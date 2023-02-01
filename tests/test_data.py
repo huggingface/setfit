@@ -14,7 +14,6 @@ from setfit.data import (
     create_fewshot_splits,
     create_fewshot_splits_multilabel,
     create_samples,
-    get_augmented_samples,
     get_templated_dataset,
     sample_dataset,
 )
@@ -188,16 +187,6 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
         "ade_corpus_v2_classification",
     ],
 )
-def test_get_augmented_samples(dataset: str):
-    dataset_dict = get_augmented_samples(dataset)
-    assert set(dataset_dict.keys()) == {"text", "label"}
-    assert len(dataset_dict["text"])
-    assert len(dataset_dict["label"])
-
-
-def test_get_augmented_samples_negative():
-    with pytest.raises(ValueError):
-        get_augmented_samples(None)
 
 
 @pytest.mark.parametrize(
