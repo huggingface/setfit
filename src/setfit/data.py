@@ -16,9 +16,9 @@ SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
 
 def get_templated_dataset(
-    dataset: Dataset = None,
-    candidate_labels: List[str] = None,
-    reference_dataset: str = None,
+    dataset: Optional[Dataset] = None,
+    candidate_labels: Optional[List[str]] = None,
+    reference_dataset: Optional[str] = None,
     template: str = "This sentence is {}",
     sample_size: int = 2,
     text_column: str = "text",
