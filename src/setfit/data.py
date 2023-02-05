@@ -117,11 +117,11 @@ def get_candidate_labels(dataset_name: str, label_names_column: str = "label_tex
         label_names = dataset.unique(label_names_column)
         # The column with the label IDs
         label_ids = dataset.unique("label")
-        id2label = dict(zip(label_ids, label_names))
-        # Sort by label ID
-        id2label_sorted = {key: val for key, val in sorted(id2label.items(), key=lambda x: x[0])}
 
-        candidate_labels = list(id2label_sorted.values())
+        # Compute the id2label mapping and sort by label ID
+        id2label = sorted(zip(label_ids, label_names), key=lambda x: x[0])
+        
+        candidate_labels = list(map(lambda x: x[1], id2label))
 
     return candidate_labels
 
