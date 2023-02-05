@@ -37,10 +37,10 @@ def get_templated_dataset(
     encoded label sequences.
 
     Args:
-        dataset (`Dataset`): A Dataset to add templated examples to.
-        candidate_labels (`List[str]`, defaults to None): The list of candidate
+        dataset (`Dataset`, *optional*): A Dataset to add templated examples to.
+        candidate_labels (`List[str]`, *optional*): The list of candidate
         labels to be fed into the template to construct examples.
-        reference_dataset (`str`, defaults to None): A dataset to take labels
+        reference_dataset (`str`, *optional*): A dataset to take labels
         from, if `candidate_labels` is not supplied.
         template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
             used to turn each label into a synthetic training example. This template
