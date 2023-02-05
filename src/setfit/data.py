@@ -120,7 +120,7 @@ def get_candidate_labels(dataset_name: str, label_names_column: str = "label_tex
 
         # Compute the id2label mapping and sort by label ID
         id2label = sorted(zip(label_ids, label_names), key=lambda x: x[0])
-        
+
         candidate_labels = list(map(lambda x: x[1], id2label))
 
     return candidate_labels
