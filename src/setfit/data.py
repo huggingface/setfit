@@ -156,7 +156,7 @@ def create_fewshot_splits(
     dataset: Dataset,
     sample_sizes: List[int],
     add_data_augmentation: bool = False,
-    dataset_name: str = None,
+    dataset_name: Optional[str] = None,
 ) -> DatasetDict:
     """Creates training splits from the dataset with an equal number of samples per class (when possible)."""
     splits_ds = DatasetDict()
