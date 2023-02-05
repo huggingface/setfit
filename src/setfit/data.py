@@ -26,7 +26,7 @@ def get_templated_dataset(
     multi_label: bool = False,
     label_names_column: str = "label_text",
 ) -> Dataset:
-    """Create templated examples for a reference dataset or refernece labels.
+    """Create templated examples for a reference dataset or reference labels.
 
     If `candidate_labels` is supplied, use it for generating the templates.
     Otherwise, use the labels loaded from `reference_dataset`.
