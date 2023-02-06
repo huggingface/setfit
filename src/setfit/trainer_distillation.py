@@ -8,11 +8,10 @@ from sentence_transformers import InputExample, losses, util
 from sentence_transformers.datasets import SentenceLabelDataset
 from torch.utils.data import DataLoader
 
-from setfit.training_args import TrainingArguments
-
 from . import logging
 from .modeling import SupConLoss, sentence_pairs_generation_cos_sim
 from .trainer import Trainer
+from .training_args import TrainingArguments
 
 
 if TYPE_CHECKING:

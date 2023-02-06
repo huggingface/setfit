@@ -17,11 +17,10 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from torch.utils.data import DataLoader
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 
-from setfit.training_args import TrainingArguments
-
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
 
 
