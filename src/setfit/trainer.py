@@ -324,7 +324,14 @@ class Trainer:
         self.model.fit(
             x_train,
             y_train,
-            **args.to_dict(),
+            num_epochs=args.classifier_num_epochs,
+            batch_size=args.classifier_batch_size,
+            body_learning_rate=args.body_classifier_learning_rate,
+            head_learning_rate=args.head_learning_rate,
+            l2_weight=args.l2_weight,
+            max_length=args.max_length,
+            show_progress_bar=args.show_progress_bar,
+            end_to_end=args.end_to_end,
         )
 
     def evaluate(self):

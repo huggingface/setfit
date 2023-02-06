@@ -281,15 +281,14 @@ class SetFitModel(PyTorchModelHubMixin):
         self,
         x_train: List[str],
         y_train: Union[List[int], List[List[int]]],
-        classifier_num_epochs: int,
-        classifier_batch_size: Optional[int] = None,
-        body_classifier_learning_rate: Optional[float] = None,
+        num_epochs: int,
+        batch_size: Optional[int] = None,
+        body_learning_rate: Optional[float] = None,
         head_learning_rate: Optional[float] = None,
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
         show_progress_bar: bool = True,
         end_to_end: bool = False,
-        **kwargs,
     ) -> None:
         if self.has_differentiable_head:  # train with pyTorch
             device = self.model_body.device
@@ -298,11 +297,11 @@ class SetFitModel(PyTorchModelHubMixin):
             if not end_to_end:
                 self.freeze("body")
 
-            dataloader = self._prepare_dataloader(x_train, y_train, classifier_batch_size, max_length)
+            dataloader = self._prepare_dataloader(x_train, y_train, batch_size, max_length)
             criterion = self.model_head.get_loss_fn()
-            optimizer = self._prepare_optimizer(head_learning_rate, body_classifier_learning_rate, l2_weight)
+            optimizer = self._prepare_optimizer(head_learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-            for epoch_idx in trange(classifier_num_epochs, desc="Epoch", disable=not show_progress_bar):
+            for epoch_idx in trange(num_epochs, desc="Epoch", disable=not show_progress_bar):
                 for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar, leave=False):
                     features, labels = batch
                     optimizer.zero_grad()
@@ -372,16 +371,16 @@ class SetFitModel(PyTorchModelHubMixin):
     def _prepare_optimizer(
         self,
         head_learning_rate: float,
-        body_classifier_learning_rate: Optional[float],
+        body_learning_rate: Optional[float],
         l2_weight: float,
     ) -> torch.optim.Optimizer:
-        body_classifier_learning_rate = body_classifier_learning_rate or head_learning_rate
+        body_learning_rate = body_learning_rate or head_learning_rate
         l2_weight = l2_weight or self.l2_weight
         optimizer = torch.optim.AdamW(
             [
                 {
                     "params": self.model_body.parameters(),
-                    "lr": body_classifier_learning_rate,
+                    "lr": body_learning_rate,
                     "weight_decay": l2_weight,
                 },
                 {"params": self.model_head.parameters(), "lr": head_learning_rate, "weight_decay": l2_weight},
