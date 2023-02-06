@@ -4,10 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 from datasets import Dataset, load_dataset
+from torch.utils.data import DataLoader
+from transformers import AutoTokenizer
 
 from setfit.data import (
     SAMPLE_SIZES,
     SEEDS,
+    SetFitDataset,
     add_templated_examples,
     create_fewshot_splits,
     create_fewshot_splits_multilabel,
@@ -197,3 +200,29 @@ def test_get_augmented_samples(dataset: str):
 def test_get_augmented_samples_negative():
     with pytest.raises(ValueError):
         get_augmented_samples(None)
+
+
+@pytest.mark.parametrize(
+    "tokenizer_name",
+    ["sentence-transformers/paraphrase-albert-small-v2", "sentence-transformers/distiluse-base-multilingual-cased-v1"],
+)
+def test_correct_model_inputs(tokenizer_name):
+    # Arbitrary testing data
+    x = list(string.ascii_lowercase)
+    y = list(range(len(x)))
+
+    # Relatively Standard DataLoader setup using a SetFitDataset
+    # for training a differentiable classification head
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    dataset = SetFitDataset(x, y, tokenizer)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=2,
+        collate_fn=dataset.collate_fn,
+        shuffle=True,
+        pin_memory=True,
+    )
+
+    # Verify that the x_batch contains exactly those keys that the model requires
+    x_batch, _ = next(iter(dataloader))
+    assert set(x_batch.keys()) == set(tokenizer.model_input_names)

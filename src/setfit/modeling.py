@@ -360,7 +360,11 @@ class SetFitModel(PyTorchModelHubMixin):
             max_length=max_length,
         )
         dataloader = DataLoader(
-            dataset, batch_size=batch_size, collate_fn=SetFitDataset.collate_fn, shuffle=shuffle, pin_memory=True
+            dataset,
+            batch_size=batch_size,
+            collate_fn=dataset.collate_fn,
+            shuffle=shuffle,
+            pin_memory=True,
         )
 
         return dataloader
