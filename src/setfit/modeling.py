@@ -401,7 +401,8 @@ class SetFitModel(PyTorchModelHubMixin):
     ) -> None:
         if keep_body_frozen is not None:
             warnings.warn(
-                '`keep_body_frozen` is deprecated. Please either pass "head", "body" or no arguments to unfreeze both.',
+                "`keep_body_frozen` is deprecated and will be removed in v2.0.0 of SetFit. "
+                'Please either pass "head", "body" or no arguments to unfreeze both.',
                 DeprecationWarning,
                 stacklevel=2,
             )

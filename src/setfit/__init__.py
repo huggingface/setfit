@@ -8,5 +8,6 @@ from .trainer import SetFitTrainer, Trainer
 from .trainer_distillation import DistillationSetFitTrainer, DistillationTrainer
 
 
-# Ensure that DeprecationWarnings are always shown
+# Ensure that DeprecationWarnings are shown by default, as recommended by
+# https://docs.python.org/3/library/warnings.html#overriding-the-default-filter
 warnings.filterwarnings("default", category=DeprecationWarning)

@@ -494,7 +494,10 @@ class SetFitTrainer(Trainer):
         samples_per_label: int = 2,
     ):
         warnings.warn(
-            "`SetFitTrainer` has been deprecated. Please use `Trainer` instead.", DeprecationWarning, stacklevel=2
+            "`SetFitTrainer` has been deprecated and will be removed in v2.0.0 of SetFit. "
+            " Please use `Trainer` instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
         args = TrainingArguments(
             num_iterations=num_iterations,

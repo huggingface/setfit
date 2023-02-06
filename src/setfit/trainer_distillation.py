@@ -1,4 +1,5 @@
 import math
+import warnings
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -180,6 +181,12 @@ class DistillationSetFitTrainer(DistillationTrainer):
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
     ):
+        warnings.warn(
+            "`DistillationSetFitTrainer` has been deprecated and will be removed in v2.0.0 of SetFit. "
+            "Please use `DistillationTrainer` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         args = TrainingArguments(
             num_iterations=num_iterations,
             num_epochs=num_epochs,
