@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import numpy as np
+import pytest
 import torch
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
@@ -10,6 +11,9 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel
 from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence_pairs_generation_multilabel
+
+
+torch_cuda_available = pytest.mark.skipif(not torch.cuda.is_available(), reason="PyTorch must be compiled with CUDA")
 
 
 def test_sentence_pairs_generation():
@@ -255,3 +259,20 @@ def test_to_torch_head():
         model.to(device)
         assert model.model_body.device == device
         assert model.model_head.device == device
+
+
+@torch_cuda_available
+@pytest.mark.parametrize("use_differentiable_head", [True, False])
+def test_to_sentence_transformer_device_reset(use_differentiable_head):
+    # This should initialize SentenceTransformer() without a specific device
+    # which sets the model to CUDA iff CUDA is available.
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=use_differentiable_head
+    )
+    # If we move the entire model to CPU, we expect it to stay on CPU forever,
+    # Even after encoding or fitting
+    model.to("cpu")
+    assert model.model_body.device == torch.device("cpu")
+
+    model.model_body.encode("This is a test sample to encode")
+    assert model.model_body.device == torch.device("cpu")
