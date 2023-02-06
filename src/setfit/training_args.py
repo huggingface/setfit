@@ -10,7 +10,6 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 
 @dataclass
 class TrainingArguments:
-
     # batch_size is only used to conveniently set `embedding_batch_size` and `classifier_batch_size`
     # which are used in practice
     batch_size: Union[int, Tuple[int, int]] = field(default=(16, 2), repr=False)
