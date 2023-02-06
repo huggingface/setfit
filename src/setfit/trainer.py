@@ -165,7 +165,7 @@ class Trainer:
             final_model (`bool`, *optional*, defaults to `False`): If `True`, replace the `model_init()` function with a fixed model based on the parameters.
         """
 
-        if self.args:
+        if self.args is not None:
             self.args = self.args.update(params, ignore_extra=True)
         else:
             self.args = TrainingArguments.from_dict(params, ignore_extra=True)
