@@ -1,3 +1,4 @@
+import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -98,6 +99,15 @@ def get_templated_dataset(
             dataset = dataset.add_item(example)
 
     return dataset
+
+
+def add_templated_examples(**kwargs) -> None:
+    warnings.warn(
+        "`add_templated_examples` has been deprecated and will be removed in v1.0.0 of SetFit. "
+        " Please use `get_templated_dataset` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def get_candidate_labels(dataset_name: str, label_names_column: str = "label_text") -> List[str]:
