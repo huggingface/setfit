@@ -90,15 +90,6 @@ copyright = {{Creative Commons Attribution 4.0 International}}
 """
 
 
-class SetFitBaseModel:
-    def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
-        self.model = SentenceTransformer(model)
-        self.model.max_seq_length = max_seq_length
-
-        if add_normalization_layer:
-            self.model._modules["2"] = models.Normalize()
-
-
 class SetFitHead(models.Dense):
     """
     A SetFit head that supports multi-class classification for end-to-end training.
@@ -586,104 +577,6 @@ class SetFitModel(PyTorchModelHubMixin):
         )
 
 
-class SupConLoss(nn.Module):
-    """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
-
-    It also supports the unsupervised contrastive loss in SimCLR.
-    """
-
-    def __init__(self, model, temperature=0.07, contrast_mode="all", base_temperature=0.07):
-        super(SupConLoss, self).__init__()
-        self.model = model
-        self.temperature = temperature
-        self.contrast_mode = contrast_mode
-        self.base_temperature = base_temperature
-
-    def forward(self, sentence_features, labels=None, mask=None):
-        """Computes loss for model.
-
-        If both `labels` and `mask` are None, it degenerates to SimCLR unsupervised loss:
-        https://arxiv.org/pdf/2002.05709.pdf
-
-        Args:
-            features: hidden vector of shape [bsz, n_views, ...].
-            labels: ground truth of shape [bsz].
-            mask: contrastive mask of shape [bsz, bsz], mask_{i,j}=1 if sample j
-                has the same class as sample i. Can be asymmetric.
-
-        Returns:
-            A loss scalar.
-        """
-        features = self.model(sentence_features[0])["sentence_embedding"]
-
-        # Normalize embeddings
-        features = torch.nn.functional.normalize(features, p=2, dim=1)
-
-        # Add n_views dimension
-        features = torch.unsqueeze(features, 1)
-
-        device = features.device
-
-        if len(features.shape) < 3:
-            raise ValueError("`features` needs to be [bsz, n_views, ...]," "at least 3 dimensions are required")
-        if len(features.shape) > 3:
-            features = features.view(features.shape[0], features.shape[1], -1)
-
-        batch_size = features.shape[0]
-        if labels is not None and mask is not None:
-            raise ValueError("Cannot define both `labels` and `mask`")
-        elif labels is None and mask is None:
-            mask = torch.eye(batch_size, dtype=torch.float32).to(device)
-        elif labels is not None:
-            labels = labels.contiguous().view(-1, 1)
-            if labels.shape[0] != batch_size:
-                raise ValueError("Num of labels does not match num of features")
-            mask = torch.eq(labels, labels.T).float().to(device)
-        else:
-            mask = mask.float().to(device)
-
-        contrast_count = features.shape[1]
-        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
-        if self.contrast_mode == "one":
-            anchor_feature = features[:, 0]
-            anchor_count = 1
-        elif self.contrast_mode == "all":
-            anchor_feature = contrast_feature
-            anchor_count = contrast_count
-        else:
-            raise ValueError("Unknown mode: {}".format(self.contrast_mode))
-
-        # Compute logits
-        anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
-        # For numerical stability
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
-
-        # Tile mask
-        mask = mask.repeat(anchor_count, contrast_count)
-        # Mask-out self-contrast cases
-        logits_mask = torch.scatter(
-            torch.ones_like(mask),
-            1,
-            torch.arange(batch_size * anchor_count).view(-1, 1).to(device),
-            0,
-        )
-        mask = mask * logits_mask
-
-        # Compute log_prob
-        exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-
-        # Compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
-
-        # Loss
-        loss = -(self.temperature / self.base_temperature) * mean_log_prob_pos
-        loss = loss.view(anchor_count, batch_size).mean()
-
-        return loss
-
-
 def sentence_pairs_generation(sentences, labels, pairs):
     # Initialize two empty lists to hold the (sentence, sentence) pairs and
     # labels to indicate if a pair is positive or negative
@@ -754,29 +647,3 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
         pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
 
     return pairs
-
-
-class SKLearnWrapper:
-    def __init__(self, st_model=None, clf=None):
-        self.st_model = st_model
-        self.clf = clf
-
-    def fit(self, x_train, y_train):
-        embeddings = self.st_model.encode(x_train)
-        self.clf.fit(embeddings, y_train)
-
-    def predict(self, x_test):
-        embeddings = self.st_model.encode(x_test)
-        return self.clf.predict(embeddings)
-
-    def predict_proba(self, x_test):
-        embeddings = self.st_model.encode(x_test)
-        return self.clf.predict_proba(embeddings)
-
-    def save(self, path):
-        self.st_model.save(path=path)
-        joblib.dump(self.clf, f"{path}/setfit_head.pkl")
-
-    def load(self, path):
-        self.st_model = SentenceTransformer(model_name_or_path=path)
-        self.clf = joblib.load(f"{path}/setfit_head.pkl")

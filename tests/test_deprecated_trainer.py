@@ -8,7 +8,8 @@ from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
-from setfit.modeling import SetFitModel, SupConLoss
+from setfit.losses import SupConLoss
+from setfit.modeling import SetFitModel
 from setfit.trainer import SetFitTrainer
 from setfit.utils import BestRun
 

@@ -7,7 +7,7 @@ from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
 
 from .data import create_fewshot_splits, create_fewshot_splits_multilabel
-from .modeling import SupConLoss
+from .losses import SupConLoss
 
 
 SEC_TO_NS_SCALE = 1000000000

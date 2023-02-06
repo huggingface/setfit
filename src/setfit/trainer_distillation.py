@@ -9,7 +9,8 @@ from sentence_transformers.datasets import SentenceLabelDataset
 from torch.utils.data import DataLoader
 
 from . import logging
-from .modeling import SupConLoss, sentence_pairs_generation_cos_sim
+from .losses import SupConLoss
+from .modeling import sentence_pairs_generation_cos_sim
 from .trainer import Trainer
 from .training_args import TrainingArguments
 
