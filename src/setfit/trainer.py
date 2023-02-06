@@ -219,7 +219,7 @@ class Trainer:
         trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         **kwargs,
     ):
-        if kwargs:
+        if kwargs is not None:
             warnings.warn(
                 f"`{self.__class__.__name__}.train` does not accept keyword arguments anymore. "
                 f"Please provide training arguments via a `TrainingArguments` instance to the `{self.__class__.__name__}` "
