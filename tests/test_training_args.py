@@ -21,24 +21,24 @@ class TestTrainingArguments(TestCase):
         batch_size_C = 6
 
         args = TrainingArguments(batch_size=batch_size_A)
-        assert args.batch_size == (batch_size_A, batch_size_A)
-        assert args.embedding_batch_size == batch_size_A
-        assert args.classifier_batch_size == batch_size_A
+        self.assertEqual(args.batch_size, (batch_size_A, batch_size_A))
+        self.assertEqual(args.embedding_batch_size, batch_size_A)
+        self.assertEqual(args.classifier_batch_size, batch_size_A)
 
         args = TrainingArguments(batch_size=(batch_size_A, batch_size_B))
-        assert args.batch_size == (batch_size_A, batch_size_B)
-        assert args.embedding_batch_size == batch_size_A
-        assert args.classifier_batch_size == batch_size_B
+        self.assertEqual(args.batch_size, (batch_size_A, batch_size_B))
+        self.assertEqual(args.embedding_batch_size, batch_size_A)
+        self.assertEqual(args.classifier_batch_size, batch_size_B)
 
         args = TrainingArguments(batch_size=(batch_size_A, batch_size_B), embedding_batch_size=batch_size_C)
-        assert args.batch_size == (batch_size_A, batch_size_B)
-        assert args.embedding_batch_size == batch_size_C
-        assert args.classifier_batch_size == batch_size_B
+        self.assertEqual(args.batch_size, (batch_size_A, batch_size_B))
+        self.assertEqual(args.embedding_batch_size, batch_size_C)
+        self.assertEqual(args.classifier_batch_size, batch_size_B)
 
         args = TrainingArguments(batch_size=batch_size_A, embedding_batch_size=batch_size_C)
-        assert args.batch_size == (batch_size_A, batch_size_A)
-        assert args.embedding_batch_size == batch_size_C
-        assert args.classifier_batch_size == batch_size_A
+        self.assertEqual(args.batch_size, (batch_size_A, batch_size_A))
+        self.assertEqual(args.embedding_batch_size, batch_size_C)
+        self.assertEqual(args.classifier_batch_size, batch_size_A)
 
     def test_training_args_num_epochs(self):
         num_epochs_A = 12
@@ -46,24 +46,24 @@ class TestTrainingArguments(TestCase):
         num_epochs_C = 6
 
         args = TrainingArguments(num_epochs=num_epochs_A)
-        assert args.num_epochs == (num_epochs_A, num_epochs_A)
-        assert args.embedding_num_epochs == num_epochs_A
-        assert args.classifier_num_epochs == num_epochs_A
+        self.assertEqual(args.num_epochs, (num_epochs_A, num_epochs_A))
+        self.assertEqual(args.embedding_num_epochs, num_epochs_A)
+        self.assertEqual(args.classifier_num_epochs, num_epochs_A)
 
         args = TrainingArguments(num_epochs=(num_epochs_A, num_epochs_B))
-        assert args.num_epochs == (num_epochs_A, num_epochs_B)
-        assert args.embedding_num_epochs == num_epochs_A
-        assert args.classifier_num_epochs == num_epochs_B
+        self.assertEqual(args.num_epochs, (num_epochs_A, num_epochs_B))
+        self.assertEqual(args.embedding_num_epochs, num_epochs_A)
+        self.assertEqual(args.classifier_num_epochs, num_epochs_B)
 
         args = TrainingArguments(num_epochs=(num_epochs_A, num_epochs_B), embedding_num_epochs=num_epochs_C)
-        assert args.num_epochs == (num_epochs_A, num_epochs_B)
-        assert args.embedding_num_epochs == num_epochs_C
-        assert args.classifier_num_epochs == num_epochs_B
+        self.assertEqual(args.num_epochs, (num_epochs_A, num_epochs_B))
+        self.assertEqual(args.embedding_num_epochs, num_epochs_C)
+        self.assertEqual(args.classifier_num_epochs, num_epochs_B)
 
         args = TrainingArguments(num_epochs=num_epochs_A, embedding_num_epochs=num_epochs_C)
-        assert args.num_epochs == (num_epochs_A, num_epochs_A)
-        assert args.embedding_num_epochs == num_epochs_C
-        assert args.classifier_num_epochs == num_epochs_A
+        self.assertEqual(args.num_epochs, (num_epochs_A, num_epochs_A))
+        self.assertEqual(args.embedding_num_epochs, num_epochs_C)
+        self.assertEqual(args.classifier_num_epochs, num_epochs_A)
 
     def test_training_args_learning_rates(self):
         learning_rate_A = 1e-2
@@ -73,24 +73,24 @@ class TestTrainingArguments(TestCase):
         base = TrainingArguments()
 
         args = TrainingArguments(body_learning_rate=learning_rate_A)
-        assert args.body_learning_rate == (learning_rate_A, learning_rate_A)
-        assert args.body_embedding_learning_rate == learning_rate_A
-        assert args.body_classifier_learning_rate == learning_rate_A
-        assert args.head_learning_rate == base.head_learning_rate
+        self.assertEqual(args.body_learning_rate, (learning_rate_A, learning_rate_A))
+        self.assertEqual(args.body_embedding_learning_rate, learning_rate_A)
+        self.assertEqual(args.body_classifier_learning_rate, learning_rate_A)
+        self.assertEqual(args.head_learning_rate, base.head_learning_rate)
 
         args = TrainingArguments(body_learning_rate=(learning_rate_A, learning_rate_B))
-        assert args.body_learning_rate == (learning_rate_A, learning_rate_B)
-        assert args.body_embedding_learning_rate == learning_rate_A
-        assert args.body_classifier_learning_rate == learning_rate_B
-        assert args.head_learning_rate == base.head_learning_rate
+        self.assertEqual(args.body_learning_rate, (learning_rate_A, learning_rate_B))
+        self.assertEqual(args.body_embedding_learning_rate, learning_rate_A)
+        self.assertEqual(args.body_classifier_learning_rate, learning_rate_B)
+        self.assertEqual(args.head_learning_rate, base.head_learning_rate)
 
         args = TrainingArguments(
             body_learning_rate=(learning_rate_A, learning_rate_B), head_learning_rate=learning_rate_C
         )
-        assert args.body_learning_rate == (learning_rate_A, learning_rate_B)
-        assert args.body_embedding_learning_rate == learning_rate_A
-        assert args.body_classifier_learning_rate == learning_rate_B
-        assert args.head_learning_rate == learning_rate_C
+        self.assertEqual(args.body_learning_rate, (learning_rate_A, learning_rate_B))
+        self.assertEqual(args.body_embedding_learning_rate, learning_rate_A)
+        self.assertEqual(args.body_classifier_learning_rate, learning_rate_B)
+        self.assertEqual(args.head_learning_rate, learning_rate_C)
 
         args = TrainingArguments(
             body_learning_rate=learning_rate_A,
@@ -98,16 +98,16 @@ class TestTrainingArguments(TestCase):
             head_learning_rate=learning_rate_C,
         )
         # Perhaps not ideal, but body_learning_rate is never used directly:
-        assert args.body_learning_rate == (learning_rate_A, learning_rate_A)
-        assert args.body_embedding_learning_rate == learning_rate_B
-        assert args.body_classifier_learning_rate == learning_rate_A
-        assert args.head_learning_rate == learning_rate_C
+        self.assertEqual(args.body_learning_rate, (learning_rate_A, learning_rate_A))
+        self.assertEqual(args.body_embedding_learning_rate, learning_rate_B)
+        self.assertEqual(args.body_classifier_learning_rate, learning_rate_A)
+        self.assertEqual(args.head_learning_rate, learning_rate_C)
 
         args = TrainingArguments(
             body_classifier_learning_rate=learning_rate_A,
             body_embedding_learning_rate=learning_rate_B,
             head_learning_rate=learning_rate_C,
         )
-        assert args.body_embedding_learning_rate == learning_rate_B
-        assert args.body_classifier_learning_rate == learning_rate_A
-        assert args.head_learning_rate == learning_rate_C
+        self.assertEqual(args.body_embedding_learning_rate, learning_rate_B)
+        self.assertEqual(args.body_classifier_learning_rate, learning_rate_A)
+        self.assertEqual(args.head_learning_rate, learning_rate_C)
