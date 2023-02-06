@@ -112,7 +112,6 @@ class Trainer:
 
         self.model = model
         self.hp_search_backend = None
-        self._freeze = True  # If True, will train the body only; otherwise, train the body and head
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
