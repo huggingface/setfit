@@ -72,7 +72,6 @@ class DistillationTrainer(Trainer):
         eval_dataset: Optional["Dataset"] = None,
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
-        loss_class: torch.nn.Module = losses.CosineSimilarityLoss,
         column_mapping: Optional[Dict[str, str]] = None,
     ) -> None:
         super().__init__(
@@ -82,7 +81,6 @@ class DistillationTrainer(Trainer):
             eval_dataset=eval_dataset,
             model_init=model_init,
             metric=metric,
-            loss_class=loss_class,
             column_mapping=column_mapping,
         )
 
@@ -98,7 +96,7 @@ class DistillationTrainer(Trainer):
         args = args or self.args or TrainingArguments()
 
         # sentence-transformers adaptation
-        if self.loss_class in [
+        if args.loss in [
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
             losses.BatchSemiHardTripletLoss,
@@ -111,15 +109,15 @@ class DistillationTrainer(Trainer):
             batch_size = min(args.embedding_batch_size, len(train_data_sampler))
             train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
-            if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = self.loss_class(
+            if args.loss is losses.BatchHardSoftMarginTripletLoss:
+                train_loss = args.loss(
                     model=self.student_model.model_body,
                     distance_metric=args.distance_metric,
                 )
-            elif self.loss_class is SupConLoss:
-                train_loss = self.loss_class(model=self.student_model)
+            elif args.loss is SupConLoss:
+                train_loss = args.loss(model=self.student_model)
             else:
-                train_loss = self.loss_class(
+                train_loss = args.loss(
                     model=self.student_model.model_body,
                     distance_metric=args.distance_metric,
                     margin=args.margin,
@@ -141,7 +139,7 @@ class DistillationTrainer(Trainer):
 
             batch_size = args.embedding_batch_size
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-            train_loss = self.loss_class(self.student_model.model_body)
+            train_loss = args.loss(self.student_model.model_body)
 
         total_train_steps = len(train_dataloader) * args.embedding_num_epochs
         logger.info("***** Running training *****")
@@ -195,6 +193,7 @@ class DistillationSetFitTrainer(DistillationTrainer):
             seed=seed,
             use_amp=use_amp,
             warmup_proportion=warmup_proportion,
+            loss=loss_class,
         )
         super().__init__(
             teacher_model=teacher_model,
@@ -204,6 +203,5 @@ class DistillationSetFitTrainer(DistillationTrainer):
             eval_dataset=eval_dataset,
             model_init=model_init,
             metric=metric,
-            loss_class=loss_class,
             column_mapping=column_mapping,
         )

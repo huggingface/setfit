@@ -3,9 +3,9 @@ from __future__ import annotations
 import inspect
 from copy import copy
 from dataclasses import dataclass, field, fields
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from sentence_transformers import losses
 
 
 @dataclass
@@ -34,15 +34,17 @@ class TrainingArguments:
     seed: int = 42
     use_amp: bool = False
     warmup_proportion: float = 0.1
-    distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance
+    distance_metric: Callable = losses.BatchHardTripletLossDistanceFunction.cosine_distance
     margin: float = 0.25
     samples_per_label: int = 2
     show_progress_bar: bool = True
 
-    l2_weight: float = None
-    max_length: int = None
+    l2_weight: Optional[float] = None
+    max_length: Optional[int] = None
 
     end_to_end: bool = False
+
+    loss: Callable = losses.CosineSimilarityLoss
 
     def __post_init__(self):
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`

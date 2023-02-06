@@ -364,13 +364,12 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
 def test_trainer_works_with_non_default_loss_class(loss_class):
     dataset = Dataset.from_dict({"text": ["a 1", "b 1", "c 1", "a 2", "b 2", "c 2"], "label": [0, 1, 2, 0, 1, 2]})
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
-    args = TrainingArguments(num_iterations=1)
+    args = TrainingArguments(num_iterations=1, loss=loss_class)
     trainer = Trainer(
         model=model,
         args=args,
         train_dataset=dataset,
         eval_dataset=dataset,
-        loss_class=loss_class,
     )
     trainer.train()
     # no asserts here because this is a regression test - we only test if an exception is raised

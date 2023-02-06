@@ -92,7 +92,6 @@ class Trainer:
         eval_dataset: Optional["Dataset"] = None,
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
-        loss_class=losses.CosineSimilarityLoss,
         column_mapping: Optional[Dict[str, str]] = None,
     ):
         self.args = args
@@ -100,7 +99,6 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.model_init = model_init
         self.metric = metric
-        self.loss_class = loss_class
         self.column_mapping = column_mapping
 
         if model is None:
@@ -248,9 +246,6 @@ class Trainer:
 
         x_train: List[str] = train_dataset["text"]
         y_train: List[int] = train_dataset["label"]
-        if self.loss_class is None:
-            logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
-            self.loss_class = losses.CosineSimilarityLoss
 
         self.train_embeddings(x_train, y_train, args)
         self.train_classifier(x_train, y_train, args)
@@ -259,7 +254,7 @@ class Trainer:
         args = args or self.args or TrainingArguments()
 
         # sentence-transformers adaptation
-        if self.loss_class in [
+        if args.loss in [
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
             losses.BatchSemiHardTripletLoss,
@@ -272,15 +267,15 @@ class Trainer:
             batch_size = min(args.embedding_batch_size, len(train_data_sampler))
             train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
 
-            if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = self.loss_class(
+            if args.loss is losses.BatchHardSoftMarginTripletLoss:
+                train_loss = args.loss(
                     model=self.model.model_body,
                     distance_metric=args.distance_metric,
                 )
-            elif self.loss_class is SupConLoss:
-                train_loss = self.loss_class(model=self.model.model_body)
+            elif args.loss is SupConLoss:
+                train_loss = args.loss(model=self.model.model_body)
             else:
-                train_loss = self.loss_class(
+                train_loss = args.loss(
                     model=self.model.model_body,
                     distance_metric=args.distance_metric,
                     margin=args.margin,
@@ -298,7 +293,7 @@ class Trainer:
 
             batch_size = args.embedding_batch_size
             train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-            train_loss = self.loss_class(self.model.model_body)
+            train_loss = args.loss(self.model.model_body)
 
         total_train_steps = len(train_dataloader) * args.embedding_num_epochs
         logger.info("***** Running training *****")
@@ -510,6 +505,7 @@ class SetFitTrainer(Trainer):
             distance_metric=distance_metric,
             margin=margin,
             samples_per_label=samples_per_label,
+            loss=loss_class,
         )
         super().__init__(
             model=model,
@@ -518,6 +514,5 @@ class SetFitTrainer(Trainer):
             eval_dataset=eval_dataset,
             model_init=model_init,
             metric=metric,
-            loss_class=loss_class,
             column_mapping=column_mapping,
         )
