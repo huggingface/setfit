@@ -108,7 +108,6 @@ def eval_setfit(train_data, test_data, model, loss_class, num_epochs, metric):
         losses.BatchHardSoftMarginTripletLoss,
         SupConLoss,
     ]:
-
         train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
         train_data_sampler = SentenceLabelDataset(train_examples)
 
