@@ -6,7 +6,7 @@ from setfit.training_args import TrainingArguments
 
 
 class TestTrainingArguments(TestCase):
-    def test_training_args_raises_error_with_wrong_warmup_proportion(self):
+    def test_raises_error_with_wrong_warmup_proportion(self):
         # warmup_proportion must not be > 1.0
         with pytest.raises(ValueError):
             TrainingArguments(warmup_proportion=1.1)
@@ -15,7 +15,7 @@ class TestTrainingArguments(TestCase):
         with pytest.raises(ValueError):
             TrainingArguments(warmup_proportion=-0.1)
 
-    def test_training_args_batch_sizes(self):
+    def test_batch_sizes(self):
         batch_size_A = 12
         batch_size_B = 4
         batch_size_C = 6
@@ -40,7 +40,7 @@ class TestTrainingArguments(TestCase):
         self.assertEqual(args.embedding_batch_size, batch_size_C)
         self.assertEqual(args.classifier_batch_size, batch_size_A)
 
-    def test_training_args_num_epochs(self):
+    def test_num_epochs(self):
         num_epochs_A = 12
         num_epochs_B = 4
         num_epochs_C = 6
@@ -65,7 +65,7 @@ class TestTrainingArguments(TestCase):
         self.assertEqual(args.embedding_num_epochs, num_epochs_C)
         self.assertEqual(args.classifier_num_epochs, num_epochs_A)
 
-    def test_training_args_learning_rates(self):
+    def test_learning_rates(self):
         learning_rate_A = 1e-2
         learning_rate_B = 1e-3
         learning_rate_C = 1e-4
