@@ -106,14 +106,10 @@ class SetFitTrainerTest(TestCase):
                 trainer._validate_column_mapping(trainer.train_dataset)
             except:
                 pass
-            self.assertEqual(
-                cm.output,
-                [
-                    (
-                        f"WARNING: The dataset has columns named 'train' or 'test',",
-                        f"did you want to select the training/test split with dataset['train'] or dataset['test'] ?",
-                    )
-                ],
+            self.assertIn(
+                "WARNING:setfit.trainer:The dataset has columns named 'train' or 'test', "
+                "did you want to select the training/test split with dataset['train'] or dataset['test'] ?",
+                cm.output
             )
 
     def test_column_mapping_multilabel(self):
