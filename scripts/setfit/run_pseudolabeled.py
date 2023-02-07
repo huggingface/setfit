@@ -5,7 +5,6 @@ import pathlib
 import sys
 from shutil import copyfile
 from warnings import simplefilter
-
 from sentence_transformers import models
 from typing_extensions import LiteralString
 
@@ -89,12 +88,6 @@ def main():
 
     metric = TEST_DATASET_TO_METRIC.get(dataset, DEV_DATASET_TO_METRIC.get(dataset, 'accuracy'))
 
-    few_shot_train_splits, test_data, _ = \
-        load_data_splits(dataset, [args.sample_size], add_data_augmentation=args.sample_size == 0)
-    
-    split_name = f"train-{args.sample_size}-{args.train_split}"
-    train_data = few_shot_train_splits[split_name]
-
     # Load model
     model = SetFitModel.from_pretrained(args.model)
     model.model_body.max_seq_length = args.max_seq_length
@@ -104,9 +97,14 @@ def main():
     ############ Zero-Shot with Data Augmentation ############
     if args.add_data_augmentation:
         few_shot_train_splits, test_data, _ = load_data_splits(dataset, [0], args.add_data_augmentation)
-        zeroshot_train_data = few_shot_train_splits[split_name]
+        zeroshot_train_data = few_shot_train_splits["train-0-0"]
+        if args.sample_size == 0:
+            zeroshot_train_data = zeroshot_train_data.shuffle(seed=args.train_split)
 
-        results_path = create_results_path(dataset, "train-0-data_aug", output_path)
+        split_name = f"train-{args.sample_size}-{args.train_split}"
+        results_path = create_results_path(dataset, split_name, output_path)
+        
+
         if os.path.exists(results_path) and args.allow_skip_exp:
             print(f"Skipping finished experiment: {results_path}")
         else:
@@ -131,14 +129,27 @@ def main():
     if args.pseudolabels_path is not None:
         pseudolabeled_examples, pl_accuracy = load_pseudolabeled_examples(PSEUDOLABELS_DIR + args.pseudolabels_path, args.top_n)
 
+        few_shot_train_splits, test_data, _ = \
+            load_data_splits(dataset, [args.sample_size], add_data_augmentation=args.sample_size == 0)
+        
+        split_name = f"train-{args.sample_size}-{args.train_split}"
         results_path = create_results_path(dataset, split_name, output_path)
+
+        if args.sample_size != 0:
+            train_data = few_shot_train_splits[split_name]
+        else:
+            train_data = few_shot_train_splits[f"train-0-0"].shuffle(seed=args.train_split)
+
         experiment_name = str(results_path).split('results')[1].strip("/")
 
+        train_seed = args.train_split if args.sample_size == 0 else 42
+        
         if os.path.exists(results_path) and args.allow_skip_exp:
             print(f"Skipping finished experiment: {results_path}")
         else:
             # Train on current split
             trainer = SetFitTrainer(
+                seed=train_seed,
                 model=model,
                 train_dataset=train_data,
                 eval_dataset=test_data,

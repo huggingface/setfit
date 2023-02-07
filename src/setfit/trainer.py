@@ -319,8 +319,7 @@ class SetFitTrainer:
 
         train_examples = []
 
-        if self.pseudolabeled_examples is not None:
-            train_examples.extend(self.pseudolabeled_examples)
+        logger.info("***** Running training *****")
 
         if not is_differentiable_head or self._freeze:
             # sentence-transformers adaptation
@@ -353,7 +352,8 @@ class SetFitTrainer:
 
                 train_steps = len(train_dataloader) * self.num_epochs
             else:
-
+                logger.info(f"  Num examples for pair generation = {len(x_train)}")
+                logger.info(f"  Num iterations for pair generation = {self.num_iterations}")
                 for _ in range(self.num_iterations):
                     if self.model.multi_target_strategy is not None:
                         train_examples = sentence_pairs_generation_multilabel(
@@ -364,11 +364,16 @@ class SetFitTrainer:
                             np.array(x_train), np.array(y_train), train_examples
                         )
 
+                logger.info(f"  Num generated pairs = {len(train_examples)}")
+
+                if self.pseudolabeled_examples is not None:
+                    logger.info(f"  Num pseudolabeled pairs = {len(self.pseudolabeled_examples)}")
+                    train_examples.extend(self.pseudolabeled_examples)
+
                 train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
                 train_steps = len(train_dataloader) * num_epochs
-
-            logger.info("***** Running training *****")
+            
             logger.info(f"  Num examples = {len(train_examples)}")
             logger.info(f"  Num epochs = {num_epochs}")
             logger.info(f"  Total optimization steps = {train_steps}")

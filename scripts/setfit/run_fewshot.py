@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
     parser.add_argument("--pseudolabels_path", default=None)
-    parser.add_argument("--num_train_splits", type=int, default=10)
+    parser.add_argument("--num_splits_fewshot", type=int, default=10)
     args = parser.parse_args()
 
     return args
@@ -71,13 +71,8 @@ def main():
     args = parse_args()
 
     parent_directory = pathlib.Path(__file__).parent.absolute()
-    output_path = (
-        parent_directory
-        / "results"
-        / f"{args.model.replace('/', '-')}-{args.loss}-{args.classifier}-iterations_{args.num_iterations}-batch_{args.batch_size}-{args.exp_name}".rstrip(
-            "-"
-        )
-    )
+    output_path = (parent_directory / "results" / args.exp_name)
+    
     os.makedirs(output_path, exist_ok=True)
 
     # Save a copy of this training script and the run command in results directory
@@ -86,21 +81,14 @@ def main():
     with open(train_script_path, "a") as f_out:
         f_out.write("\n\n# Script was called via:\n#python " + " ".join(sys.argv))
 
-    # Configure dataset <> metric mapping. Defaults to accuracy
-    if args.is_dev_set:
-        dataset_to_metric = DEV_DATASET_TO_METRIC
-    elif args.is_test_set:
-        dataset_to_metric = TEST_DATASET_TO_METRIC
-    else:
-        dataset_to_metric = {dataset: "accuracy" for dataset in args.datasets}
-
     # Configure loss function
     loss_class = LOSS_NAME_TO_CLASS[args.loss]
 
-    for dataset, metric in dataset_to_metric.items():
+    for dataset in args.datasets:
+        metric = TEST_DATASET_TO_METRIC.get(dataset, DEV_DATASET_TO_METRIC.get(dataset, "accuracy"))
         few_shot_train_splits, test_data, _ = load_data_splits(dataset, args.sample_sizes, args.add_data_augmentation)
         
-        for split_name, train_data in list(few_shot_train_splits.items())[:args.num_train_splits]:
+        for split_name, train_data in list(few_shot_train_splits.items())[:args.num_splits_fewshot]:
             results_path = create_results_path(dataset, split_name, output_path)
             if os.path.exists(results_path) and not args.override_results:
                 print(f"Skipping finished experiment: {results_path}")

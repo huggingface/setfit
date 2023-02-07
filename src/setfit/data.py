@@ -134,8 +134,8 @@ def create_fewshot_splits(
             else:
                 train_splits_ds[f"train-{sample_size}-0"] = Dataset.from_dict({"text": [], "label": []})
 
-        for idx, seed in enumerate(SEEDS):
-            unlabeled_splits_ds[f"unlabeled-{sample_size}-{idx}"] = Dataset.from_pandas(df).shuffle(seed)
+            for idx, seed in enumerate(SEEDS):
+                unlabeled_splits_ds[f"unlabeled-{sample_size}-{idx}"] = Dataset.from_pandas(df).shuffle(seed)
 
         else:
             for idx, seed in enumerate(SEEDS):
@@ -149,7 +149,8 @@ def create_fewshot_splits(
                 train_splits_ds[f"train-{sample_size}-{idx}"] = Dataset.from_pandas(split_df, preserve_index=False)
 
                 if unlabeled_df is not None:
-                    unlabeled_splits_ds[f"unlabeled-{sample_size}-{idx}"] = Dataset.from_pandas(unlabeled_df, preserve_index=False)
+                    unlabeled_splits_ds[f"unlabeled-{sample_size}-{idx}"] = \
+                        Dataset.from_pandas(unlabeled_df, preserve_index=False).shuffle(seed)
 
     return train_splits_ds, unlabeled_splits_ds
 

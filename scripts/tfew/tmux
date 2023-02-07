@@ -1,3 +1,5 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES=6
+clear
+export CUDA_VISIBLE_DEVICES=7
 tmux new-session -d -s setfit-pl './run_pl.sh 2>&1 | tee pl.txt'
+watch -n 1 tmux ls

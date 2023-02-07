@@ -52,7 +52,7 @@ def compute_tfew_medians(results_path: str) -> None:
     Args:
         results_path: path to T-Few results: `/setfit/scripts/tfew/results/t03b_pretrained`
     """
-
+    
     for dataset in listdir(results_path):
         dataset_path = join(results_path, dataset)
         if isdir(dataset_path):
@@ -106,8 +106,7 @@ def create_summary_table(results_path: str) -> None:
     Args:
         path: path to per-split results: either `scripts/{method_name}/{results}/{model_name}`,
             or `final_results/{method_name}/{model_name}.tar.gz`
-    """
-
+    """    
     if results_path.endswith("tar.gz"):
         unzipped_path = extract_results(results_path)
     else:
