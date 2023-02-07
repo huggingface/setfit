@@ -41,48 +41,24 @@ class Trainer:
     Args:
         model (`SetFitModel`, *optional*):
             The model to train. If not provided, a `model_init` must be passed.
+        args (`TrainingArguments`, *optional*):
+            The training arguments to use.
         train_dataset (`Dataset`):
             The training dataset.
         eval_dataset (`Dataset`, *optional*):
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
-            A function that instantiates the model to be used. If provided, each call to [`~SetFitTrainer.train`] will start
-            from a new instance of the model as given by this function when a `trial` is passed.
+            A function that instantiates the model to be used. If provided, each call to
+            [`~SetFitTrainer.train`] will start from a new instance of the model as given by this
+            function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
-            The metric to use for evaluation. If a string is provided, we treat it as the metric name and load it with default settings.
+            The metric to use for evaluation. If a string is provided, we treat it as the metric
+            name and load it with default settings.
             If a callable is provided, it must take two arguments (`y_pred`, `y_test`).
-        loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
-            The loss function to use for contrastive training.
-        num_iterations (`int`, *optional*, defaults to `20`):
-            The number of iterations to generate sentence pairs for.
-            This argument is ignored if triplet loss is used.
-            It is only used in conjunction with `CosineSimilarityLoss`.
-        num_epochs (`int`, *optional*, defaults to `1`):
-            The number of epochs to train the Sentence Transformer body for.
-        learning_rate (`float`, *optional*, defaults to `2e-5`):
-            The learning rate to use for contrastive training.
-        batch_size (`int`, *optional*, defaults to `16`):
-            The batch size to use for contrastive training.
-        seed (`int`, *optional*, defaults to 42):
-            Random seed that will be set at the beginning of training. To ensure reproducibility across runs, use the
-            [`~SetTrainer.model_init`] function to instantiate the model if it has some randomly initialized parameters.
         column_mapping (`Dict[str, str]`, *optional*):
-            A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
-        use_amp (`bool`, *optional*, defaults to `False`):
-            Use Automatic Mixed Precision (AMP). Only for Pytorch >= 1.6.0
-        warmup_proportion (`float`, *optional*, defaults to `0.1`):
-            Proportion of the warmup in the total training steps.
-            Must be greater than or equal to 0.0 and less than or equal to 1.0.
-        distance_metric (`Callable`, defaults to `BatchHardTripletLossDistanceFunction.cosine_distance`):
-            Function that returns a distance between two embeddings.
-            It is set for the triplet loss and
-            is ignored for `CosineSimilarityLoss` and `SupConLoss`.
-        margin (`float`, defaults to `0.25`): Margin for the triplet loss.
-            Negative samples should be at least margin further apart from the anchor than the positive.
-            This is ignored for `CosineSimilarityLoss`, `BatchHardSoftMarginTripletLoss` and `SupConLoss`.
-        samples_per_label (`int`, defaults to `2`): Number of consecutive, random and unique samples drawn per label.
-            This is only relevant for triplet loss and ignored for `CosineSimilarityLoss`.
-            Batch size should be a multiple of samples_per_label.
+            A mapping from the column names in the dataset to the column names expected by the model.
+            The expected format is a dictionary with the following format:
+            `{"text_column_name": "text", "label_column_name: "label"}`.
     """
 
     def __init__(
@@ -106,10 +82,10 @@ class Trainer:
             if model_init is not None:
                 model = self.call_model_init()
             else:
-                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument")
+                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument.")
         else:
             if model_init is not None:
-                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both")
+                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both.")
 
         self.model = model
         self.hp_search_backend = None
@@ -204,6 +180,14 @@ class Trainer:
         return model
 
     def freeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+        """Freeze the model body and/or the head, preventing further training on that component until unfrozen.
+
+        This method is deprecated, use `SetFitModel.freeze` instead.
+
+        Args:
+            component (`Literal["body", "head"]`, *optional*): Either "body" or "head" to freeze that component.
+                If no component is provided, freeze both. Defaults to None.
+        """
         warnings.warn(
             f"`{self.__class__.__name__}.freeze` is deprecated and will be removed in v2.0.0 of SetFit. "
             "Please use `SetFitModel.freeze` directly instead.",
@@ -215,6 +199,15 @@ class Trainer:
     def unfreeze(
         self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None
     ) -> None:
+        """Unfreeze the model body and/or the head, allowing further training on that component.
+
+        This method is deprecated, use `SetFitModel.unfreeze` instead.
+
+        Args:
+            component (`Literal["body", "head"]`, *optional*): Either "body" or "head" to unfreeze that component.
+                If no component is provided, unfreeze both. Defaults to None.
+            keep_body_frozen (`bool`, *optional*): Deprecated argument, use `component` instead.
+        """
         warnings.warn(
             f"`{self.__class__.__name__}.unfreeze` is deprecated and will be removed in v2.0.0 of SetFit. "
             "Please use `SetFitModel.unfreeze` directly instead.",
@@ -229,6 +222,15 @@ class Trainer:
         trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         **kwargs,
     ):
+        """
+        Main training entry point.
+
+        Args:
+            args (`TrainingArguments`, *optional*):
+                Temporarily change the training arguments for this training call.
+            trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
+                The trial run or the hyperparameter dictionary for hyperparameter search.
+        """
         if len(kwargs):
             warnings.warn(
                 f"`{self.__class__.__name__}.train` does not accept keyword arguments anymore. "
@@ -262,7 +264,18 @@ class Trainer:
         self.train_embeddings(x_train, y_train, args)
         self.train_classifier(x_train, y_train, args)
 
-    def train_embeddings(self, x_train: List[str], y_train: List[int], args: Optional[TrainingArguments] = None):
+    def train_embeddings(
+        self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
+    ):
+        """
+        Method to perform the embedding phase: finetuning the `SentenceTransformer` body.
+
+        Args:
+            x_train (`List[str]`): A list of training sentences.
+            y_train (`Union[List[int], List[List[int]]]`): A list of labels corresponding to the training sentences.
+            args (`TrainingArguments`, *optional*):
+                Temporarily change the training arguments for this training call.
+        """
         args = args or self.args or TrainingArguments()
 
         # sentence-transformers adaptation
@@ -324,7 +337,18 @@ class Trainer:
             use_amp=args.use_amp,
         )
 
-    def train_classifier(self, x_train: List[str], y_train: List[int], args: Optional[TrainingArguments] = None):
+    def train_classifier(
+        self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
+    ):
+        """
+        Method to perform the classifier phase: fitting a classifier head.
+
+        Args:
+            x_train (`List[str]`): A list of training sentences.
+            y_train (`Union[List[int], List[List[int]]]`): A list of labels corresponding to the training sentences.
+            args (`TrainingArguments`, *optional*):
+                Temporarily change the training arguments for this training call.
+        """
         args = args or self.args or TrainingArguments()
 
         self.model.fit(
@@ -479,6 +503,11 @@ class Trainer:
 
 
 class SetFitTrainer(Trainer):
+    """
+    `SetFitTrainer` has been deprecated and will be removed in v2.0.0 of SetFit.
+    Please use `Trainer` instead.
+    """
+
     def __init__(
         self,
         model: Optional["SetFitModel"] = None,

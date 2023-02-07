@@ -30,38 +30,26 @@ class DistillationTrainer(Trainer):
     Args:
         teacher_model (`SetFitModel`):
             The teacher model to mimic.
+        student_model (`SetFitModel`, *optional*):
+            The model to train. If not provided, a `model_init` must be passed.
+        args (`TrainingArguments`, *optional*):
+            The training arguments to use.
         train_dataset (`Dataset`):
             The training dataset.
-        student_model (`SetFitModel`):
-            The student model to train. If not provided, a `model_init` must be passed.
         eval_dataset (`Dataset`, *optional*):
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
-            A function that instantiates the model to be used. If provided, each call to [`~DistillationSetFitTrainer.train`] will start
-            from a new instance of the model as given by this function when a `trial` is passed.
+            A function that instantiates the model to be used. If provided, each call to
+            [`~SetFitTrainer.train`] will start from a new instance of the model as given by this
+            function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
-            The metric to use for evaluation. If a string is provided, we treat it as the metric name and load it with default settings.
+            The metric to use for evaluation. If a string is provided, we treat it as the metric
+            name and load it with default settings.
             If a callable is provided, it must take two arguments (`y_pred`, `y_test`).
-        loss_class (`nn.Module`, *optional*, defaults to `CosineSimilarityLoss`):
-            The loss function to use for contrastive training.
-        num_iterations (`int`, *optional*, defaults to `20`):
-            The number of iterations to generate sentence pairs for.
-        num_epochs (`int`, *optional*, defaults to `1`):
-            The number of epochs to train the Sentence Transformer body for.
-        learning_rate (`float`, *optional*, defaults to `2e-5`):
-            The learning rate to use for contrastive training.
-        batch_size (`int`, *optional*, defaults to `16`):
-            The batch size to use for contrastive training.
-        seed (`int`, *optional*, defaults to 42):
-            Random seed that will be set at the beginning of training. To ensure reproducibility across runs, use the
-            [`~SetTrainer.model_init`] function to instantiate the model if it has some randomly initialized parameters.
         column_mapping (`Dict[str, str]`, *optional*):
-            A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
-        use_amp (`bool`, *optional*, defaults to `False`):
-            Use Automatic Mixed Precision (AMP). Only for Pytorch >= 1.6.0
-        warmup_proportion (`float`, *optional*, defaults to `0.1`):
-            Proportion of the warmup in the total training steps.
-            Must be greater than or equal to 0.0 and less than or equal to 1.0.
+            A mapping from the column names in the dataset to the column names expected by the model.
+            The expected format is a dictionary with the following format:
+            `{"text_column_name": "text", "label_column_name: "label"}`.
     """
 
     def __init__(
@@ -91,7 +79,7 @@ class DistillationTrainer(Trainer):
     def train_embeddings(
         self,
         x_train: List[str],
-        y_train: List[int],
+        y_train: Union[List[int], List[List[int]]],
         args: Optional[TrainingArguments] = None,
     ):
         args = args or self.args or TrainingArguments()
@@ -161,6 +149,11 @@ class DistillationTrainer(Trainer):
 
 
 class DistillationSetFitTrainer(DistillationTrainer):
+    """
+    `DistillationSetFitTrainer` has been deprecated and will be removed in v2.0.0 of SetFit.
+    Please use `DistillationTrainer` instead.
+    """
+
     def __init__(
         self,
         teacher_model: "SetFitModel",

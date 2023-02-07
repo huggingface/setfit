@@ -2,7 +2,7 @@ import os
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -26,10 +26,6 @@ from tqdm.auto import tqdm, trange
 
 from . import logging
 from .data import SetFitDataset
-
-
-if TYPE_CHECKING:
-    from numpy import ndarray
 
 
 logging.set_verbosity_info()
@@ -276,11 +272,31 @@ class SetFitModel(PyTorchModelHubMixin):
         batch_size: Optional[int] = None,
         body_learning_rate: Optional[float] = None,
         head_learning_rate: Optional[float] = None,
+        end_to_end: bool = False,
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
         show_progress_bar: bool = True,
-        end_to_end: bool = False,
     ) -> None:
+        """Train the classifier head, only used if a differentiable PyTorch head is used.
+
+        Args:
+            x_train (`List[str]`): A list of training sentences.
+            y_train (`Union[List[int], List[List[int]]]`): A list of labels corresponding to the training sentences.
+            num_epochs (`int`): The number of epochs to train for.
+            batch_size (`int`, *optional*): The batch size to use.
+            body_learning_rate (`float`, *optional*): The learning rate for the `SentenceTransformer` body
+                in the `AdamW` optimizer. Disregarded if `end_to_end=False`.
+            head_learning_rate (`float`, *optional*): The learning rate for the differentiable torch head
+                in the `AdamW` optimizer.
+            end_to_end (`bool`, defaults to `False`): If True, train the entire model end-to-end.
+                Otherwise, freeze the `SentenceTransformer` body and only train the head.
+            l2_weight (`float`, *optional*): The l2 weight for both the model body and head
+                in the `AdamW` optimizer.
+            max_length (`int`, *optional*): The maximum token length a tokenizer can generate. If not provided,
+                the maximum length for the `SentenceTransformer` body is used.
+            show_progress_bar (`bool`, defaults to `True`): Whether to display a progress bar for the training
+                epochs and iterations.
+        """
         if self.has_differentiable_head:  # train with pyTorch
             device = self.model_body.device
             self.model_body.train()
@@ -381,6 +397,12 @@ class SetFitModel(PyTorchModelHubMixin):
         return optimizer
 
     def freeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+        """Freeze the model body and/or the head, preventing further training on that component until unfrozen.
+
+        Args:
+            component (`Literal["body", "head"]`, *optional*): Either "body" or "head" to freeze that component.
+                If no component is provided, freeze both. Defaults to None.
+        """
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=True)
 
@@ -390,6 +412,13 @@ class SetFitModel(PyTorchModelHubMixin):
     def unfreeze(
         self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None
     ) -> None:
+        """Unfreeze the model body and/or the head, allowing further training on that component.
+
+        Args:
+            component (`Literal["body", "head"]`, *optional*): Either "body" or "head" to unfreeze that component.
+                If no component is provided, unfreeze both. Defaults to None.
+            keep_body_frozen (`bool`, *optional*): Deprecated argument, use `component` instead.
+        """
         if keep_body_frozen is not None:
             warnings.warn(
                 "`keep_body_frozen` is deprecated and will be removed in v2.0.0 of SetFit. "
@@ -409,15 +438,40 @@ class SetFitModel(PyTorchModelHubMixin):
             self._freeze_or_not(self.model_head, to_freeze=False)
 
     def _freeze_or_not(self, model: nn.Module, to_freeze: bool) -> None:
+        """Set `requires_grad=not to_freeze` for all parameters in `model`"""
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def encode(self, inputs: List[str]) -> Union[torch.Tensor, "ndarray"]:
+    def encode(self, inputs: List[str]) -> Union[torch.Tensor, np.ndarray]:
+        """Convert input sentences to embeddings using the `SentenceTransformer` body.
+
+        Args:
+            inputs (`List[str]`): The input sentences to embed.
+
+        Returns:
+            Union[torch.Tensor, np.ndarray]: A matrix with shape [INPUT_LENGTH, EMBEDDING_SIZE], as a
+            torch Tensor if this model has a differentiable Torch head, or otherwise as a numpy array.
+        """
         return self.model_body.encode(
             inputs, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
         )
 
-    def predict(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+    def predict(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, np.ndarray]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict classes for.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+
+        Example:
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            tensor([0, 1, 1], dtype=torch.int32)
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray]`: A vector with equal length to the inputs, denoting
+            to which class each input is predicted to belong.
+        """
         embeddings = self.encode(inputs)
         outputs = self.model_head.predict(embeddings)
 
@@ -428,7 +482,24 @@ class SetFitModel(PyTorchModelHubMixin):
 
         return outputs
 
-    def predict_proba(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
+    def predict_proba(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, np.ndarray]:
+        """Predict the probabilities of the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict class probabilities for.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+
+        Example:
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.predict_proba(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            tensor([[0.9367, 0.0633],
+                    [0.0627, 0.9373],
+                    [0.0890, 0.9110]], dtype=torch.float64)
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray]`: A matrix with shape [INPUT_LENGTH, NUM_CLASSES] denoting
+            probabilities of predicting an input as a class.
+        """
         embeddings = self.encode(inputs)
         outputs = self.model_head.predict_proba(embeddings)
 
@@ -444,6 +515,12 @@ class SetFitModel(PyTorchModelHubMixin):
 
         Args:
             device (Union[str, torch.device]): The identifier of the device to move the model to.
+
+        Example:
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.to("cpu")
+            >>> model(["cats are cute", "dogs are loyal"])
 
         Returns:
             SetFitModel: Returns the original model, but now on the desired device.
@@ -472,7 +549,21 @@ class SetFitModel(PyTorchModelHubMixin):
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
             f.write(model_card_content)
 
-    def __call__(self, inputs):
+    def __call__(self, inputs: List[str]) -> torch.Tensor:
+        """Predict the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict classes for.
+
+        Example:
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            tensor([0, 1, 1], dtype=torch.int32)
+
+        Returns:
+            `torch.Tensor`: A vector with equal length to the inputs, denoting to which class each
+            input is predicted to belong.
+        """
         return self.predict(inputs)
 
     def _save_pretrained(self, save_directory: str) -> None:
