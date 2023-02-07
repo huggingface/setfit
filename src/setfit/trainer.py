@@ -204,11 +204,23 @@ class Trainer:
         return model
 
     def freeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+        warnings.warn(
+            f"`{self.__class__.__name__}.freeze` is deprecated and will be removed in v2.0.0 of SetFit. "
+            "Please use `SetFitModel.freeze` directly instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.model.freeze(component)
 
     def unfreeze(
         self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None
     ) -> None:
+        warnings.warn(
+            f"`{self.__class__.__name__}.unfreeze` is deprecated and will be removed in v2.0.0 of SetFit. "
+            "Please use `SetFitModel.unfreeze` directly instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.model.unfreeze(component, keep_body_frozen=keep_body_frozen)
 
     def train(
