@@ -11,11 +11,10 @@ from setfit.data import (
     SAMPLE_SIZES,
     SEEDS,
     SetFitDataset,
-    add_templated_examples,
     create_fewshot_splits,
     create_fewshot_splits_multilabel,
     create_samples,
-    get_augmented_samples,
+    get_templated_dataset,
     sample_dataset,
 )
 
@@ -41,9 +40,7 @@ def unbalanced_dataset():
 
 
 def test_add_to_empty_dataset_defaults(empty_dataset):
-    augmented_dataset = add_templated_examples(
-        empty_dataset, candidate_labels=["label-0", "label-1"], multi_label=True
-    )
+    augmented_dataset = get_templated_dataset(empty_dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
 
     assert augmented_dataset[:] == {
         "text": [
@@ -57,7 +54,7 @@ def test_add_to_empty_dataset_defaults(empty_dataset):
 
 
 def test_add_to_dataset_defaults(dataset):
-    augmented_dataset = add_templated_examples(dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
+    augmented_dataset = get_templated_dataset(dataset, candidate_labels=["label-0", "label-1"], multi_label=True)
 
     assert augmented_dataset[:] == {
         "text": [
@@ -82,7 +79,7 @@ def test_add_to_dataset_defaults(dataset):
 )
 def test_missing_columns(dataset, text_column, label_column):
     with pytest.raises(ValueError):
-        add_templated_examples(
+        get_templated_dataset(
             dataset,
             candidate_labels=["label-0", "label-1"],
             text_column=text_column,
@@ -123,7 +120,9 @@ def test_create_fewshot_splits_with_augmentation():
     dataset_name = "sst5"
     dataset = load_dataset(f"SetFit/{dataset_name}", split="train")
     num_labels = len(set(dataset["label"]))
-    splits_ds = create_fewshot_splits(dataset, SAMPLE_SIZES, add_data_augmentation=True, dataset_name=dataset_name)
+    splits_ds = create_fewshot_splits(
+        dataset, SAMPLE_SIZES, add_data_augmentation=True, dataset_name=f"SetFit/{dataset_name}"
+    )
     assert len(splits_ds) == len(SAMPLE_SIZES) * len(SEEDS)
 
     split: Dataset
@@ -180,26 +179,26 @@ def test_sample_dataset_with_unbalanced_ds(unbalanced_dataset):
 @pytest.mark.parametrize(
     "dataset",
     [
-        "emotion",
-        "ag_news",
-        "amazon_counterfactual_en",
-        "SentEval-CR",
-        "sst5",
-        "enron_spam",
-        "tweet_eval_stance_abortion",
-        "ade_corpus_v2_classification",
+        "SetFit/emotion",
+        "SetFit/ag_news",
+        "SetFit/amazon_counterfactual_en",
+        "SetFit/SentEval-CR",
+        "SetFit/sst5",
+        "SetFit/enron_spam",
+        "SetFit/tweet_eval_stance_abortion",
+        "SetFit/ade_corpus_v2_classification",
     ],
 )
 def test_get_augmented_samples(dataset: str):
-    dataset_dict = get_augmented_samples(dataset)
-    assert set(dataset_dict.keys()) == {"text", "label"}
-    assert len(dataset_dict["text"])
-    assert len(dataset_dict["label"])
+    dataset = get_templated_dataset(reference_dataset=dataset)
+    assert set(dataset.column_names) == {"text", "label"}
+    assert len(dataset["text"])
+    assert len(dataset["label"])
 
 
 def test_get_augmented_samples_negative():
     with pytest.raises(ValueError):
-        get_augmented_samples(None)
+        get_templated_dataset(reference_dataset=None, candidate_labels=None)
 
 
 @pytest.mark.parametrize(

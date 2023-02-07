@@ -82,10 +82,32 @@ python run_fewshot_multilingual.py \
 
 ### Multilabel experiments
 
-To run SetFit on one our our multilingual datasets, run:
+To run `SetFit` on one our our multilingual datasets, run:
 
 ```
 python run_fewshot_multilabel.py \
     --sample_sizes=8 64 \
     --datasets=go_emotions
+```
+
+# Zero-shot Text Classification with SetFit
+Although `SetFit` was designed for few-shot learning, the method can also be applied in scenarios where no labeled data is available. The main trick is to create synthetic examples that resemble the classification task, and then train a `SetFit` model on them. 
+
+Remarkably, this simple technique typically outperforms the zero-shot pipeline in 🤗 Transformers, and can generate predictions by a factor of 5x (or more) faster!
+
+To create the synthetic training examples, the label names for the task are required. 
+The labels can be taken from a `--reference_dataset` or supplied explicitly using `--candidate_labels`. 
+If both aren't supplied, `--eval_dataset` is used as reference dataset.
+
+To evaluate zero-shot `SetFit` on the `emotion` dataset, run:
+
+```
+python run_zeroshot.py --eval_dataset=SetFit/emotion
+```
+
+
+To evaluate on a custom dataset with custom label names:
+
+```
+python run_zeroshot.py --eval_dataset=[dataset_name] --candidate_labels [label_1 label2 ...]
 ```

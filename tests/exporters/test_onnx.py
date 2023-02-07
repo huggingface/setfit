@@ -3,11 +3,10 @@ import os
 import numpy as np
 import onnxruntime
 import pytest
-from datasets import Dataset
 from transformers import AutoTokenizer
 
 from setfit import SetFitModel
-from setfit.data import get_augmented_samples
+from setfit.data import get_templated_dataset
 from setfit.exporters.onnx import export_onnx
 from setfit.trainer import SetFitTrainer
 
@@ -58,7 +57,7 @@ def test_export_onnx_sklearn_head():
 @pytest.mark.parametrize("out_features", [1, 2, 3])
 def test_export_onnx_torch_head(out_features):
     """Test that the exported `ONNX` model returns the same predictions as the original model."""
-    dataset = Dataset.from_dict(get_augmented_samples("SentEval-CR"))
+    dataset = get_templated_dataset(reference_dataset="SetFit/SentEval-CR")
     model_path = "sentence-transformers/paraphrase-albert-small-v2"
     model = SetFitModel.from_pretrained(
         model_path, use_differentiable_head=True, head_params={"out_features": out_features}
