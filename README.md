@@ -195,7 +195,7 @@ model = SetFitModel.from_pretrained(
 
 SetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:
 
-```
+```python
 from datasets import Dataset
 from setfit import get_templated_dataset
 
