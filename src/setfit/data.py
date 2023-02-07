@@ -101,7 +101,7 @@ def get_templated_dataset(
     return dataset
 
 
-def add_templated_examples(**kwargs) -> None:
+def add_templated_examples(*args, **kwargs) -> None:
     warnings.warn(
         "`add_templated_examples` has been deprecated and will be removed in v1.0.0 of SetFit. "
         " Please use `get_templated_dataset` instead.",
