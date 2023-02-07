@@ -200,8 +200,7 @@ from datasets import Dataset
 from setfit import get_templated_dataset
 
 candidate_labels = ["negative", "positive"]
-dummy_dataset = Dataset.from_dict({})
-train_dataset = get_templated_dataset(dummy_dataset, candidate_labels=candidate_labels, sample_size=8)
+train_dataset = get_templated_dataset(candidate_labels=candidate_labels, sample_size=8)
 ```
 
 This will create examples of the form `"This sentence is {}"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:
