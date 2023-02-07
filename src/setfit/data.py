@@ -16,6 +16,15 @@ SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
 
 
+def get_augmented_samples(*args, **kwargs) -> None:
+    warnings.warn(
+        "`get_augmented_samples` has been deprecated and will be removed in v1.0.0 of SetFit. "
+        "Please use `get_templated_dataset` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
 def get_templated_dataset(
     dataset: Optional[Dataset] = None,
     candidate_labels: Optional[List[str]] = None,
