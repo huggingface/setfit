@@ -197,11 +197,10 @@ SetFit can also be applied to scenarios where no labels are available. To do so,
 
 ```python
 from datasets import Dataset
-from setfit import add_templated_examples
+from setfit import get_templated_dataset
 
 candidate_labels = ["negative", "positive"]
-dummy_dataset = Dataset.from_dict({})
-train_dataset = add_templated_examples(dummy_dataset, candidate_labels=candidate_labels, sample_size=8)
+train_dataset = get_templated_dataset(candidate_labels=candidate_labels, sample_size=8)
 ```
 
 This will create examples of the form `"This sentence is {}"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:

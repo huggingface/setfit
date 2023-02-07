@@ -69,7 +69,7 @@ def load_data_splits(
     print(f"\n\n\n============== {dataset} ============")
     # Load one of the SetFit training sets from the Hugging Face Hub
     train_split = load_dataset(f"SetFit/{dataset}", split="train")
-    train_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, dataset)
+    train_splits = create_fewshot_splits(train_split, sample_sizes, add_data_augmentation, f"SetFit/{dataset}")
     test_split = load_dataset(f"SetFit/{dataset}", split="test")
     print(f"Test set: {len(test_split)}")
     return train_splits, test_split
