@@ -1,4 +1,4 @@
-__version__ = "0.6.0.dev0"
+__version__ = "0.6.0"
 
 from .data import add_templated_examples, get_templated_dataset, sample_dataset
 from .modeling import SetFitHead, SetFitModel
