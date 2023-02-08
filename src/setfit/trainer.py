@@ -138,7 +138,13 @@ class SetFitTrainer:
         required_columns = {"text", "label"}
         column_names = set(dataset.column_names)
         if self.column_mapping is None and not required_columns.issubset(column_names):
-            if isinstance(dataset, DatasetDict):
+            # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
+            if column_names == {'train'}:
+                logger.warning(
+                    f"SetFit expects a Dataset, but it got a DatasetDict with the split {sorted(column_names)}. "
+                    "Did you mean to select the training split with dataset['train']?"
+                )
+            elif isinstance(dataset, DatasetDict):
                 logger.warning(
                     f"SetFit expects a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
                     "Did you mean to select one of these splits from the dataset?"
