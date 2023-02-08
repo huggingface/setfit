@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
+from datasets import DatasetDict
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -137,7 +138,7 @@ class SetFitTrainer:
         required_columns = {"text", "label"}
         column_names = set(dataset.column_names)
         if self.column_mapping is None and not required_columns.issubset(column_names):
-            if "train" in column_names or "test" in column_names:
+            if isinstance(dataset, DatasetDict):
                 logger.warning(
                     "The dataset has columns named 'train' or 'test', "
                     "did you want to select the training/test split with dataset['train'] or dataset['test'] ?"
