@@ -242,22 +242,11 @@ class SetFitHead(models.Dense):
 class SetFitModel(PyTorchModelHubMixin):
     """A SetFit model with integration to the Hugging Face Hub."""
 
-    def __init__(
-        self,
-        model_body: Optional[SentenceTransformer] = None,
-        model_head: Optional[Union[SetFitHead, LogisticRegression]] = None,
-        multi_target_strategy: Optional[str] = None,
-        l2_weight: float = 1e-2,
-        normalize_embeddings: bool = False,
-    ) -> None:
-        super(SetFitModel, self).__init__()
-        self.model_body = model_body
-        self.model_head = model_head
-
-        self.multi_target_strategy = multi_target_strategy
-        self.l2_weight = l2_weight
-
-        self.normalize_embeddings = normalize_embeddings
+    model_body: Optional[SentenceTransformer] = (None,)
+    model_head: Optional[Union[SetFitHead, LogisticRegression]] = None
+    multi_target_strategy: Optional[str] = None
+    l2_weight: float = 1e-2
+    normalize_embeddings: bool = False
 
     @property
     def has_differentiable_head(self) -> bool:
