@@ -80,7 +80,7 @@ class SetFitTrainerTest(TestCase):
         )
         with pytest.raises(ValueError):
             trainer.train()
-    
+
     def test_trainer_raises_warning_with_missing_text(self):
         """If the required columns are missing from the dataset, the library should log a warning and list the columns found."""
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
@@ -95,7 +95,7 @@ class SetFitTrainerTest(TestCase):
             self.assertIn(
                 "WARNING:setfit.trainer:SetFit expects the dataset to have the columns ['label', 'text'], "
                 "but only the columns ['extra_column', 'label'] were found.",
-                cm.output
+                cm.output,
             )
 
     def test_column_mapping_with_missing_text(self):
@@ -128,7 +128,7 @@ class SetFitTrainerTest(TestCase):
             self.assertIn(
                 "WARNING:setfit.trainer:The column mapping looks for the columns ['label_new', 'text_new'] in the dataset, "
                 "but the dataset has the columns ['extra_column', 'text'].",
-                cm.output
+                cm.output,
             )
 
     def test_trainer_raises_warning_when_dataset_not_split(self):
@@ -147,7 +147,7 @@ class SetFitTrainerTest(TestCase):
             self.assertIn(
                 "WARNING:setfit.trainer:SetFit expects a Dataset, but it got a DatasetDict with the splits ['test', 'train']. "
                 "Did you mean to select one of these splits from the dataset?",
-                cm.output
+                cm.output,
             )
 
     def test_column_mapping_multilabel(self):
