@@ -143,10 +143,11 @@ class SetFitTrainer:
                     f"SetFit expects a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
                     "Did you mean to select one of these splits from the dataset?"
                 )
-            logger.warning(
-                f"SetFit expects the dataset to have the columns {sorted(required_columns)}, "
-                f"but only the columns {sorted(column_names)} were found."
-            )
+            else:
+                logger.warning(
+                    f"SetFit expects the dataset to have the columns {sorted(required_columns)}, "
+                    f"but only the columns {sorted(column_names)} were found."
+                )
             raise ValueError(
                 f"A column mapping must be provided when the dataset does not contain the following columns: {required_columns}"
             )
