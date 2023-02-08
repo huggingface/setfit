@@ -140,8 +140,8 @@ class SetFitTrainer:
         if self.column_mapping is None and not required_columns.issubset(column_names):
             if isinstance(dataset, DatasetDict):
                 logger.warning(
-                    "The dataset has columns named 'train' or 'test', "
-                    "did you want to select the training/test split with dataset['train'] or dataset['test'] ?"
+                    f"SetFit expects a Dataset, but it got a DatasetDict with the splits {list(dataset.keys())}. "
+                    "Did you mean to select one of these splits from the dataset?"
                 )
             raise ValueError(
                 f"A column mapping must be provided when the dataset does not contain the following columns: {required_columns}"

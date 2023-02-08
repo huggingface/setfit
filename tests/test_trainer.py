@@ -107,8 +107,8 @@ class SetFitTrainerTest(TestCase):
             except:
                 pass
             self.assertIn(
-                "WARNING:setfit.trainer:The dataset has columns named 'train' or 'test', "
-                "did you want to select the training/test split with dataset['train'] or dataset['test'] ?",
+                "WARNING:setfit.trainer:SetFit expects a Dataset, but it got a DatasetDict with the splits ['train', 'test']. "
+                "Did you mean to select one of these splits from the dataset?",
                 cm.output
             )
 
