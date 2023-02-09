@@ -681,7 +681,7 @@ def sentence_pairs_generation(sentences, labels, pairs):
     positive_idxs = [np.where(labels == i)[0] for i in num_classes]
     negative_idxs = [np.where(labels != i)[0] for i in num_classes]
 
-    for first_idx in tqdm(range(len(sentences)), desc='Gen Pairs'):
+    for first_idx in tqdm(range(len(sentences)), desc="Gen Pairs"):
         current_sentence = sentences[first_idx]
         label = labels[first_idx]
         second_idx = np.random.choice(positive_idxs[label_to_idx[label]])
@@ -689,7 +689,7 @@ def sentence_pairs_generation(sentences, labels, pairs):
         # Prepare a positive pair and update the sentences and labels
         # lists, respectively
         pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-        
+
         third_idx = np.random.choice(negative_idxs[label_to_idx[label]])
         negative_sentence = sentences[third_idx]
         # Prepare a negative pair of sentences and update our lists
@@ -701,7 +701,7 @@ def sentence_pairs_generation(sentences, labels, pairs):
 def sentence_pairs_generation_multilabel(sentences, labels, pairs):
     # Initialize two empty lists to hold the (sentence, sentence) pairs and
     # labels to indicate if a pair is positive or negative
-    for first_idx in tqdm(range(len(sentences)), desc='Gen Pairs'):
+    for first_idx in tqdm(range(len(sentences)), desc="Gen Pairs"):
         current_sentence = sentences[first_idx]
         sample_labels = np.where(labels[first_idx, :] == 1)[0]
         if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
@@ -730,7 +730,7 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
 
     idx = list(range(len(sentences)))
 
-    for first_idx in tqdm(range(len(sentences)), desc='Gen Pairs'):
+    for first_idx in tqdm(range(len(sentences)), desc="Gen Pairs"):
         current_sentence = sentences[first_idx]
         second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
 

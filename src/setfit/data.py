@@ -164,10 +164,10 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
 def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
     """Samples a Dataset to create an equal number of samples per class (when possible)."""
     shuffled_dataset = dataset.shuffle(seed=seed)
-    
+
     df = shuffled_dataset.to_pandas()
     df = df.groupby(label_column)
-    
+
     # sample num_samples, or at least as much as possible
     df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
     df = df.reset_index(drop=True)
