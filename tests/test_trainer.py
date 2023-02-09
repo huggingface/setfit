@@ -1,3 +1,4 @@
+import re
 from unittest import TestCase
 
 import evaluate
@@ -74,42 +75,20 @@ class SetFitTrainerTest(TestCase):
             trainer.train()
 
     def test_trainer_raises_error_with_missing_text(self):
+        """If the required columns are missing from the dataset, the library should throw an error and list the columns found."""
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
         trainer = SetFitTrainer(
             model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
         )
-        with pytest.raises(ValueError):
-            trainer.train()
-
-    def test_trainer_raises_warning_with_missing_text(self):
-        """If the required columns are missing from the dataset, the library should log a warning and list the columns found."""
-        dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
-        trainer = SetFitTrainer(
-            model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
+        expected_message = re.escape(
+            "SetFit expected the dataset to have the columns ['label', 'text'], "
+            "but only the columns ['extra_column', 'label'] were found."
         )
-        with self.assertLogs(level=logging.WARNING) as cm:
-            with self.assertRaises(ValueError):
-                trainer._validate_column_mapping(trainer.train_dataset)
-            self.assertIn(
-                "WARNING:setfit.trainer:SetFit expects the dataset to have the columns ['label', 'text'], "
-                "but only the columns ['extra_column', 'label'] were found.",
-                cm.output,
-            )
-
-    def test_column_mapping_with_missing_text(self):
-        dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = SetFitTrainer(
-            model=self.model,
-            train_dataset=dataset,
-            eval_dataset=dataset,
-            num_iterations=self.num_iterations,
-            column_mapping={"label_new": "label"},
-        )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=expected_message):
             trainer._validate_column_mapping(trainer.train_dataset)
 
-    def test_column_mapping_raises_warning_when_mapped_columns_missing(self):
-        """If the columns specified in the column mapping are missing from the dataset, the library should log a warning and list the columns found."""
+    def test_column_mapping_raises_error_when_mapped_columns_missing(self):
+        """If the columns specified in the column mapping are missing from the dataset, the library should throw an error and list the columns found."""
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
         trainer = SetFitTrainer(
             model=self.model,
@@ -118,31 +97,27 @@ class SetFitTrainerTest(TestCase):
             num_iterations=self.num_iterations,
             column_mapping={"text_new": "text", "label_new": "label"},
         )
-        with self.assertLogs(level=logging.WARNING) as cm:
-            with self.assertRaises(ValueError):
-                trainer._validate_column_mapping(trainer.train_dataset)
-            self.assertIn(
-                "WARNING:setfit.trainer:The column mapping looks for the columns ['label_new', 'text_new'] in the dataset, "
-                "but the dataset has the columns ['extra_column', 'text'].",
-                cm.output,
-            )
+        expected_message = re.escape(
+            "The column mapping expected the columns ['label_new', 'text_new'] in the dataset, "
+            "but the dataset had the columns ['extra_column', 'text'].",
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            trainer._validate_column_mapping(trainer.train_dataset)
 
-    def test_trainer_raises_warning_when_dataset_not_split(self):
-        """Verify that a warning is raised if we pass an unsplit dataset to the trainer."""
+    def test_trainer_raises_error_when_dataset_not_split(self):
+        """Verify that an error is raised if we pass an unsplit dataset to the trainer."""
         dataset = Dataset.from_dict({"text": ["a", "b", "c", "d"], "label": [0, 0, 1, 1]}).train_test_split(
             test_size=0.5
         )
         trainer = SetFitTrainer(
             model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
         )
-        with self.assertLogs(level=logging.WARNING) as cm:
-            with self.assertRaises(ValueError):
-                trainer._validate_column_mapping(trainer.train_dataset)
-            self.assertIn(
-                "WARNING:setfit.trainer:SetFit expects a Dataset, but it got a DatasetDict with the splits ['test', 'train']. "
-                "Did you mean to select one of these splits from the dataset?",
-                cm.output,
-            )
+        expected_message = re.escape(
+            "SetFit expected a Dataset, but it got a DatasetDict with the splits ['test', 'train']. "
+            "Did you mean to select one of these splits from the dataset?",
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            trainer._validate_column_mapping(trainer.train_dataset)
 
     def test_column_mapping_multilabel(self):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]})

@@ -139,24 +139,21 @@ class SetFitTrainer:
         column_names = set(dataset.column_names)
         if self.column_mapping is None and not required_columns.issubset(column_names):
             # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
-            if column_names == {"train"}:
-                logger.warning(
-                    f"SetFit expects a Dataset, but it got a DatasetDict with the split {sorted(column_names)}. "
+            if column_names == {"train"} and isinstance(dataset, DatasetDict):
+                raise ValueError(
+                    f"SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
                     "Did you mean to select the training split with dataset['train']?"
                 )
             elif isinstance(dataset, DatasetDict):
-                logger.warning(
-                    f"SetFit expects a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
+                raise ValueError(
+                    f"SetFit expected a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
                     "Did you mean to select one of these splits from the dataset?"
                 )
             else:
-                logger.warning(
-                    f"SetFit expects the dataset to have the columns {sorted(required_columns)}, "
-                    f"but only the columns {sorted(column_names)} were found."
+                raise ValueError(
+                    f"SetFit expected the dataset to have the columns {sorted(required_columns)}, "
+                    f"but only the columns {sorted(column_names)} were found. "
                 )
-            raise ValueError(
-                f"A column mapping must be provided when the dataset does not contain the following columns: {required_columns}"
-            )
         if self.column_mapping is not None:
             missing_columns = required_columns.difference(self.column_mapping.values())
             if missing_columns:
@@ -164,12 +161,9 @@ class SetFitTrainer:
                     f"The following columns are missing from the column mapping: {missing_columns}. Please provide a mapping for all required columns."
                 )
             if not set(self.column_mapping.keys()).issubset(column_names):
-                logger.warning(
-                    f"The column mapping looks for the columns {sorted(self.column_mapping.keys())} in the dataset, "
-                    f"but the dataset has the columns {sorted(column_names)}."
-                )
                 raise ValueError(
-                    f"The following columns are missing from the dataset: {set(self.column_mapping.keys()).difference(column_names)}. Please provide a mapping for all required columns."
+                    f"The column mapping expected the columns {sorted(self.column_mapping.keys())} in the dataset, "
+                    f"but the dataset had the columns {sorted(column_names)}."
                 )
 
     def _apply_column_mapping(self, dataset: "Dataset", column_mapping: Dict[str, str]) -> "Dataset":
