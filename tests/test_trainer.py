@@ -90,7 +90,7 @@ class SetFitTrainerTest(TestCase):
         with self.assertLogs(level=logging.WARNING) as cm:
             try:
                 trainer._validate_column_mapping(trainer.train_dataset)
-            except:
+            except ValueError:
                 pass
             self.assertIn(
                 "WARNING:setfit.trainer:SetFit expects the dataset to have the columns ['label', 'text'], "
@@ -123,7 +123,7 @@ class SetFitTrainerTest(TestCase):
         with self.assertLogs(level=logging.WARNING) as cm:
             try:
                 trainer._validate_column_mapping(trainer.train_dataset)
-            except:
+            except ValueError:
                 pass
             self.assertIn(
                 "WARNING:setfit.trainer:The column mapping looks for the columns ['label_new', 'text_new'] in the dataset, "
@@ -142,7 +142,7 @@ class SetFitTrainerTest(TestCase):
         with self.assertLogs(level=logging.WARNING) as cm:
             try:
                 trainer._validate_column_mapping(trainer.train_dataset)
-            except:
+            except ValueError:
                 pass
             self.assertIn(
                 "WARNING:setfit.trainer:SetFit expects a Dataset, but it got a DatasetDict with the splits ['test', 'train']. "
