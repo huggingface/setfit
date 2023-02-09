@@ -141,7 +141,7 @@ class SetFitTrainer:
             # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
             if column_names == {"train"} and isinstance(dataset, DatasetDict):
                 raise ValueError(
-                    f"SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
+                    "SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
                     "Did you mean to select the training split with dataset['train']?"
                 )
             elif isinstance(dataset, DatasetDict):
