@@ -153,6 +153,7 @@ class SetFitTrainer:
                 raise ValueError(
                     f"SetFit expected the dataset to have the columns {sorted(required_columns)}, "
                     f"but only the columns {sorted(column_names)} were found. "
+                    "Either make sure these columns are present, or specify which columns to use with column_mapping in SetFitTrainer."
                 )
         if self.column_mapping is not None:
             missing_columns = required_columns.difference(self.column_mapping.values())
