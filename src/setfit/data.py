@@ -5,7 +5,11 @@ import pandas as pd
 import torch
 from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
 from torch.utils.data import Dataset as TorchDataset
+from tqdm import tqdm
+from . import logging
 
+logging.set_verbosity_info()
+logger = logging.get_logger(__name__)
 
 if TYPE_CHECKING:
     from transformers import PreTrainedTokenizerBase
@@ -160,14 +164,22 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
 def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
     """Samples a Dataset to create an equal number of samples per class (when possible)."""
     shuffled_dataset = dataset.shuffle(seed=seed)
-    num_labels = len(dataset.unique(label_column))
-    samples = []
-    for label in range(num_labels):
-        data = shuffled_dataset.filter(lambda example: int(example[label_column]) == label)
-        num_label_samples = min(len(data), num_samples)
-        samples.append(data.select([i for i in range(num_label_samples)]))
+    
+    df = shuffled_dataset.to_pandas()
+    df = df.groupby(label_column)
+    
+    # Loop until we can sample evenly across all classes
+    while num_samples > 1:
+        try:
+            df = df.sample(num_samples, random_state=seed)
+            df = df.drop(columns=['__index_level_0__'])
+            break
+        except ValueError:
+            logger.warning('Data does not contain {} samples per label. Lowering to {}'.format(num_samples, num_samples - 1))
+            num_samples -= 1
+            continue
 
-    all_samples = concatenate_datasets(samples)
+    all_samples = Dataset.from_pandas(df)
     return all_samples.shuffle(seed=seed)
 
 
