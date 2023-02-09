@@ -168,16 +168,9 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     df = shuffled_dataset.to_pandas()
     df = df.groupby(label_column)
     
-    # Loop until we can sample evenly across all classes
-    while num_samples > 1:
-        try:
-            df = df.sample(num_samples, random_state=seed)
-            df = df.drop(columns=['__index_level_0__'])
-            break
-        except ValueError:
-            logger.warning('Data does not contain {} samples per label. Lowering to {}'.format(num_samples, num_samples - 1))
-            num_samples -= 1
-            continue
+    # sample num_samples, or at least as much as possible
+    df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
+    df = df.reset_index(drop=True)
 
     all_samples = Dataset.from_pandas(df)
     return all_samples.shuffle(seed=seed)
