@@ -88,10 +88,8 @@ class SetFitTrainerTest(TestCase):
             model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
         )
         with self.assertLogs(level=logging.WARNING) as cm:
-            try:
+            with self.assertRaises(ValueError):
                 trainer._validate_column_mapping(trainer.train_dataset)
-            except ValueError:
-                pass
             self.assertIn(
                 "WARNING:setfit.trainer:SetFit expects the dataset to have the columns ['label', 'text'], "
                 "but only the columns ['extra_column', 'label'] were found.",
@@ -121,10 +119,8 @@ class SetFitTrainerTest(TestCase):
             column_mapping={"text_new": "text", "label_new": "label"},
         )
         with self.assertLogs(level=logging.WARNING) as cm:
-            try:
+            with self.assertRaises(ValueError):
                 trainer._validate_column_mapping(trainer.train_dataset)
-            except ValueError:
-                pass
             self.assertIn(
                 "WARNING:setfit.trainer:The column mapping looks for the columns ['label_new', 'text_new'] in the dataset, "
                 "but the dataset has the columns ['extra_column', 'text'].",
@@ -140,10 +136,8 @@ class SetFitTrainerTest(TestCase):
             model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
         )
         with self.assertLogs(level=logging.WARNING) as cm:
-            try:
+            with self.assertRaises(ValueError):
                 trainer._validate_column_mapping(trainer.train_dataset)
-            except ValueError:
-                pass
             self.assertIn(
                 "WARNING:setfit.trainer:SetFit expects a Dataset, but it got a DatasetDict with the splits ['test', 'train']. "
                 "Did you mean to select one of these splits from the dataset?",
