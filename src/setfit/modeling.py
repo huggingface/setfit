@@ -21,7 +21,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
+from tqdm import trange
 
 from . import logging
 from .data import SetFitDataset
@@ -297,7 +297,7 @@ class SetFitModel(PyTorchModelHubMixin):
             criterion = self.model_head.get_loss_fn()
             optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-            for epoch_idx in tqdm(range(num_epochs), desc="Epoch", disable=not show_progress_bar):
+            for epoch_idx in trange(num_epochs, desc="Epoch", disable=not show_progress_bar):
                 for batch in dataloader:
                     features, labels = batch
                     optimizer.zero_grad()
@@ -681,7 +681,7 @@ def sentence_pairs_generation(sentences, labels, pairs):
     positive_idxs = [np.where(labels == i)[0] for i in num_classes]
     negative_idxs = [np.where(labels != i)[0] for i in num_classes]
 
-    for first_idx in tqdm(range(len(sentences)), desc="Gen Pairs"):
+    for first_idx in range(len(sentences)):
         current_sentence = sentences[first_idx]
         label = labels[first_idx]
         second_idx = np.random.choice(positive_idxs[label_to_idx[label]])
@@ -701,7 +701,7 @@ def sentence_pairs_generation(sentences, labels, pairs):
 def sentence_pairs_generation_multilabel(sentences, labels, pairs):
     # Initialize two empty lists to hold the (sentence, sentence) pairs and
     # labels to indicate if a pair is positive or negative
-    for first_idx in tqdm(range(len(sentences)), desc="Gen Pairs"):
+    for first_idx in range(len(sentences)):
         current_sentence = sentences[first_idx]
         sample_labels = np.where(labels[first_idx, :] == 1)[0]
         if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
@@ -730,7 +730,7 @@ def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
 
     idx = list(range(len(sentences)))
 
-    for first_idx in tqdm(range(len(sentences)), desc="Gen Pairs"):
+    for first_idx in range(len(sentences)):
         current_sentence = sentences[first_idx]
         second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
 

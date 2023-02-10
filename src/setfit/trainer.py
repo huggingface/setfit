@@ -7,6 +7,7 @@ from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
+from tqdm import trange
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 
 from . import logging
@@ -349,7 +350,7 @@ class SetFitTrainer:
             else:
                 train_examples = []
 
-                for _ in range(self.num_iterations):
+                for _ in trange(self.num_iterations, desc="Generating Training Pairs"):
                     if self.model.multi_target_strategy is not None:
                         train_examples = sentence_pairs_generation_multilabel(
                             np.array(x_train), np.array(y_train), train_examples
