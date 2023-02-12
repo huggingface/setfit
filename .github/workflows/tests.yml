@@ -18,8 +18,7 @@ jobs:
         # python-version: ['3.7', '3.8', '3.9', '3.10']
         python-version: ['3.10']
         os: [ubuntu-latest, windows-latest]
-        # requirements: ['.[tests]', '.[compat_tests]']
-        requirements: ['.[tests]']
+        requirements: ['.[tests]', '.[compat_tests]']
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -62,7 +61,7 @@ jobs:
 
       - name: Set HF cache hash environment variable
         shell: bash
-        run: echo "HF_CACHE_HASH=$(find -s ~/.cache/huggingface/hub ~/.cache/torch -type f -exec sha256sum {} \;| sha256sum)" >> $GITHUB_ENV
+        run: echo "HF_CACHE_HASH=$(find -s ~/.cache/huggingface/hub ~/.cache/torch -type f -exec sha256sum {} \; | sha256sum | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
       - name: Save new HF models to cache
         uses: actions/cache/save@v3
