@@ -45,5 +45,27 @@ jobs:
       - name: Install the checked-out setfit
         run: python -m pip install .
 
+      - name: Restore HF models from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ~/.cache/huggingface/hub
+            ~/.cache/torch
+          key: hf-models-${{ matrix.os }}-${{ env.HF_CACHE_HASH }}
+          restore-keys: |
+            hf-models-${{ matrix.os }}-
+      
       - name: Run unit tests
         run: pytest -sv tests/
+
+      - name: Set HF cache hash environment variable
+        shell: bash
+        run: echo "HF_CACHE_HASH=$(python utils/get_hash_hf_cache.py)" >> $GITHUB_ENV
+
+      - name: Save new HF models to cache
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ~/.cache/huggingface/hub
+            ~/.cache/torch
+          key: hf-models-${{ matrix.os }}-${{ env.HF_CACHE_HASH }}
