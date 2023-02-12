@@ -62,7 +62,7 @@ jobs:
 
       - name: Set HF cache hash environment variable
         shell: bash
-        run: echo "HF_CACHE_HASH=$(python utils/get_hash_hf_cache.py)" >> $GITHUB_ENV
+        run: echo "HF_CACHE_HASH=$(find -s ~/.cache/huggingface/hub ~/.cache/torch -type f -exec sha256sum {} \;| sha256sum)" >> $GITHUB_ENV
 
       - name: Save new HF models to cache
         uses: actions/cache/save@v3
