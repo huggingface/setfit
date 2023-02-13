@@ -15,8 +15,7 @@ jobs:
     name: Run unit tests
     strategy:
       matrix:
-        # python-version: ['3.7', '3.8', '3.9', '3.10']
-        python-version: ['3.10']
+        python-version: ['3.7', '3.8', '3.9', '3.10']
         os: [ubuntu-latest, windows-latest]
         requirements: ['.[tests]', '.[compat_tests]']
       fail-fast: false
@@ -59,7 +58,7 @@ jobs:
       - name: Run unit tests
         run: pytest -sv tests/
 
-      - name: Set HF cache hash environment variable
+      - name: Set HF model cache hash environment variable
         shell: bash
         run: echo "HF_CACHE_HASH=$(find ~/.cache/huggingface/hub ~/.cache/torch -type f -exec sha256sum {} + | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
