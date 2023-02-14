@@ -350,7 +350,7 @@ class SetFitTrainer:
             else:
                 train_examples = []
 
-                for _ in trange(self.num_iterations, desc="Generating Training Pairs"):
+                for _ in trange(self.num_iterations, desc="Generating Training Pairs", disable=not show_progress_bar):
                     if self.model.multi_target_strategy is not None:
                         train_examples = sentence_pairs_generation_multilabel(
                             np.array(x_train), np.array(y_train), train_examples
