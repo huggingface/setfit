@@ -1,9 +1,11 @@
+import pathlib
 import re
+import tempfile
 from unittest import TestCase
 
 import evaluate
 import pytest
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
@@ -116,6 +118,22 @@ class SetFitTrainerTest(TestCase):
         expected_message = re.escape(
             "SetFit expected a Dataset, but it got a DatasetDict with the splits ['test', 'train']. "
             "Did you mean to select one of these splits from the dataset?",
+        )
+        with pytest.raises(ValueError, match=expected_message):
+            trainer._validate_column_mapping(trainer.train_dataset)
+
+    def test_trainer_raises_error_when_dataset_is_dataset_dict_with_train(self):
+        """Verify that a useful error is raised if we pass an unsplit dataset with only a `train` split to the trainer."""
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            path = pathlib.Path(tmpdirname) / "test_dataset_dict_with_train.csv"
+            path.write_text("label,text\n1,good\n0,terrible\n")
+            dataset = load_dataset("csv", data_files=str(path))
+        trainer = SetFitTrainer(
+            model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
+        )
+        expected_message = re.escape(
+            "SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
+            "Did you mean to select the training split with dataset['train']?",
         )
         with pytest.raises(ValueError, match=expected_message):
             trainer._validate_column_mapping(trainer.train_dataset)
