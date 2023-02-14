@@ -21,7 +21,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch.utils.data import DataLoader
-from tqdm import trange
+from tqdm.auto import trange
 
 from . import logging
 from .data import SetFitDataset
