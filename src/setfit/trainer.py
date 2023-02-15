@@ -2,7 +2,6 @@ import math
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
-import numpy as np
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -322,6 +321,7 @@ class SetFitTrainer:
         # dataset generation
         x_train = train_dataset["text"]
         y_train = train_dataset["label"]
+        train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
 
         if not self.model.has_differentiable_head or self._freeze:
             # sentence-transformers adaptation
@@ -332,7 +332,6 @@ class SetFitTrainer:
                 losses.BatchHardSoftMarginTripletLoss,
                 SupConLoss,
             ]:
-                train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
                 train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=self.samples_per_label)
                 train_dataloader = DataLoader(
                     train_data_sampler,
@@ -341,10 +340,7 @@ class SetFitTrainer:
                 )
             else:  # setfit default constrastive pairs generator
                 multilabel = True if self.model.multi_target_strategy is not None else False
-                train_data_sampler = ConstrastiveDataset(
-                    np.array(x_train), np.array(y_train), 
-                    self.num_iterations, self.unique_pairs, multilabel
-                )
+                train_data_sampler = ConstrastiveDataset(train_examples, self.num_iterations, self.unique_pairs, multilabel)
                 train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=False)
 
             total_train_steps = len(train_dataloader) * num_epochs

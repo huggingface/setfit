@@ -114,8 +114,7 @@ def negative_sentence_pairs_generate(
 
 
 def sentence_pairs_generation(
-    sentences: np.ndarray,
-    labels: np.ndarray,
+    examples: List[InputExample],
     num_iterations: int,
     unique_pairs: bool = False,
     multilabel: bool = False,
@@ -123,8 +122,7 @@ def sentence_pairs_generation(
     """Generates positive and negative sentence pairs for contrastive learning.
 
     Args:
-        sentences (ArrayLike str): an array of all sentences
-        labels (ArrayLike int): an array of the label_id for each item in `sentences`
+        examples (InputExample): text and labels in a sentence transformer dataclass
         num_iterations: sets the number of contastive sample pairs to be generated
         unique_pairs: when true will only return upto the number of unique sentence
             pair combinations avaliable
@@ -132,7 +130,10 @@ def sentence_pairs_generation(
     Returns:
         List of sentence pairs
     """
-    max_pairs = num_iterations * len(sentences)
+    max_pairs = num_iterations * len(examples)
+    sentences = np.array([s.texts[0] for s in examples])
+    labels = np.array([s.label for s in examples])
+
     positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
     negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
 
@@ -151,11 +152,11 @@ def sentence_pairs_generation(
 
 
 class ConstrastiveDataset(IterableDataset):
-    def __init__(self, x_train, y_train, num_iterations, unique_pairs, multilabel):
+    def __init__(self, examples, num_iterations, unique_pairs, multilabel):
         super().__init__()
 
         self.train_examples = sentence_pairs_generation(
-            np.array(x_train), np.array(y_train), num_iterations, unique_pairs, multilabel
+            examples, num_iterations, unique_pairs, multilabel
         )
 
     def __iter__(self):
