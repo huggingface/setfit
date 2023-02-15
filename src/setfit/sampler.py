@@ -113,55 +113,48 @@ def negative_sentence_pairs_generate(
     return pairs
 
 
-def sentence_pairs_generation(
-    examples: List[InputExample],
-    num_iterations: int,
-    unique_pairs: bool = False,
-    multilabel: bool = False,
-) -> List[InputExample]:
-    """Generates positive and negative sentence pairs for contrastive learning.
-
-    Args:
-        examples (InputExample): text and labels in a sentence transformer dataclass
-        num_iterations: sets the number of contastive sample pairs to be generated
-        unique_pairs: when true will only return upto the number of unique sentence
-            pair combinations avaliable
-
-    Returns:
-        List of sentence pairs
-    """
-    max_pairs = num_iterations * len(examples)
-    sentences = np.array([s.texts[0] for s in examples])
-    labels = np.array([s.label for s in examples])
-
-    positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
-    negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
-
-    if unique_pairs:
-        extra_pairs = abs(len(positive_pairs) - len(negative_pairs))
-
-        if len(positive_pairs) > len(negative_pairs):
-            logger.warning("** Oversampling negative pairs to balance contrastive training samples.")
-            negative_pairs += negative_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
-
-        if len(negative_pairs) > len(positive_pairs):
-            logger.warning("** Oversampling positive pairs to balance contrastive training samples.")
-            positive_pairs += positive_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
-
-    return positive_pairs + negative_pairs
-
 
 class ConstrastiveDataset(IterableDataset):
     def __init__(self, examples, num_iterations, unique_pairs, multilabel):
+        """Generates positive and negative sentence pairs for contrastive learning.
+
+        Args:
+            examples (InputExample): text and labels in a sentence transformer dataclass
+            num_iterations: sets the number of contastive sample pairs to be generated
+            unique_pairs: when true will only return upto the number of unique sentence
+                pair combinations avaliable
+        """
         super().__init__()
 
-        self.train_examples = sentence_pairs_generation(
-            examples, num_iterations, unique_pairs, multilabel
-        )
+        max_pairs = num_iterations * len(examples)
+        sentences = np.array([s.texts[0] for s in examples])
+        labels = np.array([s.label for s in examples])
+
+        positive_pairs = positive_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
+        negative_pairs = negative_sentence_pairs_generate(sentences, labels, max_pairs, unique_pairs, multilabel)
+
+        if unique_pairs:
+            extra_pairs = abs(len(positive_pairs) - len(negative_pairs))
+
+            if len(positive_pairs) > len(negative_pairs):
+                logger.warning("** Oversampling negative pairs to balance contrastive training samples.")
+                negative_pairs += negative_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
+
+            if len(negative_pairs) > len(positive_pairs):
+                logger.warning("** Oversampling positive pairs to balance contrastive training samples.")
+                positive_pairs += positive_sentence_pairs_generate(sentences, labels, extra_pairs, False, multilabel)
+
+        self._num_pairs = len(positive_pairs) + len(negative_pairs)
+        self.positive_pairs = positive_pairs
+        self.negative_pairs = negative_pairs
+
 
     def __iter__(self):
-        for example in self.train_examples:
-            yield example
+        # generates one of each in turn
+        for pos_pair, neg_pair in zip(self.positive_pairs, self.negative_pairs):
+            yield pos_pair
+            yield neg_pair
+
 
     def __len__(self):
-        return len(self.train_examples)
+        return self._num_pairs
