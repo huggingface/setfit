@@ -92,7 +92,7 @@ def main():
 
     metric = DEV_DATASET_TO_METRIC.get(args.eval_dataset, TEST_DATASET_TO_METRIC.get(args.eval_dataset, "accuracy"))
 
-    if args.reference_dataset is None:
+    if args.reference_dataset is None and args.candidate_labels is None:
         args.reference_dataset = args.eval_dataset
 
     train_data = get_templated_dataset(

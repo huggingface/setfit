@@ -3,9 +3,14 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
+from datasets import Dataset, DatasetDict, load_dataset
 from torch.utils.data import Dataset as TorchDataset
 
+from . import logging
+
+
+logging.set_verbosity_info()
+logger = logging.get_logger(__name__)
 
 if TYPE_CHECKING:
     from transformers import PreTrainedTokenizerBase
@@ -160,14 +165,15 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
 def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
     """Samples a Dataset to create an equal number of samples per class (when possible)."""
     shuffled_dataset = dataset.shuffle(seed=seed)
-    num_labels = len(dataset.unique(label_column))
-    samples = []
-    for label in range(num_labels):
-        data = shuffled_dataset.filter(lambda example: int(example[label_column]) == label)
-        num_label_samples = min(len(data), num_samples)
-        samples.append(data.select([i for i in range(num_label_samples)]))
 
-    all_samples = concatenate_datasets(samples)
+    df = shuffled_dataset.to_pandas()
+    df = df.groupby(label_column)
+
+    # sample num_samples, or at least as much as possible
+    df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
+    df = df.reset_index(drop=True)
+
+    all_samples = Dataset.from_pandas(df)
     return all_samples.shuffle(seed=seed)
 
 

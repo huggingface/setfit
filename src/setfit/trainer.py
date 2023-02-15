@@ -11,10 +11,12 @@ except ImportError:
 
 import evaluate
 import numpy as np
+from datasets import DatasetDict
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from torch.utils.data import DataLoader
+from tqdm.auto import trange
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 
 from . import logging
@@ -97,9 +99,23 @@ class Trainer:
         required_columns = {"text", "label"}
         column_names = set(dataset.column_names)
         if self.column_mapping is None and not required_columns.issubset(column_names):
-            raise ValueError(
-                f"A column mapping must be provided when the dataset does not contain the following columns: {required_columns}"
-            )
+            # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
+            if column_names == {"train"} and isinstance(dataset, DatasetDict):
+                raise ValueError(
+                    "SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
+                    "Did you mean to select the training split with dataset['train']?"
+                )
+            elif isinstance(dataset, DatasetDict):
+                raise ValueError(
+                    f"SetFit expected a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
+                    "Did you mean to select one of these splits from the dataset?"
+                )
+            else:
+                raise ValueError(
+                    f"SetFit expected the dataset to have the columns {sorted(required_columns)}, "
+                    f"but only the columns {sorted(column_names)} were found. "
+                    "Either make sure these columns are present, or specify which columns to use with column_mapping in SetFitTrainer."
+                )
         if self.column_mapping is not None:
             missing_columns = required_columns.difference(self.column_mapping.values())
             if missing_columns:
@@ -108,7 +124,8 @@ class Trainer:
                 )
             if not set(self.column_mapping.keys()).issubset(column_names):
                 raise ValueError(
-                    f"The following columns are missing from the dataset: {set(self.column_mapping.keys()).difference(column_names)}. Please provide a mapping for all required columns."
+                    f"The column mapping expected the columns {sorted(self.column_mapping.keys())} in the dataset, "
+                    f"but the dataset had the columns {sorted(column_names)}."
                 )
 
     def _apply_column_mapping(self, dataset: "Dataset", column_mapping: Dict[str, str]) -> "Dataset":
@@ -308,7 +325,7 @@ class Trainer:
         else:
             train_examples = []
 
-            for _ in range(args.num_iterations):
+            for _ in trange(args.num_iterations, desc="Generating Training Pairs", disable=not args.show_progress_bar):
                 if self.model.multi_target_strategy is not None:
                     train_examples = sentence_pairs_generation_multilabel(
                         np.array(x_train), np.array(y_train), train_examples
