@@ -9,6 +9,8 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
+from scipy import sparse
+from functools import lru_cache
 
 import joblib
 import numpy as np
@@ -20,7 +22,7 @@ from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, IterableDataset
 from tqdm.auto import trange
 
 from . import logging
@@ -679,10 +681,8 @@ class SupConLoss(nn.Module):
         return loss
 
 
-def sentence_pairs_generation(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
+def sentence_pairs_generation(sentences, labels):
+    pairs = []
     num_classes = np.unique(labels)
     label_to_idx = {x: i for i, x in enumerate(num_classes)}
     positive_idxs = [np.where(labels == i)[0] for i in num_classes]
@@ -701,32 +701,6 @@ def sentence_pairs_generation(sentences, labels, pairs):
         negative_sentence = sentences[third_idx]
         # Prepare a negative pair of sentences and update our lists
         pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
-
-
-def sentence_pairs_generation_multilabel(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        sample_labels = np.where(labels[first_idx, :] == 1)[0]
-        if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
-            continue
-        else:
-            for _label in sample_labels:
-                second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
-                positive_sentence = sentences[second_idx]
-                # Prepare a positive pair and update the sentences and labels
-                # lists, respectively
-                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-            # Search for sample that don't have a label in common with current
-            # sentence
-            negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
-            negative_sentence = sentences[np.random.choice(negative_idx)]
-            # Prepare a negative pair of sentences and update our lists
-            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
     # Return a 2-tuple of our sentence pairs and labels
     return pairs
 
@@ -777,3 +751,71 @@ class SKLearnWrapper:
     def load(self, path):
         self.st_model = SentenceTransformer(model_name_or_path=path)
         self.clf = joblib.load(f"{path}/setfit_head.pkl")
+
+
+class MultilabelSentencePairDataset(IterableDataset):
+    def __init__(self, x_train, y_train, n_iterations, metric="binary"):
+        super().__init__()
+        self.x_train = np.array(x_train)
+        self.y_train = np.array(y_train)
+        self.n_iterations = n_iterations
+        sparse_labels = sparse.lil_matrix(self.y_train)
+        self.labels_squared = sparse_labels @ sparse_labels.T
+        self.label_metric = {
+            "binary": binary_label,
+            "jaccard": jaccard_label,
+        }[metric]
+
+    def __iter__(self):
+        for _ in range(self.n_iterations):
+            yield from self._generate_pairs()
+
+    def _generate_pairs(self):
+        for current_idx in np.random.permutation(self.x_train.shape[0]):
+            current_sentence = self.x_train[current_idx]
+            for negative_idx in np.random.permutation(self.labels_squared.shape[0]):
+                if self.labels_squared[current_idx, negative_idx] == 0:
+                    break
+            else:
+                continue
+            negative_sentence = self.x_train[negative_idx]
+            yield InputExample(
+                texts=[current_sentence, negative_sentence],
+                label=self.label_metric(
+                    self.y_train[current_idx], self.y_train[negative_idx]
+                ),
+            )
+
+            positive_indices = np.where(self.y_train[current_idx, :] == 1)[0]
+            for _label in positive_indices:
+                positive_idx = np.random.choice(np.where(self.y_train[:, _label] == 1)[0])
+                positive_sentence = self.x_train[positive_idx]
+                yield InputExample(
+                    texts=[current_sentence, positive_sentence],
+                    label=self.label_metric(
+                        self.y_train[current_idx], self.y_train[positive_idx]
+                    ),
+                )
+
+    @lru_cache
+    def __len__(self):
+        length = 0
+        for first_idx, _ in enumerate(self.x_train):
+            if self.labels_squared[first_idx, :].getnnz() == self.y_train.shape[1]:
+                continue
+            positive_indices = np.where(self.y_train[first_idx, :] == 1)[0]
+            length += len(positive_indices) + 1
+
+        return self.n_iterations * length
+
+
+def jaccard_label(labels1, labels2):
+    a = set(np.where(labels1 == 1)[0])
+    b = set(np.where(labels2 == 1)[0])
+    return len(a & b) / len(a | b)
+
+
+def binary_label(labels1, labels2):
+    a = set(np.where(labels1 == 1)[0])
+    b = set(np.where(labels2 == 1)[0])
+    return float(bool(a & b))

@@ -126,7 +126,7 @@ class RunFewShot:
         batch_size = self.args.batch_size
         train_examples = []
         for _ in range(self.args.num_epochs):
-            train_examples = sentence_pairs_generation_multilabel(np.array(x_train), y_train, train_examples)
+            train_examples.append(sentence_pairs_generation_multilabel(np.array(x_train), y_train))
 
         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
         train_loss = self.loss_class(self.model)

@@ -132,7 +132,7 @@ def eval_setfit(train_data, test_data, model, loss_class, num_epochs, metric):
     else:
         train_examples = []
         for _ in range(num_epochs):
-            train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+            train_examples.extend(sentence_pairs_generation(np.array(x_train), np.array(y_train)))
 
         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
         train_loss = loss_class(model)

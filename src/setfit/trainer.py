@@ -13,7 +13,7 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .modeling import SupConLoss, sentence_pairs_generation, MultilabelSentencePairDataset
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -364,24 +364,18 @@ class SetFitTrainer:
                         margin=self.margin,
                     )
             else:
-                train_examples = []
-
-                for _ in trange(self.num_iterations, desc="Generating Training Pairs", disable=not show_progress_bar):
-                    if self.model.multi_target_strategy is not None:
-                        train_examples = sentence_pairs_generation_multilabel(
-                            np.array(x_train), np.array(y_train), train_examples
-                        )
-                    else:
-                        train_examples = sentence_pairs_generation(
-                            np.array(x_train), np.array(y_train), train_examples
-                        )
-
-                train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+                if self.model.multi_target_strategy is None:
+                    train_examples = []
+                    for _ in range(self.num_iterations):
+                        train_examples.extend(sentence_pairs_generation(np.array(x_train), np.array(y_train)))
+                        train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+                else:
+                    train_dataloader = MultilabelSentencePairDataset(np.array(x_train), np.array(y_train), self.num_iterations)
                 train_loss = self.loss_class(self.model.model_body)
 
             total_train_steps = len(train_dataloader) * num_epochs
             logger.info("***** Running training *****")
-            logger.info(f"  Num examples = {len(train_examples)}")
+            logger.info(f"  Num examples = {len(train_dataloader)}")
             logger.info(f"  Num epochs = {num_epochs}")
             logger.info(f"  Total optimization steps = {total_train_steps}")
             logger.info(f"  Total train batch size = {batch_size}")
