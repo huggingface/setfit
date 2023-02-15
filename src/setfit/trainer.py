@@ -11,7 +11,8 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation
+from .modeling import SupConLoss
+from .sampler import ConstrastiveDataset
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -82,7 +83,7 @@ class SetFitTrainer:
         eval_dataset: Optional["Dataset"] = None,
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
-        loss_class=losses.CosineSimilarityLoss,
+        loss_class: Optional["nn.Module"] = None,
         num_iterations: int = 20,
         num_epochs: int = 1,
         learning_rate: float = 2e-5,
@@ -310,9 +311,6 @@ class SetFitTrainer:
             logger.info("Applying column mapping to training dataset")
             train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
 
-        x_train = train_dataset["text"]
-        y_train = train_dataset["label"]
-        multilabel = True if self.model.multi_target_strategy is not None else False
         if self.loss_class is None:
             logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
             self.loss_class = losses.CosineSimilarityLoss
@@ -320,6 +318,10 @@ class SetFitTrainer:
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
+
+        # dataset generation
+        x_train = train_dataset["text"]
+        y_train = train_dataset["label"]
 
         if not self.model.has_differentiable_head or self._freeze:
             # sentence-transformers adaptation
@@ -332,37 +334,45 @@ class SetFitTrainer:
             ]:
                 train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
                 train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=self.samples_per_label)
-
-                batch_size = min(batch_size, len(train_data_sampler))
-                train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
-
-                if self.loss_class is losses.BatchHardSoftMarginTripletLoss:
-                    train_loss = self.loss_class(
-                        model=self.model.model_body,
-                        distance_metric=self.distance_metric,
-                    )
-                elif self.loss_class is SupConLoss:
-                    train_loss = self.loss_class(model=self.model.model_body)
-                else:
-                    train_loss = self.loss_class(
-                        model=self.model.model_body,
-                        distance_metric=self.distance_metric,
-                        margin=self.margin,
-                    )
-            else:
-                train_examples = sentence_pairs_generation(
-                    np.array(x_train), np.array(y_train), self.num_iterations, self.unique_pairs, multilabel
+                train_dataloader = DataLoader(
+                    train_data_sampler,
+                    batch_size=min(batch_size, len(train_data_sampler)),
+                    drop_last=True
                 )
-
-                train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-                train_loss = self.loss_class(self.model.model_body)
+            else:  # setfit default constrastive pairs generator
+                multilabel = True if self.model.multi_target_strategy is not None else False
+                train_data_sampler = ConstrastiveDataset(
+                    np.array(x_train), np.array(y_train), 
+                    self.num_iterations, self.unique_pairs, multilabel
+                )
+                train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=False)
 
             total_train_steps = len(train_dataloader) * num_epochs
             logger.info("***** Running training *****")
-            logger.info(f"  Num examples = {len(train_examples)}")
+            logger.info(f"  Num examples = {len(train_data_sampler)}")
             logger.info(f"  Num epochs = {num_epochs}")
             logger.info(f"  Total optimization steps = {total_train_steps}")
             logger.info(f"  Total train batch size = {batch_size}")
+
+            # setup training loss
+            if self.loss_class in [
+                losses.BatchAllTripletLoss,
+                losses.BatchHardTripletLoss,
+                losses.BatchSemiHardTripletLoss,
+                losses.BatchHardSoftMarginTripletLoss,
+            ]:
+                train_loss = self.loss_class(
+                    model=self.model.model_body,
+                    distance_metric=self.distance_metric,
+                    margin=self.margin,
+                )
+            elif self.loss_class is losses.BatchHardSoftMarginTripletLoss:
+                train_loss = self.loss_class(
+                    model=self.model.model_body,
+                    distance_metric=self.distance_metric,
+                )
+            else:
+                train_loss = self.loss_class(model=self.model.model_body)
 
             warmup_steps = math.ceil(total_train_steps * self.warmup_proportion)
             self.model.model_body.fit(
