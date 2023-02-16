@@ -371,6 +371,7 @@ class SetFitTrainer:
                         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 else:
                     train_dataloader = MultilabelSentencePairDataset(np.array(x_train), np.array(y_train), self.num_iterations)
+                    train_dataloader = DataLoader(train_examples, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
 
             total_train_steps = len(train_dataloader) * num_epochs
