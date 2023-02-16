@@ -547,7 +547,7 @@ class SetFitTrainer(Trainer):
     ):
         warnings.warn(
             "`SetFitTrainer` has been deprecated and will be removed in v2.0.0 of SetFit. "
-            " Please use `Trainer` instead.",
+            "Please use `Trainer` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
