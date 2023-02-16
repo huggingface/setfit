@@ -82,7 +82,7 @@ class SetFitTrainer:
         eval_dataset: Optional["Dataset"] = None,
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
-        loss_class: Optional["nn.Module"] = None,
+        loss_class: Optional[Any] = None,
         num_iterations: int = 20,
         num_epochs: int = 1,
         learning_rate: float = 2e-5,
@@ -314,6 +314,8 @@ class SetFitTrainer:
             logger.warning("No `loss_class` detected! Using `CosineSimilarityLoss` as the default.")
             self.loss_class = losses.CosineSimilarityLoss
 
+        multilabel = True if self.model.multi_target_strategy is not None else False
+
         num_epochs = num_epochs or self.num_epochs
         batch_size = batch_size or self.batch_size
         learning_rate = learning_rate or self.learning_rate
@@ -333,19 +335,17 @@ class SetFitTrainer:
                 SupConLoss,
             ]:
                 train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=self.samples_per_label)
-                train_dataloader = DataLoader(
-                    train_data_sampler,
-                    batch_size=min(batch_size, len(train_data_sampler)),
-                    drop_last=True
-                )
+                batch_size = min(batch_size, len(train_data_sampler))
+                train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
             else:  # setfit default constrastive pairs generator
-                multilabel = True if self.model.multi_target_strategy is not None else False
-                train_data_sampler = ConstrastiveDataset(train_examples, self.num_iterations, self.unique_pairs, multilabel)
+                train_data_sampler = ConstrastiveDataset(
+                    train_examples, self.num_iterations, self.unique_pairs, multilabel
+                )
                 train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=False)
 
             total_train_steps = len(train_dataloader) * num_epochs
             logger.info("***** Running training *****")
-            logger.info(f"  Num examples = {len(train_data_sampler)}")
+            logger.info(f"  Num examples per epoch = {len(train_data_sampler)}")
             logger.info(f"  Num epochs = {num_epochs}")
             logger.info(f"  Total optimization steps = {total_train_steps}")
             logger.info(f"  Total train batch size = {batch_size}")
