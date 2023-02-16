@@ -11,7 +11,7 @@ def train_cross_enc(cross_enc_model,
                             batch_size, 
                             num_epochs, 
                             num_labels, 
-                            test_data_dict):
+                            unlabeled_data_dict):
 
  # load our training data (first 95%) into a dataloader
     loader = DataLoader(
@@ -32,8 +32,8 @@ def train_cross_enc(cross_enc_model,
 
     #************ Cross-encoder evaluation ************
     
-    test_sentence_pairs = test_data_dict['sentence_pairs']
-    test_gold_labels = test_data_dict['gold_labels']
+    test_sentence_pairs = unlabeled_data_dict['sentence_pairs']
+    test_gold_labels = unlabeled_data_dict['gold_labels']
     pred_scores = cross_encoder.predict(test_sentence_pairs, convert_to_numpy=True, show_progress_bar=False)
     probabilities = softmax(pred_scores, axis=1)
     pred_labels = np.argmax(pred_scores, axis=1)
@@ -42,12 +42,12 @@ def train_cross_enc(cross_enc_model,
     
     # sort data according to probability
     sort_idx = sorted(range(len(wining_class_prob)), key=wining_class_prob.__getitem__, reverse=True)
-    test_sentence_pairs_sorted = [test_sentence_pairs[i] for i in sort_idx]
-    gold_labels_sorted = [test_gold_labels[i] for i in sort_idx]
+    unlabeled_sentence_pairs_sorted = [test_sentence_pairs[i] for i in sort_idx]
+    unlabeled_gold_labels_sorted = [test_gold_labels[i] for i in sort_idx]
 
-    test_data_dict.update({"pred_scores": pred_scores, 'pred_labels': pred_labels, 'test_sentence_pairs_sorted': test_sentence_pairs_sorted, 'gold_labels_sorted': gold_labels_sorted })
+    unlabeled_data_dict.update({"pred_scores": pred_scores, 'pred_labels': pred_labels, 'unlabeled_sentence_pairs_sorted': unlabeled_sentence_pairs_sorted, 'unlabeled_gold_labels_sorted': unlabeled_gold_labels_sorted })
 
-    return cross_encoder, test_data_dict
+    return cross_encoder, unlabeled_data_dict
 
 
 def evaluate_cross_encoder(cross_encoder, test_sentence_pairs, test_gold_labels):

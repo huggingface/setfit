@@ -3,7 +3,7 @@
 ##########################
 
 export SEEDS=(1 2) #(5 42 12 27 32) # QUICK: (5 42 12)
-export SAMPLE_SIZES=(64) #(10 15 20 25 35 40 45 50 60 70 90 100 200 1000)
+export SAMPLE_SIZES=(16) #(10 15 20 25 35 40 45 50 60 70 90 100 200 1000)
 
 export DATASETS=("emotion")
 export NUM_ITERATIONS=20
@@ -11,7 +11,8 @@ export NUM_EPOCHS=10
 export BATCH_SIZE=16
 export MODEL=paraphrase-mpnet-base-v2
 export CROSS_ENC_MODEL=bert-base-uncased
-
+export LABELED_SPLIT_SIZE=5000
+export UNLABELED_SPLIT_SIZE=2000
 
 ############################
 
@@ -54,8 +55,9 @@ python /home/oren_nlp/setfit/scripts/setfit/pseudo_label.py \
       --num_epoch $NUM_EPOCHS \
       --batch_size $BATCH_SIZE \
       --seed $SEEDS \
+      --labeled_split_size $LABELED_SPLIT_SIZE \
+      --unlabeled_split_size $UNLABELED_SPLIT_SIZE \
 
-              
 
 echo ""
 echo "EXPERIMENT COMPLETED."
