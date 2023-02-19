@@ -1,0 +1,23 @@
+- sections:
+  - local: index
+    title: SetFit
+  - local: quickstart
+    title: Quickstart
+  - local: installation
+    title: Installation
+  title: Get started
+- sections:
+  - local: api/main
+    title: Main classes
+  - local: api/trainer
+    title: Trainer classes
+  title: Reference
+- sections:
+  - local: how_to
+    title: Overview
+- sections:
+  - local: tutorial
+    title: Overview
+- sections:
+  - local: about
+    title: Overview

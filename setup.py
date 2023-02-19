@@ -15,12 +15,14 @@ QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 OPENVINO_REQUIRE = ["hummingbird-ml", "openvino>=2022.3"]
 TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
+DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
 EXTRAS_REQUIRE = {
     "optuna": INTEGRATIONS_REQUIRE,
     "quality": QUALITY_REQUIRE,
     "tests": TESTS_REQUIRE,
     "onnx": ONNX_REQUIRE,
     "openvino": ONNX_REQUIRE + OPENVINO_REQUIRE,
+    "docs": DOCS_REQUIRE,
 }
 
 
