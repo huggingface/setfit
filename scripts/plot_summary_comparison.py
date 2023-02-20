@@ -1,14 +1,14 @@
 import argparse
 import json
 import os
-from pathlib import Path
+import string
 from collections import defaultdict
 from glob import glob
+from pathlib import Path
 from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import string
 
 
 """
@@ -64,7 +64,9 @@ def plot_summary_comparison(paths: List[str]) -> None:
     # Prepare folder for storing figures
     image_dir = Path("scripts") / "images"
     image_dir.mkdir(exist_ok=True)
-    new_version = max([int(path.name[2:]) for path in image_dir.glob("v_*/") if path.name[2:].isdigit()], default=0) + 1
+    new_version = (
+        max([int(path.name[2:]) for path in image_dir.glob("v_*/") if path.name[2:].isdigit()], default=0) + 1
+    )
     output_dir = image_dir / f"v_{new_version}"
     output_dir.mkdir()
 
@@ -86,7 +88,6 @@ def plot_summary_comparison(paths: List[str]) -> None:
             positions = [allotted_box_width * i for i in range(n_boxplots)]
             ax.set_xlim(-allotted_box_width * 0.75, allotted_box_width * (n_boxplots - 0.25))
 
-            # ax.set_xticks(range(n_boxplots), rotation="vertical")
             df[[column, "path_index"]].groupby("path_index", sort=True).boxplot(
                 subplots=False, ax=ax, column=column, positions=positions
             )
@@ -104,7 +105,9 @@ def plot_summary_comparison(paths: List[str]) -> None:
                 ax.tick_params(labelbottom=False)
 
         if n_boxplots > 1:
-            fig.suptitle(f"Comparison between various baselines on the {dataset}\ndataset under various $K$-shot conditions")
+            fig.suptitle(
+                f"Comparison between various baselines on the {dataset}\ndataset under various $K$-shot conditions"
+            )
         else:
             fig.suptitle(f"Results on the {dataset} dataset under various $K$-shot conditions")
         fig.tight_layout()
