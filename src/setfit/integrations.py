@@ -1,9 +1,8 @@
 import importlib.util
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
-from .utils import BestRun
 from .trainer import SetFitTrainer
-
+from .utils import BestRun
 
 def is_optuna_available() -> bool:
     """Check if Optuna is available."""
@@ -26,11 +25,11 @@ def run_hp_search_optuna(
     """Run hyperparameter search with Optuna.
 
     Args:
-        trainer: SetFitTrainer object to train and evaluate the model.
-        n_trials: Number of trials to run for hyperparameter search.
-        direction: Optimization direction for the study.
-        timeout: Maximum duration in seconds for running the trials.
-        n_jobs: Number of parallel jobs to run.
+        trainer (`SetFitTrainer`): SetFitTrainer object to train and evaluate the model.
+        n_trials (`int`): Number of trials to run for hyperparameter search.
+        direction (`str`): Optimization direction for the study, either "minimize" (default) or "maximize".
+        timeout (`int`, *optional*): Maximum duration in seconds for running the trials.
+        n_jobs (`int`, defaults to `1`): Number of parallel jobs to run.
         **kwargs: Additional arguments to pass to `optuna.create_study`.
 
     Returns:
