@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import string
+import sys
 from collections import defaultdict
 from glob import glob
 from pathlib import Path
@@ -69,6 +70,9 @@ def plot_summary_comparison(paths: List[str]) -> None:
     )
     output_dir = image_dir / f"v_{new_version}"
     output_dir.mkdir()
+
+    # Save a copy the executed command in output directory
+    (output_dir / "command.txt").write_text("python " + " ".join(sys.argv))
 
     # Create the plots per each dataset
     for dataset, df in dataset_to_df.items():
