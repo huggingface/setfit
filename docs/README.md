@@ -16,7 +16,7 @@ limitations under the License.
 
 # Generating the documentation
 
-To generate the documentation, you first have to build it. Several packages are necessary to build the doc, 
+To generate the documentation, you first have to build it. Several packages are necessary to build the doc,
 you can install them with the following command, at the root of the code repository:
 
 ```bash
@@ -33,7 +33,7 @@ check how they look before committing for instance). You don't have to commit th
 
 ## Building the documentation
 
-Once you have setup the `doc-builder` and additional packages, you can generate the documentation by 
+Once you have setup the `doc-builder` and additional packages, you can generate the documentation by
 typing the following command:
 
 ```bash
@@ -61,7 +61,7 @@ doc-builder preview {package_name} {path_to_docs}
 For example:
 
 ```bash
-doc-builder preview transformers docs/source/en/
+doc-builder preview setfit docs/source/en/
 ```
 
 The docs will be viewable at [http://localhost:3000](http://localhost:3000). You can also preview the docs once you have opened a PR. You will see a bot add a comment to a link where the documentation with your changes lives.
@@ -78,7 +78,7 @@ The `preview` command only works with existing doc files. When you add a complet
 Accepted files are Markdown (.md or .mdx).
 
 Create a file with its extension and put it in the source directory. You can then link it to the toc-tree by putting
-the filename without the extension in the [`_toctree.yml`](https://github.com/huggingface/transformers/blob/main/docs/source/_toctree.yml) file.
+the filename without the extension in the [`_toctree.yml`](https://github.com/huggingface/setfit/blob/main/docs/source/_toctree.yml) file.
 
 ## Renaming section headers and moving sections
 
@@ -188,7 +188,7 @@ Values that should be put in `code` should either be surrounded by backticks: \`
 and objects like True, None, or any strings should usually be put in `code`.
 
 When mentioning a class, function, or method, it is recommended to use our syntax for internal links so that our tool
-adds a link to its documentation with this syntax: \[\`XXXClass\`\] or \[\`function\`\]. This requires the class or 
+adds a link to its documentation with this syntax: \[\`XXXClass\`\] or \[\`function\`\]. This requires the class or
 function to be in the main package.
 
 If you want to create a link to some internal class or function, you need to
@@ -306,10 +306,10 @@ easily.
 
 # Testing documentation examples
 
-Good documentation often comes with an example of how a specific function or class should be used. 
+Good documentation often comes with an example of how a specific function or class should be used.
 Each model class should contain at least one example showcasing
-how to use this model class in inference. *E.g.* the class [Wav2Vec2ForCTC](https://huggingface.co/docs/transformers/model_doc/wav2vec2#transformers.Wav2Vec2ForCTC) 
-includes an example of how to transcribe speech to text in the 
+how to use this model class in inference. *E.g.* the class [Wav2Vec2ForCTC](https://huggingface.co/docs/transformers/model_doc/wav2vec2#transformers.Wav2Vec2ForCTC)
+includes an example of how to transcribe speech to text in the
 [docstring of its forward function](https://huggingface.co/docs/transformers/model_doc/wav2vec2#transformers.Wav2Vec2ForCTC.forward).
 
 ## Writing documentation examples
@@ -344,82 +344,9 @@ The syntax for Example docstrings can look as follows:
     ```
 ```
 
-The docstring should give a minimal, clear example of how the respective model 
+The docstring should give a minimal, clear example of how the respective model
 is to be used in inference and also include the expected (ideally sensible)
 output.
-Often, readers will try out the example before even going through the function 
-or class definitions. Therefore, it is of utmost importance that the example 
+Often, readers will try out the example before even going through the function
+or class definitions. Therefore, it is of utmost importance that the example
 works as expected.
-
-## Docstring testing
-
-To do so each example should be included in the doctests. 
-We use pytests' [doctest integration](https://docs.pytest.org/doctest.html) to verify that all of our examples run correctly. 
-For Transformers, the doctests are run on a daily basis via GitHub Actions as can be 
-seen [here](https://github.com/huggingface/transformers/actions/workflows/doctests.yml).
-
-To include your example in the daily doctests, you need to add the filename that
-contains the example docstring to the [documentation_tests.txt](../utils/documentation_tests.txt).
-
-### For Python files
-
-You will first need to run the following command (from the root of the repository) to prepare the doc file (doc-testing needs to add additional lines that we don't include in the doc source files):
-
-```bash
-python utils/prepare_for_doc_test.py src docs
-```
-
-If you work on a specific python module, say `modeling_wav2vec2.py`, you can run the command as follows (to avoid the unnecessary temporary changes in irrelevant files):
-
-```bash
-python utils/prepare_for_doc_test.py src/transformers/utils/doc.py src/transformers/models/wav2vec2/modeling_wav2vec2.py
-```
-(`utils/doc.py` should always be included)
-
-Then you can run all the tests in the docstrings of a given file with the following command, here is how we test the modeling file of Wav2Vec2 for instance:
-
-```bash
-pytest --doctest-modules src/transformers/models/wav2vec2/modeling_wav2vec2.py -sv --doctest-continue-on-failure
-```
-
-If you want to isolate a specific docstring, just add `::` after the file name then type the whole path of the function/class/method whose docstring you want to test. For instance, here is how to just test the forward method of `Wav2Vec2ForCTC`:
-
-```bash
-pytest --doctest-modules src/transformers/models/wav2vec2/modeling_wav2vec2.py::transformers.models.wav2vec2.modeling_wav2vec2.Wav2Vec2ForCTC.forward -sv --doctest-continue-on-failure
-```
-
-Once you're done, you can run the following command (still from the root of the repository) to undo the changes made by the first command before committing:
-
-```bash
-python utils/prepare_for_doc_test.py src docs --remove_new_line
-```
-
-### For Markdown files
-
-You will first need to run the following command (from the root of the repository) to prepare the doc file (doc-testing needs to add additional lines that we don't include in the doc source files):
-
-```bash
-python utils/prepare_for_doc_test.py src docs
-```
-
-Then you can test locally a given file with this command (here testing the quicktour):
-
-```bash
-pytest --doctest-modules docs/source/quicktour.mdx -sv --doctest-continue-on-failure --doctest-glob="*.mdx"
-```
-
-Once you're done, you can run the following command (still from the root of the repository) to undo the changes made by the first command before committing:
-
-```bash
-python utils/prepare_for_doc_test.py src docs --remove_new_line
-```
-
-### Writing doctests
-
-Here are a few tips to help you debug the doctests and make them pass:
-
-- The outputs of the code need to match the expected output **exactly**, so make sure you have the same outputs. In particular doctest will see a difference between single quotes and double quotes, or a missing parenthesis. The only exceptions to that rule are:
-  * whitespace: one give whitespace (space, tabulation, new line) is equivalent to any number of whitespace, so you can add new lines where there are spaces to make your output more readable.
-  * numerical values: you should never put more than 4 or 5 digits to expected results as different setups or library versions might get you slightly different results. `doctest` is configured to ignore any difference lower than the precision to which you wrote (so 1e-4 if you write 4 digits).
-- Don't leave a block of code that is very long to execute. If you can't make it fast, you can either not use the doctest syntax on it (so that it's ignored), or if you want to use the doctest syntax to show the results, you can add a comment `# doctest: +SKIP` at the end of the lines of code too long to execute
-- Each line of code that produces a result needs to have that result written below. You can ignore an output if you don't want to show it in your code example by adding a comment ` # doctest: +IGNORE_RESULT` at the end of the line of code producing it.
