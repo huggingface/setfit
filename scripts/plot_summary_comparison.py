@@ -79,7 +79,7 @@ def plot_summary_comparison(paths: List[str]) -> None:
         columns = [column for column in df.columns if not column.startswith("path")]
         fig, axes = plt.subplots(ncols=len(columns), sharey=True)
         for column_index, column in enumerate(columns):
-            ax = axes[column_index]
+            ax = axes[column_index] if len(columns) > 1 else axes
 
             # Set the y label only for the first column
             if column_index == 0:
