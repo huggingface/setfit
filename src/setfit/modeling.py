@@ -9,7 +9,7 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
-from scipy import sparse
+
 from functools import lru_cache
 
 import joblib
@@ -18,6 +18,7 @@ import requests
 import torch
 import torch.nn as nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
+from scipy import sparse
 from sentence_transformers import InputExample, SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
@@ -778,9 +779,7 @@ class MultilabelSentencePairDataset(IterableDataset):
             negative_sentence = self.x_train[negative_idx]
             yield InputExample(
                 texts=[current_sentence, negative_sentence],
-                label=self.label_metric(
-                    self.y_train[current_idx], self.y_train[negative_idx]
-                ),
+                label=self.label_metric(self.y_train[current_idx], self.y_train[negative_idx]),
             )
 
             positive_indices = np.where(self.y_train[current_idx, :] == 1)[0]
@@ -789,9 +788,7 @@ class MultilabelSentencePairDataset(IterableDataset):
                 positive_sentence = self.x_train[positive_idx]
                 yield InputExample(
                     texts=[current_sentence, positive_sentence],
-                    label=self.label_metric(
-                        self.y_train[current_idx], self.y_train[positive_idx]
-                    ),
+                    label=self.label_metric(self.y_train[current_idx], self.y_train[positive_idx]),
                 )
 
     @lru_cache(maxsize=None)

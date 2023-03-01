@@ -125,7 +125,7 @@ class RunFewShot:
         # sentence-transformers adaptation
         batch_size = self.args.batch_size
         train_examples = []
-        train_examples = MultilabelSentencePairDataset(np.array(x_train), y_train), self.args.num_epochs)
+        train_examples = MultilabelSentencePairDataset(np.array(x_train), y_train, self.args.num_epochs)
         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
         train_loss = self.loss_class(self.model)
         train_steps = len(train_dataloader)

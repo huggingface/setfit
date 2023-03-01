@@ -13,7 +13,7 @@ from transformers.trainer_utils import HPSearchBackend, default_compute_objectiv
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
-from .modeling import SupConLoss, sentence_pairs_generation, MultilabelSentencePairDataset
+from .modeling import MultilabelSentencePairDataset, SupConLoss, sentence_pairs_generation
 from .utils import BestRun, default_hp_space_optuna
 
 
@@ -366,11 +366,15 @@ class SetFitTrainer:
             else:
                 if self.model.multi_target_strategy is None:
                     train_examples = []
-                    for _ in trange(self.num_iterations, desc="Generating Training Pairs", disable=not show_progress_bar):
+                    for _ in trange(
+                        self.num_iterations, desc="Generating Training Pairs", disable=not show_progress_bar
+                    ):
                         train_examples.extend(sentence_pairs_generation(np.array(x_train), np.array(y_train)))
                         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 else:
-                    train_examples = MultilabelSentencePairDataset(np.array(x_train), np.array(y_train), self.num_iterations)
+                    train_examples = MultilabelSentencePairDataset(
+                        np.array(x_train), np.array(y_train), self.num_iterations
+                    )
                     train_dataloader = DataLoader(train_examples, batch_size=batch_size)
                 train_loss = self.loss_class(self.model.model_body)
 
