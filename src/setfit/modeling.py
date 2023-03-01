@@ -794,7 +794,7 @@ class MultilabelSentencePairDataset(IterableDataset):
                     ),
                 )
 
-    @lru_cache
+    @lru_cache(maxsize=None)
     def __len__(self):
         length = 0
         for first_idx, _ in enumerate(self.x_train):
