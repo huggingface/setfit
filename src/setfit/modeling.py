@@ -751,7 +751,7 @@ class SKLearnWrapper:
 
 
 class MultilabelSentencePairDataset(IterableDataset):
-    def __init__(self, x_train, y_train, n_iterations, metric="binary", show_progress_bar: bool = True):
+    def __init__(self, x_train, y_train, n_iterations, metric="binary"):
         super().__init__()
         self.x_train = np.array(x_train)
         self.y_train = np.array(y_train)
@@ -762,10 +762,9 @@ class MultilabelSentencePairDataset(IterableDataset):
             "binary": binary_label,
             "jaccard": jaccard_label,
         }[metric]
-        self.show_progress_bar = show_progress_bar
 
     def __iter__(self):
-        for _ in trange(self.n_iterations, desc="Generating Training Pairs", disable=not self.show_progress_bar):
+        for _ in range(self.n_iterations):
             yield from self._generate_pairs()
 
     def _generate_pairs(self):
