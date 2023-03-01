@@ -10,7 +10,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel
-from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence_pairs_generation_multilabel
+from setfit.modeling import MODEL_HEAD_NAME, MultilabelSentencePairDataset, sentence_pairs_generation
 
 
 torch_cuda_available = pytest.mark.skipif(not torch.cuda.is_available(), reason="PyTorch must be compiled with CUDA")
@@ -35,15 +35,14 @@ def test_sentence_pairs_generation_multilabel():
     sentences = np.array(["sent 1", "sent 2", "sent 3"])
     labels = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
 
+    np.random.seed(123)
     n_iterations = 2
-
-    pairs = []
-    for _ in range(n_iterations):
-        pairs.extend(sentence_pairs_generation_multilabel(sentences, labels))
+    pairs = MultilabelSentencePairDataset(sentences, labels, n_iterations)
 
     assert len(pairs) == 12
-    assert pairs[0].texts == ["sent 1", "sent 1"]
-    assert pairs[0].label == 1.0
+    pair = next(iter(pairs))
+    assert pair.texts == ["sent 1", "sent 2"]
+    assert pair.label == 0.0
 
 
 def test_setfit_model_body():

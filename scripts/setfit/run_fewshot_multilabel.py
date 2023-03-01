@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from typing_extensions import LiteralString
 
 from setfit.data import SAMPLE_SIZES
-from setfit.modeling import SetFitBaseModel, SKLearnWrapper, sentence_pairs_generation_multilabel
+from setfit.modeling import MultilabelSentencePairDataset, SetFitBaseModel, SKLearnWrapper
 from setfit.utils import DEV_DATASET_TO_METRIC, LOSS_NAME_TO_CLASS, TEST_DATASET_TO_METRIC, load_data_splits_multilabel
 
 
@@ -125,9 +125,7 @@ class RunFewShot:
         # sentence-transformers adaptation
         batch_size = self.args.batch_size
         train_examples = []
-        for _ in range(self.args.num_epochs):
-            train_examples.append(sentence_pairs_generation_multilabel(np.array(x_train), y_train))
-
+        train_examples = MultilabelSentencePairDataset(np.array(x_train), y_train), self.args.num_epochs)
         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
         train_loss = self.loss_class(self.model)
         train_steps = len(train_dataloader)
