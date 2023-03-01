@@ -366,7 +366,7 @@ class SetFitTrainer:
             else:
                 if self.model.multi_target_strategy is None:
                     train_examples = []
-                    for _ in range(self.num_iterations):
+                    for _ in trange(self.num_iterations, desc="Generating Training Pairs", disable=not show_progress_bar):
                         train_examples.extend(sentence_pairs_generation(np.array(x_train), np.array(y_train)))
                         train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
                 else:
@@ -376,7 +376,7 @@ class SetFitTrainer:
 
             total_train_steps = len(train_dataloader) * num_epochs
             logger.info("***** Running training *****")
-            logger.info(f"  Num examples = {len(train_dataloader)}")
+            logger.info(f"  Num examples = {len(train_examples)}")
             logger.info(f"  Num epochs = {num_epochs}")
             logger.info(f"  Total optimization steps = {total_train_steps}")
             logger.info(f"  Total train batch size = {batch_size}")

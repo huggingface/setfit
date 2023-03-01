@@ -310,8 +310,6 @@ class SetFitModel(PyTorchModelHubMixin):
                     # to model's device
                     features = {k: v.to(device) for k, v in features.items()}
                     labels = labels.to(device)
-                    if self.model_head.multitarget:
-                        labels = labels.float()
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
@@ -548,17 +546,15 @@ class SetFitModel(PyTorchModelHubMixin):
                         raise ValueError(
                             f"multi_target_strategy '{multi_target_strategy}' is not supported for differentiable head"
                         )
-                body_embedding_dim = model_body.get_sentence_embedding_dimension()
-                if "head_params" in model_kwargs.keys():
-                    model_kwargs["head_params"].update({"in_features": body_embedding_dim})
-                    model_kwargs["head_params"].update(
-                        {"device": target_device}
-                    )  # follow the `model_body`, put `model_head` on the target device
-                    model_head = SetFitHead(**model_kwargs["head_params"], multitarget=use_multitarget)
-                else:
-                    model_head = SetFitHead(
-                        in_features=body_embedding_dim, device=target_device, multitarget=use_multitarget
-                    )  # follow the `model_body`, put `model_head` on the target device
+                # Base `model_head` parameters
+                # - get the sentence embedding dimension from the `model_body`
+                # - follow the `model_body`, put `model_head` on the target device
+                base_head_params = {
+                    "in_features": model_body.get_sentence_embedding_dimension(),
+                    "device": target_device,
+                    "multitarget": use_multitarget,
+                }
+                model_head = SetFitHead(**{**head_params, **base_head_params})
             else:
                 clf = LogisticRegression(**head_params)
                 if multi_target_strategy is not None:
@@ -754,7 +750,7 @@ class SKLearnWrapper:
 
 
 class MultilabelSentencePairDataset(IterableDataset):
-    def __init__(self, x_train, y_train, n_iterations, metric="binary"):
+    def __init__(self, x_train, y_train, n_iterations, metric="binary", show_progress_bar: bool = True):
         super().__init__()
         self.x_train = np.array(x_train)
         self.y_train = np.array(y_train)
@@ -765,9 +761,10 @@ class MultilabelSentencePairDataset(IterableDataset):
             "binary": binary_label,
             "jaccard": jaccard_label,
         }[metric]
+        self.show_progress_bar = show_progress_bar
 
     def __iter__(self):
-        for _ in range(self.n_iterations):
+        for _ in trange(self.n_iterations, desc="Generating Training Pairs", disable=not self.show_progress_bar):
             yield from self._generate_pairs()
 
     def _generate_pairs(self):
