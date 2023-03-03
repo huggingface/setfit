@@ -1,0 +1,26 @@
+- sections:
+  - local: index
+    title: SetFit
+  - local: quickstart
+    title: Quickstart
+  - local: installation
+    title: Installation
+  title: Get started
+- sections:
+  - local: tutorials/placeholder
+    title: Placeholder
+  title: Tutorials
+- sections:
+  - local: how_to/placeholder
+    title: Placeholder
+  title: How-to Guides
+- sections:
+  - local: conceptual_guides/placeholder
+    title: Placeholder
+  title: Conceptual Guides
+- sections:
+  - local: api/main
+    title: Main classes
+  - local: api/trainer
+    title: Trainer classes
+  title: API
