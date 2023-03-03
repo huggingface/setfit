@@ -1,21 +1,21 @@
 import math
 import warnings
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from sentence_transformers import InputExample, losses, util
-from sentence_transformers.datasets import SentenceLabelDataset
+from sentence_transformers import losses, util
 from torch.utils.data import DataLoader
+from transformers.trainer_utils import set_seed
 
 from . import logging
-from .losses import SupConLoss
 from .modeling import sentence_pairs_generation_cos_sim
 from .trainer import Trainer
 from .training_args import TrainingArguments
 
 
 if TYPE_CHECKING:
+    import optuna
     from datasets import Dataset
 
     from .modeling import SetFitModel
@@ -52,6 +52,8 @@ class DistillationTrainer(Trainer):
             `{"text_column_name": "text", "label_column_name: "label"}`.
     """
 
+    _REQUIRED_COLUMNS = {"text"}
+
     def __init__(
         self,
         teacher_model: "SetFitModel",
@@ -76,59 +78,81 @@ class DistillationTrainer(Trainer):
         self.teacher_model = teacher_model
         self.student_model = self.model
 
+    def train(
+        self,
+        args: Optional[TrainingArguments] = None,
+        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
+        **kwargs,
+    ) -> None:
+        """
+        Main training entry point.
+
+        Args:
+            args (`TrainingArguments`, *optional*):
+                Temporarily change the training arguments for this training call.
+            trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
+                The trial run or the hyperparameter dictionary for hyperparameter search.
+        """
+        if len(kwargs):
+            warnings.warn(
+                f"`{self.__class__.__name__}.train` does not accept keyword arguments anymore. "
+                f"Please provide training arguments via a `TrainingArguments` instance to the `{self.__class__.__name__}` "
+                f"initialisation or the `{self.__class__.__name__}.train` method.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        args = args or self.args or TrainingArguments()
+
+        set_seed(args.seed)  # Seed must be set before instantiating the model when using model_init.
+
+        if trial:  # Trial and model initialization
+            self._hp_search_setup(trial)  # sets trainer parameters and initializes model
+
+        if self.train_dataset is None:
+            raise ValueError(
+                f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization."
+            )
+
+        self._validate_column_mapping(self.train_dataset)
+        train_dataset = self.train_dataset
+        if self.column_mapping is not None:
+            logger.info("Applying column mapping to training dataset")
+            train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+
+        x_train: List[str] = train_dataset["text"]
+
+        self.train_embeddings(x_train, args)
+        self.train_classifier(x_train, args)
+
     def train_embeddings(
         self,
         x_train: List[str],
-        y_train: Union[List[int], List[List[int]]],
         args: Optional[TrainingArguments] = None,
-    ):
+    ) -> None:
+        """
+        Method to perform the embedding phase: finetuning the student its `SentenceTransformer` body.
+
+        Args:
+            x_train (`List[str]`): A list of training sentences.
+            args (`TrainingArguments`, *optional*):
+                Temporarily change the training arguments for this training call.
+        """
         args = args or self.args or TrainingArguments()
 
-        # sentence-transformers adaptation
-        if args.loss in [
-            losses.BatchAllTripletLoss,
-            losses.BatchHardTripletLoss,
-            losses.BatchSemiHardTripletLoss,
-            losses.BatchHardSoftMarginTripletLoss,
-            SupConLoss,
-        ]:
-            train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-            train_data_sampler = SentenceLabelDataset(train_examples)
+        # **************** student training *********************
+        x_train_embd_student = self.teacher_model.model_body.encode(x_train)
 
-            batch_size = min(args.embedding_batch_size, len(train_data_sampler))
-            train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
+        cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
 
-            if args.loss is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = args.loss(
-                    model=self.student_model.model_body,
-                    distance_metric=args.distance_metric,
-                )
-            elif args.loss is SupConLoss:
-                train_loss = args.loss(model=self.student_model)
-            else:
-                train_loss = args.loss(
-                    model=self.student_model.model_body,
-                    distance_metric=args.distance_metric,
-                    margin=args.margin,
-                )
-        else:
-            train_examples = []
+        train_examples = []
+        for _ in range(args.num_iterations):
+            train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
+        # **************** student training END *****************
 
-            # **************** student training *********************
-            # Only this snippet differs from Trainer.train_embeddings
-            x_train_embd_student = self.teacher_model.model_body.encode(x_train)
-            y_train = self.teacher_model.model_head.predict(x_train_embd_student)
-
-            cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
-
-            train_examples = []
-            for _ in range(args.num_iterations):
-                train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
-            # **************** student training END *****************
-
-            batch_size = args.embedding_batch_size
-            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-            train_loss = args.loss(self.student_model.model_body)
+        batch_size = args.embedding_batch_size
+        train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
+        train_loss = args.loss(self.student_model.model_body)
 
         total_train_steps = len(train_dataloader) * args.embedding_num_epochs
         logger.info("***** Running training *****")
@@ -146,6 +170,19 @@ class DistillationTrainer(Trainer):
             show_progress_bar=args.show_progress_bar,
             use_amp=args.use_amp,
         )
+
+    def train_classifier(self, x_train: List[str], args: Optional[TrainingArguments] = None) -> None:
+        """
+        Method to perform the classifier phase: fitting the student classifier head.
+
+        Args:
+            x_train (`List[str]`): A list of training sentences.
+            args (`TrainingArguments`, *optional*):
+                Temporarily change the training arguments for this training call.
+        """
+        x_train_embd_student = self.teacher_model.model_body.encode(x_train)
+        y_train = self.teacher_model.model_head.predict(x_train_embd_student)
+        return super().train_classifier(x_train, y_train, args)
 
 
 class DistillationSetFitTrainer(DistillationTrainer):

@@ -25,7 +25,6 @@ class DistillationSetFitTrainerTest(TestCase):
         )
         # Teacher Train and evaluate
         teacher_trainer.train()
-        metrics = teacher_trainer.evaluate()
         teacher_model = teacher_trainer.model
 
         student_trainer = DistillationTrainer(
@@ -43,16 +42,32 @@ class DistillationSetFitTrainerTest(TestCase):
         self.assertEqual(metrics["accuracy"], 1.0)
 
     def test_trainer_raises_error_with_missing_label(self):
-        dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = DistillationTrainer(
-            teacher_model=self.teacher_model,
-            train_dataset=dataset,
-            student_model=self.student_model,
-            eval_dataset=dataset,
+        labeled_dataset = Dataset.from_dict(
+            {"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+        # train a teacher model
+        teacher_trainer = Trainer(
+            model=self.teacher_model,
+            train_dataset=labeled_dataset,
+            eval_dataset=labeled_dataset,
+            metric="accuracy",
             args=self.args,
         )
-        with pytest.raises(ValueError):
-            trainer.train()
+        # Teacher Train and evaluate
+        teacher_trainer.train()
+
+        unlabeled_dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
+        student_trainer = DistillationTrainer(
+            teacher_model=self.teacher_model,
+            student_model=self.student_model,
+            train_dataset=unlabeled_dataset,
+            eval_dataset=labeled_dataset,
+            args=self.args,
+        )
+        student_trainer.train()
+        metrics = student_trainer.evaluate()
+        print("Student results: ", metrics)
+        self.assertEqual(metrics["accuracy"], 1.0)
 
     def test_trainer_raises_error_with_missing_text(self):
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})

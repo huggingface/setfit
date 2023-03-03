@@ -63,6 +63,8 @@ class Trainer:
             `{"text_column_name": "text", "label_column_name: "label"}`.
     """
 
+    _REQUIRED_COLUMNS = {"text", "label"}
+
     def __init__(
         self,
         model: Optional["SetFitModel"] = None,
@@ -96,9 +98,8 @@ class Trainer:
         """
         Validates the provided column mapping against the dataset.
         """
-        required_columns = {"text", "label"}
         column_names = set(dataset.column_names)
-        if self.column_mapping is None and not required_columns.issubset(column_names):
+        if self.column_mapping is None and not self._REQUIRED_COLUMNS.issubset(column_names):
             # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
             if column_names == {"train"} and isinstance(dataset, DatasetDict):
                 raise ValueError(
@@ -112,12 +113,12 @@ class Trainer:
                 )
             else:
                 raise ValueError(
-                    f"SetFit expected the dataset to have the columns {sorted(required_columns)}, "
+                    f"SetFit expected the dataset to have the columns {sorted(self._REQUIRED_COLUMNS)}, "
                     f"but only the columns {sorted(column_names)} were found. "
                     "Either make sure these columns are present, or specify which columns to use with column_mapping in SetFitTrainer."
                 )
         if self.column_mapping is not None:
-            missing_columns = required_columns.difference(self.column_mapping.values())
+            missing_columns = self._REQUIRED_COLUMNS.difference(self.column_mapping.values())
             if missing_columns:
                 raise ValueError(
                     f"The following columns are missing from the column mapping: {missing_columns}. Please provide a mapping for all required columns."
