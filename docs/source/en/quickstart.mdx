@@ -18,9 +18,7 @@ Here is an end-to-end example using a classification head from `scikit-learn`:
 
 ```python
 from datasets import load_dataset
-from sentence_transformers.losses import CosineSimilarityLoss
-
-from setfit import SetFitModel, SetFitTrainer, sample_dataset
+from setfit import SetFitModel, Trainer, TrainingArguments, sample_dataset
 
 
 # Load a dataset from the Hugging Face Hub
@@ -33,17 +31,19 @@ eval_dataset = dataset["validation"]
 # Load a SetFit model from Hub
 model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
 
-# Create trainer
-trainer = SetFitTrainer(
+args = TrainingArguments(
+    batch_size=16,
+    num_iterations=20,  # The number of text pairs to generate for contrastive learning
+    num_epochs=1  # The number of epochs to use for contrastive learning
+)
+
+trainer = Trainer(
     model=model,
+    args=args,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
-    loss_class=CosineSimilarityLoss,
     metric="accuracy",
-    batch_size=16,
-    num_iterations=20, # The number of text pairs to generate for contrastive learning
-    num_epochs=1, # The number of epochs to use for contrastive learning
-    column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
+    column_mapping={"sentence": "text", "label": "label"}  # Map dataset columns to text/label expected by trainer
 )
 
 # Train and evaluate
@@ -53,7 +53,7 @@ metrics = trainer.evaluate()
 # Push model to the Hub
 trainer.push_to_hub("my-awesome-setfit-model")
 
-# Download from Hub and run inference
+# Download from Hub
 model = SetFitModel.from_pretrained("lewtun/my-awesome-setfit-model")
 # Run inference
 preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
@@ -64,9 +64,7 @@ Here is an end-to-end example using `SetFitHead`:
 
 ```python
 from datasets import load_dataset
-from sentence_transformers.losses import CosineSimilarityLoss
-
-from setfit import SetFitModel, SetFitTrainer, sample_dataset
+from setfit import SetFitModel, Trainer, TrainingArguments, sample_dataset
 
 
 # Load a dataset from the Hugging Face Hub
@@ -75,6 +73,7 @@ dataset = load_dataset("sst2")
 # Simulate the few-shot regime by sampling 8 examples per class
 train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
 eval_dataset = dataset["validation"]
+num_classes = 2
 
 # Load a SetFit model from Hub
 model = SetFitModel.from_pretrained(
@@ -83,36 +82,26 @@ model = SetFitModel.from_pretrained(
     head_params={"out_features": num_classes},
 )
 
-# Create trainer
-trainer = SetFitTrainer(
+args = TrainingArguments(
+    body_learning_rate=2e-5,
+    head_learning_rate=1e-2,
+    batch_size=16,
+    num_iterations=20,  # The number of text pairs to generate for contrastive learning
+    num_epochs=(1, 25),  # For finetuning the embeddings and training the classifier, respectively
+    l2_weight=0.0,
+    end_to_end=False,  # Don't train the classifier end-to-end, i.e. only train the head
+)
+
+trainer = Trainer(
     model=model,
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
-    loss_class=CosineSimilarityLoss,
     metric="accuracy",
-    batch_size=16,
-    num_iterations=20, # The number of text pairs to generate for contrastive learning
-    num_epochs=1, # The number of epochs to use for contrastive learning
-    column_mapping={"sentence": "text", "label": "label"} # Map dataset columns to text/label expected by trainer
+    column_mapping={"sentence": "text", "label": "label"}  # Map dataset columns to text/label expected by trainer
 )
 
 # Train and evaluate
-trainer.freeze() # Freeze the head
-trainer.train() # Train only the body
-
-# Unfreeze the head and freeze the body -> head-only training
-trainer.unfreeze(keep_body_frozen=True)
-# or
-# Unfreeze the head and unfreeze the body -> end-to-end training
-trainer.unfreeze(keep_body_frozen=False)
-
-trainer.train(
-    num_epochs=25, # The number of epochs to train the head or the whole model (body and head)
-    batch_size=16,
-    body_learning_rate=1e-5, # The body's learning rate
-    learning_rate=1e-2, # The head's learning rate
-    l2_weight=0.0, # Weight decay on **both** the body and head. If `None`, will use 0.01.
-)
+trainer.train()
 metrics = trainer.evaluate()
 
 # Push model to the Hub
@@ -147,7 +136,7 @@ This will initialise a multilabel classification head from `sklearn` - the follo
 * `multi-output`: uses a `MultiOutputClassifier` head.
 * `classifier-chain`: uses a `ClassifierChain` head.
 
-From here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.
+From here, you can instantiate a `Trainer` using the same example above, and train it as usual.
 
 #### Example using the differentiable `SetFitHead`:
 
@@ -168,7 +157,6 @@ model = SetFitModel.from_pretrained(
 SetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:
 
 ```python
-from datasets import Dataset
 from setfit import get_templated_dataset
 
 candidate_labels = ["negative", "positive"]
@@ -178,22 +166,22 @@ train_dataset = get_templated_dataset(candidate_labels=candidate_labels, sample_
 This will create examples of the form `"This sentence is {}"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:
 
 ```python
-from setfit import SetFitModel, SetFitTrainer
+from setfit import SetFitModel, Trainer
 
 model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
-trainer = SetFitTrainer(
+trainer = Trainer(
     model=model,
     train_dataset=train_dataset
 )
 trainer.train()
 ```
 
-We find this approach typically outperforms the [zero-shot pipeline](https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline) in 🤗 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.
+We find this approach typically outperforms the [zero-shot pipeline](https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline) in 🤗 Transformers (based on MNLI with BART), while being 5x faster to generate predictions with.
 
 
 ### Running hyperparameter search
 
-`SetFitTrainer` provides a `hyperparameter_search()` method that you can use to find good hyperparameters for your data. To use this feature, first install the `optuna` backend:
+`Trainer` provides a `hyperparameter_search()` method that you can use to find good hyperparameters for your data. To use this feature, first install the `optuna` backend:
 
 ```bash
 python -m pip install setfit[optuna]
@@ -239,23 +227,23 @@ def hp_space(trial):  # Training parameters
 
 **Note:** In practice, we found `num_iterations` to be the most important hyperparameter for the contrastive learning process.
 
-The next step is to instantiate a `SetFitTrainer` and call `hyperparameter_search()`:
+The next step is to instantiate a `Trainer` and call `hyperparameter_search()`:
 
 ```python
 from datasets import Dataset
-from setfit import SetFitTrainer
+from setfit import Trainer
 
 dataset = Dataset.from_dict(
-            {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
-        )
+    {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+)
 
-trainer = SetFitTrainer(
+trainer = Trainer(
     train_dataset=dataset,
     eval_dataset=dataset,
     model_init=model_init,
     column_mapping={"text_new": "text", "label_new": "label"},
 )
-best_run = trainer.hyperparameter_search(direction="maximize", hp_space=hp_space, n_trials=20)
+best_run = trainer.hyperparameter_search(direction="maximize", hp_space=hp_space, n_trials=5)
 ```
 
 Finally, you can apply the hyperparameters you found to the trainer, and lock in the optimal model, before training for
@@ -272,9 +260,8 @@ If you have access to unlabeled data, you can use knowledge distillation to comp
 
 ```python
 from datasets import load_dataset
-from sentence_transformers.losses import CosineSimilarityLoss
-
-from setfit import SetFitModel, SetFitTrainer, DistillationSetFitTrainer, sample_dataset
+from setfit import SetFitModel, Trainer, DistillationTrainer, sample_dataset
+from setfit.training_args import TrainingArguments
 
 # Load a dataset from the Hugging Face Hub
 dataset = load_dataset("ag_news")
@@ -292,32 +279,35 @@ teacher_model = SetFitModel.from_pretrained(
 )
 
 # Create trainer for teacher model
-teacher_trainer = SetFitTrainer(
+teacher_trainer = Trainer(
     model=teacher_model,
     train_dataset=train_dataset_teacher,
     eval_dataset=eval_dataset,
-    loss_class=CosineSimilarityLoss,
 )
 
 # Train teacher model
 teacher_trainer.train()
+teacher_metrics = teacher_trainer.evaluate()
 
 # Load small student model
 student_model = SetFitModel.from_pretrained("paraphrase-MiniLM-L3-v2")
 
-# Create trainer for knowledge distillation
-student_trainer = DistillationSetFitTrainer(
-    teacher_model=teacher_model,
-    train_dataset=train_dataset_student,
-    student_model=student_model,
-    eval_dataset=eval_dataset,
-    loss_class=CosineSimilarityLoss,
-    metric="accuracy",
+args = TrainingArguments(
     batch_size=16,
     num_iterations=20,
-    num_epochs=1,
+    num_epochs=1
+)
+
+# Create trainer for knowledge distillation
+student_trainer = DistillationTrainer(
+    teacher_model=teacher_model,
+    student_model=student_model,
+    args=args,
+    train_dataset=train_dataset_student,
+    eval_dataset=eval_dataset,
 )
 
 # Train student with knowledge distillation
 student_trainer.train()
+student_metrics = student_trainer.evaluate()
 ```
