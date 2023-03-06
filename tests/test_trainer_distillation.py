@@ -8,7 +8,7 @@ from setfit.modeling import SetFitModel
 from setfit.training_args import TrainingArguments
 
 
-class DistillationSetFitTrainerTest(TestCase):
+class DistillationTrainerTest(TestCase):
     def setUp(self):
         self.teacher_model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
         self.student_model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L3-v2")

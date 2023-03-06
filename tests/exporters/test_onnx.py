@@ -8,7 +8,8 @@ from transformers import AutoTokenizer
 from setfit import SetFitModel
 from setfit.data import get_templated_dataset
 from setfit.exporters.onnx import export_onnx
-from setfit.trainer import SetFitTrainer
+from setfit.trainer import Trainer
+from setfit.training_args import TrainingArguments
 
 
 def test_export_onnx_sklearn_head():
@@ -63,25 +64,23 @@ def test_export_onnx_torch_head(out_features):
         model_path, use_differentiable_head=True, head_params={"out_features": out_features}
     )
 
-    trainer = SetFitTrainer(
+    args = TrainingArguments(
+        num_iterations=15,
+        num_epochs=(1, 15),
+        batch_size=16,
+        body_learning_rate=(2e-5, 1e-5),
+        head_learning_rate=1e-2,
+        l2_weight=0.0,
+        end_to_end=True,
+    )
+    trainer = Trainer(
         model=model,
+        args=args,
         train_dataset=dataset,
         eval_dataset=dataset,
-        num_iterations=15,
         column_mapping={"text": "text", "label": "label"},
     )
-    # Train and evaluate
-    trainer.freeze()  # Freeze the head
-    trainer.train()  # Train only the body
-    # Unfreeze the head and unfreeze the body -> end-to-end training
-    trainer.unfreeze(keep_body_frozen=False)
-    trainer.train(
-        num_epochs=15,
-        batch_size=16,
-        body_learning_rate=1e-5,
-        learning_rate=1e-2,
-        l2_weight=0.0,
-    )
+    trainer.train()
 
     # Export the sklearn based model
     output_path = "model.onnx"

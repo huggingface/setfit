@@ -40,7 +40,7 @@ class DistillationTrainer(Trainer):
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to
-            [`~SetFitTrainer.train`] will start from a new instance of the model as given by this
+            [`~DistillationTrainer.train`] will start from a new instance of the model as given by this
             function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation. If a string is provided, we treat it as the metric

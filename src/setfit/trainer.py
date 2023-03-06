@@ -51,7 +51,7 @@ class Trainer:
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to
-            [`~SetFitTrainer.train`] will start from a new instance of the model as given by this
+            [`~Trainer.train`] will start from a new instance of the model as given by this
             function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation. If a string is provided, we treat it as the metric
@@ -86,10 +86,10 @@ class Trainer:
             if model_init is not None:
                 model = self.call_model_init()
             else:
-                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument.")
+                raise RuntimeError("`Trainer` requires either a `model` or `model_init` argument.")
         else:
             if model_init is not None:
-                raise RuntimeError("`SetFitTrainer` requires either a `model` or `model_init` argument, but not both.")
+                raise RuntimeError("`Trainer` requires either a `model` or `model_init` argument, but not both.")
 
         self.model = model
         self.hp_search_backend = None
@@ -115,7 +115,7 @@ class Trainer:
                 raise ValueError(
                     f"SetFit expected the dataset to have the columns {sorted(self._REQUIRED_COLUMNS)}, "
                     f"but only the columns {sorted(column_names)} were found. "
-                    "Either make sure these columns are present, or specify which columns to use with column_mapping in SetFitTrainer."
+                    "Either make sure these columns are present, or specify which columns to use with column_mapping in Trainer."
                 )
         if self.column_mapping is not None:
             missing_columns = self._REQUIRED_COLUMNS.difference(self.column_mapping.values())
@@ -432,7 +432,7 @@ class Trainer:
 
         <Tip warning={true}>
 
-        To use this method, you need to have provided a `model_init` when initializing your [`SetFitTrainer`]: we need to
+        To use this method, you need to have provided a `model_init` when initializing your [`Trainer`]: we need to
         reinitialize the model at each new run.
 
         </Tip>

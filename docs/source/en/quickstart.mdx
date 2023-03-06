@@ -11,7 +11,7 @@ The examples below provide a quick overview on the various features supported in
 `setfit` is integrated with the [Hugging Face Hub](https://huggingface.co/) and provides two main classes:
 
 * `SetFitModel`: a wrapper that combines a pretrained body from `sentence_transformers` and a classification head from either [`scikit-learn`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) or [`SetFitHead`](https://github.com/huggingface/setfit/blob/main/src/setfit/modeling.py) (a differentiable head built upon `PyTorch` with similar APIs to `sentence_transformers`).
-* `SetFitTrainer`: a helper class that wraps the fine-tuning process of SetFit.
+* `Trainer`: a helper class that wraps the fine-tuning process of SetFit.
 
 Here is an end-to-end example using a classification head from `scikit-learn`:
 

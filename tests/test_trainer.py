@@ -22,7 +22,7 @@ logging.set_verbosity_warning()
 logging.enable_propagation()
 
 
-class SetFitTrainerTest(TestCase):
+class TrainerTest(TestCase):
     def setUp(self):
         self.model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
         self.args = TrainingArguments(num_iterations=1)
@@ -81,7 +81,7 @@ class SetFitTrainerTest(TestCase):
         expected_message = re.escape(
             "SetFit expected the dataset to have the columns ['label', 'text'], "
             "but only the columns ['extra_column', 'label'] were found. "
-            "Either make sure these columns are present, or specify which columns to use with column_mapping in SetFitTrainer."
+            "Either make sure these columns are present, or specify which columns to use with column_mapping in Trainer."
         )
         with pytest.raises(ValueError, match=expected_message):
             trainer._validate_column_mapping(trainer.train_dataset)
@@ -205,7 +205,7 @@ class SetFitTrainerTest(TestCase):
             trainer.evaluate()
 
 
-class SetFitTrainerDifferentiableHeadTest(TestCase):
+class TrainerDifferentiableHeadTest(TestCase):
     def setUp(self):
         self.dataset = Dataset.from_dict(
             {"text_new": ["a", "b", "c"], "label_new": [0, 1, 2], "extra_column": ["d", "e", "f"]}
@@ -262,7 +262,7 @@ class SetFitTrainerDifferentiableHeadTest(TestCase):
                 raise AssertionError(e)
 
 
-class SetFitTrainerMultilabelTest(TestCase):
+class TrainerMultilabelTest(TestCase):
     def setUp(self):
         self.model = SetFitModel.from_pretrained(
             "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
@@ -302,7 +302,7 @@ class SetFitTrainerMultilabelTest(TestCase):
         )
 
 
-class SetFitTrainerMultilabelDifferentiableTest(TestCase):
+class TrainerMultilabelDifferentiableTest(TestCase):
     def setUp(self):
         self.model = SetFitModel.from_pretrained(
             "sentence-transformers/paraphrase-albert-small-v2",

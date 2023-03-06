@@ -5,7 +5,7 @@ from .utils import BestRun
 
 
 if TYPE_CHECKING:
-    from .trainer import SetFitTrainer
+    from .trainer import Trainer
 
 
 def is_optuna_available():
@@ -17,7 +17,7 @@ def default_hp_search_backend():
         return "optuna"
 
 
-def run_hp_search_optuna(trainer: "SetFitTrainer", n_trials: int, direction: str, **kwargs) -> BestRun:
+def run_hp_search_optuna(trainer: "Trainer", n_trials: int, direction: str, **kwargs) -> BestRun:
     import optuna
 
     # Heavily inspired by transformers.integrations.run_hp_search_optuna
