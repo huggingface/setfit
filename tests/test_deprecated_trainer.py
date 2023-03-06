@@ -86,7 +86,7 @@ class SetFitTrainerTest(TestCase):
         expected_message = re.escape(
             "SetFit expected the dataset to have the columns ['label', 'text'], "
             "but only the columns ['extra_column', 'label'] were found. "
-            "Either make sure these columns are present, or specify which columns to use with column_mapping in SetFitTrainer."
+            "Either make sure these columns are present, or specify which columns to use with column_mapping in Trainer."
         )
         with pytest.raises(ValueError, match=expected_message):
             trainer._validate_column_mapping(trainer.train_dataset)
