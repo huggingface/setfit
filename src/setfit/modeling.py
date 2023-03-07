@@ -475,7 +475,7 @@ class SetFitModel(PyTorchModelHubMixin):
     def _save_pretrained(self, save_directory: str) -> None:
         self.model_body.save(path=save_directory, create_model_card=False)
         self.create_model_card(path=save_directory, model_name=save_directory)
-        joblib.dump(self.model_head, f"{save_directory}/{MODEL_HEAD_NAME}")
+        joblib.dump(self.model_head.to("cpu"), f"{save_directory}/{MODEL_HEAD_NAME}")
 
     @classmethod
     def _from_pretrained(
@@ -529,6 +529,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
+            model_head.to(target_device)
         else:
             head_params = model_kwargs.get("head_params", {})
             if use_differentiable_head:
@@ -550,6 +551,7 @@ class SetFitModel(PyTorchModelHubMixin):
                     "multitarget": use_multitarget,
                 }
                 model_head = SetFitHead(**{**head_params, **base_head_params})
+                model_head.to(target_device)
             else:
                 clf = LogisticRegression(**head_params)
                 if multi_target_strategy is not None:
