@@ -475,7 +475,7 @@ class SetFitModel(PyTorchModelHubMixin):
     def _save_pretrained(self, save_directory: str) -> None:
         self.model_body.save(path=save_directory, create_model_card=False)
         self.create_model_card(path=save_directory, model_name=save_directory)
-        joblib.dump(self.model_head.to("cpu"), f"{save_directory}/{MODEL_HEAD_NAME}")
+        joblib.dump(self.model_head.to("cpu") if self.has_differentiable_head else self.model_head, f"{save_directory}/{MODEL_HEAD_NAME}")
 
     @classmethod
     def _from_pretrained(
