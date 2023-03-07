@@ -529,7 +529,8 @@ class SetFitModel(PyTorchModelHubMixin):
 
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
-            model_head.to(target_device)
+            if isinstance(model_head, SetFitHead):
+                model_head.to(target_device)
         else:
             head_params = model_kwargs.get("head_params", {})
             if use_differentiable_head:
