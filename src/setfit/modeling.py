@@ -404,6 +404,27 @@ class SetFitModel(PyTorchModelHubMixin):
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
+    def _output_type_conversion(
+        self, outputs: Union[torch.Tensor, "ndarray"], as_numpy: bool = False
+    ) -> Union[torch.Tensor, "ndarray"]:
+        """Return `outputs` in the desired type:
+        * Numpy array if no differentiable head is used.
+        * Torch tensor if a differentiable head is used.
+
+        Note:
+            If the model is trained with string labels, which is only possible with a non-differentiable head,
+            then we cannot output using torch Tensors, but only using a numpy array.
+
+        Returns:
+            Union[torch.Tensor, "ndarray"]: The input, correctly converted to the desired type.
+        """
+        if as_numpy and self.has_differentiable_head:
+            outputs = outputs.detach().cpu().numpy()
+        elif not as_numpy and not self.has_differentiable_head and outputs.dtype.char != "U":
+            # Only output as tensor if the output isn't a string
+            outputs = torch.from_numpy(outputs)
+        return outputs
+
     def predict(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
             x_test,
@@ -412,13 +433,7 @@ class SetFitModel(PyTorchModelHubMixin):
         )
 
         outputs = self.model_head.predict(embeddings)
-
-        if as_numpy and self.has_differentiable_head:
-            outputs = outputs.detach().cpu().numpy()
-        elif not as_numpy and not self.has_differentiable_head:
-            outputs = torch.from_numpy(outputs)
-
-        return outputs
+        return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
     def predict_proba(self, x_test: List[str], as_numpy: bool = False) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
@@ -428,13 +443,7 @@ class SetFitModel(PyTorchModelHubMixin):
         )
 
         outputs = self.model_head.predict_proba(embeddings)
-
-        if as_numpy and self.has_differentiable_head:
-            outputs = outputs.detach().cpu().numpy()
-        elif not as_numpy and not self.has_differentiable_head:
-            outputs = torch.from_numpy(outputs)
-
-        return outputs
+        return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
         """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
