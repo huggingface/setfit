@@ -567,7 +567,7 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
-        return SetFitModel(
+        return cls(
             model_body=model_body,
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,
