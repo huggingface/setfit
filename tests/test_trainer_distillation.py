@@ -100,3 +100,68 @@ class DistillationSetFitTrainerTest(TestCase):
         assert formatted_dataset[0]["text"] == "a"
         assert formatted_dataset[0]["label"] == [0, 1]
         assert formatted_dataset[1]["text"] == "b"
+
+
+def train_diff(trainer: SetFitTrainer):
+    # Teacher Train and evaluate
+    trainer.freeze()  # Freeze the head
+    trainer.train()  # Train only the body
+
+    # Unfreeze the head and unfreeze the body -> end-to-end training
+    trainer.unfreeze(keep_body_frozen=False)
+
+    trainer.train(num_epochs=5)
+
+
+def train_lr(trainer: SetFitTrainer):
+    trainer.train()
+
+
+@pytest.mark.parametrize(("teacher_diff", "student_diff"), [[True, False], [True, False]])
+def test_differentiable_models(teacher_diff: bool, student_diff: bool) -> None:
+    if teacher_diff:
+        teacher_model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2",
+            use_differentiable_head=True,
+            head_params={"out_features": 3},
+        )
+        teacher_train_func = train_diff
+    else:
+        teacher_model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+        teacher_train_func = train_lr
+    if student_diff:
+        student_model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-MiniLM-L3-v2",
+            use_differentiable_head=True,
+            head_params={"out_features": 3},
+        )
+        student_train_func = train_diff
+    else:
+        student_model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-MiniLM-L3-v2")
+        student_train_func = train_lr
+
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
+    # train a teacher model
+    teacher_trainer = SetFitTrainer(
+        model=teacher_model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        metric="accuracy",
+    )
+    teacher_train_func(teacher_trainer)
+    metrics = teacher_trainer.evaluate()
+    teacher_model = teacher_trainer.model
+
+    student_trainer = DistillationSetFitTrainer(
+        teacher_model=teacher_model,
+        train_dataset=dataset,
+        student_model=student_model,
+        eval_dataset=dataset,
+        metric="accuracy",
+    )
+
+    # Student Train and evaluate
+    student_train_func(student_trainer)
+    metrics = student_trainer.evaluate()
+    print("Student results: ", metrics)
+    assert metrics["accuracy"] == 1.0
