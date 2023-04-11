@@ -192,8 +192,14 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 train_examples = []
 
                 # **************** student training ****************
-                x_train_embd_student = self.teacher_model.model_body.encode(x_train)
+                x_train_embd_student = self.teacher_model.model_body.encode(
+                    x_train, convert_to_tensor=self.teacher_model.has_differentiable_head
+                )
                 y_train = self.teacher_model.model_head.predict(x_train_embd_student)
+                if not self.teacher_model.has_differentiable_head and self.student_model.has_differentiable_head:
+                    y_train = torch.from_numpy(y_train)
+                elif self.teacher_model.has_differentiable_head and not self.student_model.has_differentiable_head:
+                    y_train = y_train.detach().cpu().numpy()
 
                 cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
 
