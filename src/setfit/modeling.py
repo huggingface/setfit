@@ -1,8 +1,8 @@
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
-import tempfile
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible

@@ -556,6 +556,8 @@ class SetFitTrainer:
             str: The url of the commit of your model in the given repository.
         """
         if "/" not in repo_id:
-            raise ValueError("`repo_id` must be a full repository ID, including organisation, e.g. \"tomaarsen/setfit_sst2\".")
+            raise ValueError(
+                '`repo_id` must be a full repository ID, including organisation, e.g. "tomaarsen/setfit_sst2".'
+            )
         commit_message = kwargs.pop("commit_message", "Add SetFit model")
         return self.model.push_to_hub(repo_id, commit_message=commit_message, **kwargs)
