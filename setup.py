@@ -31,7 +31,12 @@ def combine_requirements(base_keys):
 
 
 EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
-EXTRAS_REQUIRE["compat_tests"] = [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE
+# For the combatibility tests we add pandas<2, as pandas 2.0.0 onwards is incompatible with old datasets versions,
+# and we assume few to no users would use old datasets versions with new pandas versions.
+# The only alternative is incrementing the minimum version for datasets, which seems unnecessary.
+EXTRAS_REQUIRE["compat_tests"] = (
+    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE + ["pandas<2"]
+)
 
 setup(
     name="setfit",
