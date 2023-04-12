@@ -447,3 +447,20 @@ def test_trainer_works_with_non_default_loss_class(loss_class):
     )
     trainer.train()
     # no asserts here because this is a regression test - we only test if an exception is raised
+
+
+def test_trainer_evaluate_with_strings():
+    dataset = Dataset.from_dict(
+        {"text": ["positive sentence", "negative sentence"], "label": ["positive", "negative"]}
+    )
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        num_iterations=1,
+    )
+    trainer.train()
+    # This used to fail due to "TypeError: can't convert np.ndarray of type numpy.str_.
+    # The only supported types are: float64, float32, float16, complex64, complex128, int64, int32, int16, int8, uint8, and bool."
+    model.predict(["another positive sentence"])
