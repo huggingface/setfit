@@ -3,7 +3,7 @@
 # make sure to test the local checkout in scripts and not the pre-installed one (don't use quotes!)
 export PYTHONPATH = src
 
-check_dirs := scripts tests src
+check_dirs := scripts tests src setup.py
 
 style:
 	python -m black --line-length 119 --exclude="scripts/adapet|scripts/tfew" --target-version py39 $(check_dirs)
