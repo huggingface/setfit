@@ -519,30 +519,43 @@ class SetFitTrainer:
         self.hp_search_backend = None
         return best_run
 
-    def push_to_hub(
-        self,
-        repo_path_or_name: Optional[str] = None,
-        repo_url: Optional[str] = None,
-        commit_message: Optional[str] = "Add SetFit model",
-        organization: Optional[str] = None,
-        private: Optional[bool] = None,
-        api_endpoint: Optional[str] = None,
-        use_auth_token: Optional[Union[bool, str]] = None,
-        git_user: Optional[str] = None,
-        git_email: Optional[str] = None,
-        config: Optional[dict] = None,
-        skip_lfs_files: bool = False,
-    ):
-        return self.model.push_to_hub(
-            repo_path_or_name,
-            repo_url,
-            commit_message,
-            organization,
-            private,
-            api_endpoint,
-            use_auth_token,
-            git_user,
-            git_email,
-            config,
-            skip_lfs_files,
-        )
+    def push_to_hub(self, repo_id: str, **kwargs) -> str:
+        """Upload model checkpoint to the Hub using `huggingface_hub`.
+
+        See the full list of parameters for your `huggingface_hub` version in the\
+        [huggingface_hub documentation](https://huggingface.co/docs/huggingface_hub/package_reference/mixins#huggingface_hub.ModelHubMixin.push_to_hub).
+
+        Args:
+            repo_id (`str`):
+                The full repository ID to push to, e.g. `"tomaarsen/setfit_sst2"`.
+            config (`dict`, *optional*):
+                Configuration object to be saved alongside the model weights.
+            commit_message (`str`, *optional*):
+                Message to commit while pushing.
+            private (`bool`, *optional*, defaults to `False`):
+                Whether the repository created should be private.
+            api_endpoint (`str`, *optional*):
+                The API endpoint to use when pushing the model to the hub.
+            token (`str`, *optional*):
+                The token to use as HTTP bearer authorization for remote files.
+                If not set, will use the token set when logging in with
+                `transformers-cli login` (stored in `~/.huggingface`).
+            branch (`str`, *optional*):
+                The git branch on which to push the model. This defaults to
+                the default branch as specified in your repository, which
+                defaults to `"main"`.
+            create_pr (`boolean`, *optional*):
+                Whether or not to create a Pull Request from `branch` with that commit.
+                Defaults to `False`.
+            allow_patterns (`List[str]` or `str`, *optional*):
+                If provided, only files matching at least one pattern are pushed.
+            ignore_patterns (`List[str]` or `str`, *optional*):
+                If provided, files matching any of the patterns are not pushed.
+
+        Returns:
+            str: The url of the commit of your model in the given repository.
+        """
+        if "/" not in repo_id:
+            raise ValueError("`repo_id` must be a full repository ID, including organisation, e.g. \"tomaarsen/setfit_sst2\".")
+        commit_message = kwargs.pop("commit_message", "Add SetFit model")
+        return self.model.push_to_hub(repo_id, commit_message=commit_message, **kwargs)

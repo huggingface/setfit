@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+import tempfile
 
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
@@ -473,6 +474,13 @@ class SetFitModel(PyTorchModelHubMixin):
         """
         if not os.path.exists(path):
             os.makedirs(path)
+
+        # If the model_path is a folder that exists locally, i.e. when create_model_card is called
+        # via push_to_hub, and the path is in a temporary folder, then we only take the last two
+        # directories
+        model_path = Path(model_name)
+        if model_path.exists() and Path(tempfile.gettempdir()) in model_path.resolve().parents:
+            model_name = "/".join(model_path.parts[-2:])
 
         model_card_content = MODEL_CARD_TEMPLATE.format(model_name=model_name)
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
