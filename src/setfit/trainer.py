@@ -60,6 +60,7 @@ class SetFitTrainer:
             [`~SetTrainer.model_init`] function to instantiate the model if it has some randomly initialized parameters.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model. The expected format is a dictionary with the following format: {"text_column_name": "text", "label_column_name: "label"}.
+            TO-DO: Add option for sentence pair as input.
         use_amp (`bool`, *optional*, defaults to `False`):
             Use Automatic Mixed Precision (AMP). Only for Pytorch >= 1.6.0
         warmup_proportion (`float`, *optional*, defaults to `0.1`):
