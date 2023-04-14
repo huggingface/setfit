@@ -234,8 +234,9 @@ class SetFitDataset(TorchDataset):
     A dataset for training the differentiable head on text classification.
 
     Args:
-        x (`List[str]`):
-            A list of input data as texts that will be fed into `SetFitModel`.
+        x (`Union[List[str], List[List[str]]]`):
+            A list of input data as texts that will be fed into `SetFitModel`. 
+            If x is a list of lists, we will be creating a dataset for sentence pair classification task. 
         y (`Union[List[int], List[List[int]]]`):
             A list of input data's labels. Can be a nested list for multi-label classification.
         tokenizer (`PreTrainedTokenizerBase`):
@@ -247,7 +248,7 @@ class SetFitDataset(TorchDataset):
 
     def __init__(
         self,
-        x: List[str],
+        x: Union[List[str], List[List[str]]],
         y: Union[List[int], List[List[int]]],
         tokenizer: "PreTrainedTokenizerBase",
         max_length: int = 32,
@@ -263,14 +264,26 @@ class SetFitDataset(TorchDataset):
         return len(self.x)
 
     def __getitem__(self, idx: int) -> Tuple[TokenizerOutput, Union[int, List[int]]]:
-        feature = self.tokenizer(
-            self.x[idx],
-            max_length=self.max_length,
-            padding="max_length",
-            truncation=True,
-            return_attention_mask="attention_mask" in self.tokenizer.model_input_names,
-            return_token_type_ids="token_type_ids" in self.tokenizer.model_input_names,
-        )
+        # Sentence pair classification
+        if isinstance(self.x[0], list) and len(self.x[0] == 2):
+            feature = self.tokenizer(
+                self.x[0][idx],
+                self.x[1][idx],
+                max_length=self.max_length,
+                padding="max_length",
+                truncation=True,
+                return_attention_mask="attention_mask" in self.tokenizer.model_input_names,
+                return_token_type_ids="token_type_ids" in self.tokenizer.model_input_names,
+            )
+        else:
+            feature = self.tokenizer(
+                self.x[idx],
+                max_length=self.max_length,
+                padding="max_length",
+                truncation=True,
+                return_attention_mask="attention_mask" in self.tokenizer.model_input_names,
+                return_token_type_ids="token_type_ids" in self.tokenizer.model_input_names,
+            )
         label = self.y[idx]
 
         return feature, label

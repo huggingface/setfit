@@ -278,7 +278,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def fit(
         self,
-        x_train: List[str],
+        x_train: Union[List[str], List[List[str]]],
         y_train: Union[List[int], List[List[int]]],
         num_epochs: int,
         batch_size: Optional[int] = None,
@@ -323,7 +323,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def _prepare_dataloader(
         self,
-        x_train: List[str],
+        x_train: Union[List[str], List[List[str]]],
         y_train: Union[List[int], List[List[int]]],
         batch_size: Optional[int] = None,
         max_length: Optional[int] = None,
@@ -711,6 +711,7 @@ def sentence_pairs_generation(sentences, labels, pairs):
 def sentence_pairs_generation_multilabel(sentences, labels, pairs):
     # Initialize two empty lists to hold the (sentence, sentence) pairs and
     # labels to indicate if a pair is positive or negative
+
     for first_idx in range(len(sentences)):
         current_sentence = sentences[first_idx]
         sample_labels = np.where(labels[first_idx, :] == 1)[0]
