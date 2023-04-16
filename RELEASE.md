@@ -4,7 +4,7 @@ This guide collects the steps we do in SetFit to make a release on PyPI. They re
 
 ### Preparation
 
-To be able to make a release for a given project, you’ll need an account on [PyPI](https://pypi.org/) and on [Test PyPI](https://test.pypi.org/). If you are making a release for an existing project, your username will need to be added to that project by one of the current maintainers on PypI. Note that we strongly recommend enabling two-factor authentication on PyPI.
+To be able to make a release for a given project, you’ll need an account on [PyPI](https://pypi.org/) and on [Test PyPI](https://test.pypi.org/). If you are making a release for an existing project, your username will need to be added to that project by one of the current maintainers on PyPI. Note that we strongly recommend enabling two-factor authentication on PyPI.
 
 You will also need to install twine in your Python environment with `pip install twine`.
 
@@ -33,11 +33,11 @@ We have [a space](https://huggingface.co/spaces/lysandre/github-release) to help
 
 Save the token somewhere safe, as GitHub does not let you see it again after it’s created. Next, adjust the settings of the Space to get the whole list of commits done since last release, along with the top contributors outside of the Hugging Face team.
 
-You can then put your release notes in a Draft Release on GitHub, in [https://github.com/huggingface/setfit/releases](https://github.com/huggingface/setfit/releases) (replace project_name by the package you are working on) and write a small paragraph highlighting each of the new features this release is adding.
+You can then put your release notes in a Draft Release on GitHub, in [https://github.com/huggingface/setfit/releases](https://github.com/huggingface/setfit/releases) and write a small paragraph highlighting each of the new features this release is adding.
 
 ### Step 3: Adjust the version of your package
 
-You should have the current version specified in the `[setup.py](http://setup.py)` and then the main `__init__.py` files. This version should be a dev version before you release, change it to the name of the version you are releasing by running:
+You should have the current version specified in the `[setup.py](setup.py)` and then the main `__init__.py` files. This version should be a dev version before you release, change it to the name of the version you are releasing by running:
 
 ```
 make pre-release
@@ -69,7 +69,7 @@ git push --tags origin v{major}.{minor}-release
 
 ### Step 6: Create the wheels for your release
 
-This is the stuff you will upload on PyPI and that everyone will then download each time they pip install your package.
+This is what you'll upload on PyPI and what everyone will download each time they `pip install` your package.
 
 Clean previous builds by running:
 
@@ -99,7 +99,7 @@ make pypi_test_upload
 
 You will be prompted for your username and password.
 
-Then in a fresh environment containing all dependencies you need, try to install your new package from the pypi test server
+Then in a fresh environment containing all dependencies you need, try to install your new package from the PyPI test server.
 
 ```bash
 make pypi_test_install
@@ -121,19 +121,19 @@ Once you’re fully ready, upload your package on PyPI:
 make pypi_upload
 ```
 
-You will be prompted for your username and password.
+You will be prompted for your username and password, unless you're using the recommended [PyPI API token](https://pypi.org/help/#apitoken).
 
 ### Step 9: Publish your release notes
 
-Go back to the draft you did at step 2 ([https://github.com/huggingface/setfit/releases](https://github.com/huggingface/setfit/releases) with project_name replaced by the package you are working on) and add the tag you created at step 4 to your release before publishing your release notes
+Go back to the draft you did at step 2 ([https://github.com/huggingface/setfit/releases](https://github.com/huggingface/setfit/releases)) and add the tag you created at step 4 to your release before publishing your release notes.
 
 ### Step 10: Bump the dev version on the main branch
 
-You’re almost done! Just go back to the `main` branch and change the dev version in the `setup.py` and the main `__init__.py` to the new version you’re developing, for instance `4.13.0.dev0` if just released `4.12.0`
+You’re almost done! Just go back to the `main` branch and change the dev version in the `setup.py` and the main `__init__.py` to the new version you’re developing, for instance `4.13.0.dev0` if just released `4.12.0`.
 
 ### Patch releases
 
-Follow this guide when you are releasing a patch to fix a bug introduced in a release. For minor or major releases go [here](https://www.notion.so/Make-a-release-81fbe41ad0e24657a3126dfc7fd1c4b6).
+Follow this guide when you are releasing a patch to fix a bug introduced in a release. For minor or major releases go [here](#minor-or-major-releases).
 
 ### Step 1: Go on the last release branch and cherry-pick the commit
 
@@ -154,7 +154,7 @@ git push -u origin v{major}.{minor}-release
 
 ### Step 2: Adjust the version of your package
 
-You should have the current version specified in the `[setup.py](http://setup.py)` and then the main `__init__.py` files. This should be a bump in the micro version (so go from `4.12.0` to `4.12.1` for instance). Tthere is a utility to do this step with `make pre-patch`.
+You should have the current version specified in the `[setup.py](setup.py)` and then the main `__init__.py` files. This should be a bump in the micro version (so go from `4.12.0` to `4.12.1` for instance). There is a utility to do this step with `make pre-patch`.
 
 Commit the changes on your release branch and push them:
 
@@ -182,7 +182,7 @@ git push --tags origin v{major}.{minor}-release
 
 ### Step 5: Create the wheels for your release
 
-This is the stuff you will upload on PyPI and that everyone will then download each time they pip install your package.
+This is what you'll upload on PyPI and what everyone will download each time they `pip install` your package.
 
 Clean previous builds by running:
 
@@ -212,7 +212,7 @@ make pypi_test_upload
 
 You will be prompted for your username and password.
 
-Then in a fresh environment containing all dependencies you need, try to install your new package from the pypi test server
+Then in a fresh environment containing all dependencies you need, try to install your new package from the PyPI test server.
 
 ```bash
 make pypi_test_install
@@ -236,8 +236,8 @@ Once you’re fully ready, upload your package on PyPI:
 make pypi_upload
 ```
 
-You will be prompted for your username and password.
+You will be prompted for your username and password, unless you're using the recommended [PyPI API token](https://pypi.org/help/#apitoken).
 
 ### Step 8: Publish your release notes
 
-Go to your GitHub release pages ([https://github.com/huggingface/project-name/releases](https://github.com/huggingface/project-name/releases) with project_name replaced by the package you are working on) and write a quick explanation of what the patch fixes. Include the tag you added at step 4 and you are good to publish!
+Go to your GitHub release pages ([https://github.com/huggingface/setfit/releases](https://github.com/huggingface/setfit/releases)) and write a quick explanation of what the patch fixes. Include the tag you added at step 4 and you are good to publish!
