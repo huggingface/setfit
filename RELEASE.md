@@ -29,7 +29,7 @@ git push -u origin v{major}.{minor}-release
 
 We have [a space](https://huggingface.co/spaces/lysandre/github-release) to help you with that. You will need a [GitHub token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) with the following scopes:
 
-![](assets/scopes.png)
+![image](https://user-images.githubusercontent.com/37621491/232101171-bc99b18f-fb75-4f4c-b16c-aaccda4ae2b1.png)
 
 Save the token somewhere safe, as GitHub does not let you see it again after it’s created. Next, adjust the settings of the Space to get the whole list of commits done since last release, along with the top contributors outside of the Hugging Face team.
 
