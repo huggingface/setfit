@@ -136,15 +136,12 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
         """
         raise ImportError(msg)
 
-    # Check to see that the head has a coef_
-    if not hasattr(model_head, "coef_"):
-        raise ValueError(
-            "Head must have coef_ attribute check that this is supported by your model and the model has been fit."
-        )
-
     # Determine the initial type and the shape of the output.
-    input_shape = (None, *model_head.coef_.shape[1:])
-    dtype = guess_data_type(model_head.coef_, shape=input_shape)[0][1]
+    input_shape = (None, model_head.n_features_in_)
+    if hasattr(model_head, "coef_"):
+        dtype = guess_data_type(model_head.coef_, shape=input_shape)[0][1]
+    if not hasattr(model_head, "coef_") and hasattr(model_head, "estimators_"):
+        dtype = guess_data_type(model_head.estimators_[0].coef_, shape=input_shape)[0][1]
     dtype.shape = input_shape
 
     # If the datatype of the model is double we need to cast the outputs
@@ -235,9 +232,6 @@ def export_onnx(
             meta.value = str(value)
 
     else:
-        # TODO:: Make this work for other sklearn models without coef_.
-        if not hasattr(model_head, "coef_"):
-            raise ValueError("Model head must have coef_ attribute for weights.")
 
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
