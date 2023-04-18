@@ -11,9 +11,24 @@ from setfit.exporters.onnx import export_onnx
 from setfit.trainer import SetFitTrainer
 
 
-def test_export_onnx_sklearn_head():
+@pytest.mark.parametrize(
+    "model_path, input_text",
+    [
+        ("lewtun/my-awesome-setfit-model", ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]),
+        (
+            "lewtun/setfit-ethos-multilabel-example",
+            [
+                "Women are made for making babies and cooking dinner and nothing else!!!",
+                "Lmfao that fat slob in the wheelchair",
+                "Indian Ned Flanders. You look like you professionally harrass subpar women on Facebook",
+                "Aren’t you ashamed about your body colour?",
+                "Islam is  the home of terriorism .",
+            ],
+        ),
+    ],
+)
+def test_export_onnx_sklearn_head(model_path, input_text):
     """Test that the exported `ONNX` model returns the same predictions as the original model."""
-    model_path = "lewtun/my-awesome-setfit-model"
     model = SetFitModel.from_pretrained(model_path)
 
     # Export the sklearn based model
@@ -25,7 +40,6 @@ def test_export_onnx_sklearn_head():
         assert output_path in os.listdir(), "Model not saved to output_path"
 
         # Run inference using the original model.
-        input_text = ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]
         pytorch_preds = model(input_text)
 
         # Run inference using the exported onnx model.
@@ -47,6 +61,9 @@ def test_export_onnx_sklearn_head():
 
         # Compare the results and ensure that we get the same predictions.
         assert np.array_equal(onnx_preds, pytorch_preds)
+
+    except Exception as e:
+        raise e
 
     finally:
         # Cleanup the model.
