@@ -107,7 +107,7 @@ class TrainingArguments:
     show_progress_bar: bool = True
     seed: int = 42
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
         if isinstance(self.batch_size, int):
             self.batch_size = (self.batch_size, self.batch_size)
@@ -138,7 +138,7 @@ class TrainingArguments:
                 f"warmup_proportion must be greater than or equal to 0.0 and less than or equal to 1.0! But it was: {self.warmup_proportion}"
             )
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         # filter out fields that are defined as field(init=False)
         return {field.name: getattr(self, field.name) for field in fields(self) if field.init}
 

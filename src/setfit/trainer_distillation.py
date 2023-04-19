@@ -141,8 +141,9 @@ class DistillationTrainer(Trainer):
         args = args or self.args or TrainingArguments()
 
         # **************** student training *********************
-        x_train_embd_student = self.teacher_model.model_body.encode(x_train)
-
+        x_train_embd_student = self.teacher_model.model_body.encode(
+            x_train, convert_to_tensor=self.teacher_model.has_differentiable_head
+        )
         cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
 
         train_examples = []
@@ -180,8 +181,7 @@ class DistillationTrainer(Trainer):
             args (`TrainingArguments`, *optional*):
                 Temporarily change the training arguments for this training call.
         """
-        x_train_embd_student = self.teacher_model.model_body.encode(x_train)
-        y_train = self.teacher_model.model_head.predict(x_train_embd_student)
+        y_train = self.teacher_model.predict(x_train, as_numpy=not self.student_model.has_differentiable_head)
         return super().train_classifier(x_train, y_train, args)
 
 
@@ -208,7 +208,7 @@ class DistillationSetFitTrainer(DistillationTrainer):
         column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
-    ):
+    ) -> None:
         warnings.warn(
             "`DistillationSetFitTrainer` has been deprecated and will be removed in v2.0.0 of SetFit. "
             "Please use `DistillationTrainer` instead.",

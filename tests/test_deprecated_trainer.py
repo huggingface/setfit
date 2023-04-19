@@ -456,3 +456,41 @@ def test_trainer_works_with_non_default_loss_class(loss_class):
     )
     trainer.train()
     # no asserts here because this is a regression test - we only test if an exception is raised
+
+
+def test_trainer_evaluate_with_strings():
+    dataset = Dataset.from_dict(
+        {"text": ["positive sentence", "negative sentence"], "label": ["positive", "negative"]}
+    )
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        num_iterations=1,
+    )
+    trainer.train()
+    # This used to fail due to "TypeError: can't convert np.ndarray of type numpy.str_.
+    # The only supported types are: float64, float32, float16, complex64, complex128, int64, int32, int16, int8, uint8, and bool."
+    model.predict(["another positive sentence"])
+
+
+def test_trainer_evaluate_multilabel_f1():
+    dataset = Dataset.from_dict({"text_new": ["", "a", "b", "ab"], "label_new": [[0, 0], [1, 0], [0, 1], [1, 1]]})
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", multi_target_strategy="one-vs-rest"
+    )
+
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        metric="f1",
+        metric_kwargs={"average": "micro"},
+        num_iterations=5,
+        column_mapping={"text_new": "text", "label_new": "label"},
+    )
+
+    trainer.train()
+    metrics = trainer.evaluate()
+    assert metrics == {"f1": 1.0}

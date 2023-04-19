@@ -1,5 +1,6 @@
 import os
 import warnings
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -228,13 +229,13 @@ class SetFitHead(models.Dense):
         }
 
     @staticmethod
-    def _init_weight(module):
+    def _init_weight(module) -> None:
         if isinstance(module, nn.Linear):
             nn.init.xavier_uniform_(module.weight)
             if module.bias is not None:
                 nn.init.constant_(module.bias, 1e-2)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "SetFitHead({})".format(self.get_config_dict())
 
 
@@ -445,6 +446,27 @@ class SetFitModel(PyTorchModelHubMixin):
             inputs, normalize_embeddings=self.normalize_embeddings, convert_to_tensor=self.has_differentiable_head
         )
 
+    def _output_type_conversion(
+        self, outputs: Union[torch.Tensor, np.ndarray], as_numpy: bool = False
+    ) -> Union[torch.Tensor, np.ndarray]:
+        """Return `outputs` in the desired type:
+        * Numpy array if no differentiable head is used.
+        * Torch tensor if a differentiable head is used.
+
+        Note:
+            If the model is trained with string labels, which is only possible with a non-differentiable head,
+            then we cannot output using torch Tensors, but only using a numpy array.
+
+        Returns:
+            Union[torch.Tensor, "ndarray"]: The input, correctly converted to the desired type.
+        """
+        if as_numpy and self.has_differentiable_head:
+            outputs = outputs.detach().cpu().numpy()
+        elif not as_numpy and not self.has_differentiable_head and outputs.dtype.char != "U":
+            # Only output as tensor if the output isn't a string
+            outputs = torch.from_numpy(outputs)
+        return outputs
+
     def predict(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, np.ndarray]:
         """Predict the various classes.
 
@@ -463,13 +485,7 @@ class SetFitModel(PyTorchModelHubMixin):
         """
         embeddings = self.encode(inputs)
         outputs = self.model_head.predict(embeddings)
-
-        if as_numpy and self.has_differentiable_head:
-            outputs = outputs.detach().cpu().numpy()
-        elif not as_numpy and not self.has_differentiable_head:
-            outputs = torch.from_numpy(outputs)
-
-        return outputs
+        return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
     def predict_proba(self, inputs: List[str], as_numpy: bool = False) -> Union[torch.Tensor, np.ndarray]:
         """Predict the probabilities of the various classes.
@@ -491,13 +507,7 @@ class SetFitModel(PyTorchModelHubMixin):
         """
         embeddings = self.encode(inputs)
         outputs = self.model_head.predict_proba(embeddings)
-
-        if as_numpy and self.has_differentiable_head:
-            outputs = outputs.detach().cpu().numpy()
-        elif not as_numpy and not self.has_differentiable_head:
-            outputs = torch.from_numpy(outputs)
-
-        return outputs
+        return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
         """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
@@ -534,6 +544,13 @@ class SetFitModel(PyTorchModelHubMixin):
         if not os.path.exists(path):
             os.makedirs(path)
 
+        # If the model_path is a folder that exists locally, i.e. when create_model_card is called
+        # via push_to_hub, and the path is in a temporary folder, then we only take the last two
+        # directories
+        model_path = Path(model_name)
+        if model_path.exists() and Path(tempfile.gettempdir()) in model_path.resolve().parents:
+            model_name = "/".join(model_path.parts[-2:])
+
         model_card_content = MODEL_CARD_TEMPLATE.format(model_name=model_name)
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
             f.write(model_card_content)
@@ -555,10 +572,11 @@ class SetFitModel(PyTorchModelHubMixin):
         """
         return self.predict(inputs)
 
-    def _save_pretrained(self, save_directory: str) -> None:
+    def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
+        save_directory = str(save_directory)
         self.model_body.save(path=save_directory, create_model_card=False)
         self.create_model_card(path=save_directory, model_name=save_directory)
-        joblib.dump(self.model_head, f"{save_directory}/{MODEL_HEAD_NAME}")
+        joblib.dump(self.model_head, str(Path(save_directory) / MODEL_HEAD_NAME))
 
     @classmethod
     def _from_pretrained(
@@ -649,7 +667,7 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
-        return SetFitModel(
+        return cls(
             model_body=model_body,
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,

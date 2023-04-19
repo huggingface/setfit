@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from .trainer import Trainer
 
 
-def is_optuna_available():
+def is_optuna_available() -> bool:
     return importlib.util.find_spec("optuna") is not None
 
 
