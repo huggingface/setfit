@@ -17,13 +17,7 @@ from setfit.trainer import SetFitTrainer
         ("lewtun/my-awesome-setfit-model", ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]),
         (
             "lewtun/setfit-ethos-multilabel-example",
-            [
-                "Women are made for making babies and cooking dinner and nothing else!!!",
-                "Lmfao that fat slob in the wheelchair",
-                "Indian Ned Flanders. You look like you professionally harrass subpar women on Facebook",
-                "Aren’t you ashamed about your body colour?",
-                "Islam is  the home of terriorism .",
-            ],
+            ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"],
         ),
     ],
 )
@@ -40,7 +34,7 @@ def test_export_onnx_sklearn_head(model_path, input_text):
         assert output_path in os.listdir(), "Model not saved to output_path"
 
         # Run inference using the original model.
-        pytorch_preds = model(input_text)
+        pytorch_preds = model.predict_proba(input_text)
 
         # Run inference using the exported onnx model.
         tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -57,13 +51,10 @@ def test_export_onnx_sklearn_head(model_path, input_text):
 
         session = onnxruntime.InferenceSession(output_path)
 
-        onnx_preds = session.run(None, dict(inputs))[0]
+        onnx_preds = session.run(None, dict(inputs))[1]
 
         # Compare the results and ensure that we get the same predictions.
         assert np.array_equal(onnx_preds, pytorch_preds)
-
-    except Exception as e:
-        raise e
 
     finally:
         # Cleanup the model.
