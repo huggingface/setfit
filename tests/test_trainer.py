@@ -5,6 +5,7 @@ from unittest import TestCase
 
 import evaluate
 import pytest
+import torch
 from datasets import Dataset, load_dataset
 from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
@@ -485,3 +486,27 @@ def test_trainer_evaluate_multilabel_f1():
     trainer.train()
     metrics = trainer.evaluate()
     assert metrics == {"f1": 1.0}
+
+
+def test_trainer_evaluate_on_cpu() -> None:
+    # This test used to fail if CUDA was available
+    dataset = Dataset.from_dict(
+        {"text": ["positive sentence", "negative sentence"], "label": ["positive", "negative"]}
+    )
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
+    )
+
+    def compute_metric(y_pred, y_test) -> None:
+        assert y_pred.device == torch.device("cpu")
+        return 1.0
+
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        metric=compute_metric,
+        num_iterations=5,
+    )
+    trainer.train()
+    trainer.evaluate()
