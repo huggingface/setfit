@@ -240,7 +240,6 @@ def export_onnx(
             meta.value = str(value)
 
     else:
-
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
         # Hummingbird-ML can be used as an option to export to standard opset
