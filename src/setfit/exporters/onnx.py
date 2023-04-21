@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
-from torch import nn
 from transformers.modeling_utils import PreTrainedModel
 
 import onnx
@@ -34,7 +33,7 @@ class OnnxSetFitModel(torch.nn.Module):
     def __init__(
         self,
         model_body: PreTrainedModel,
-        pooler: Optional[Union[nn.Module, Callable[[torch.Tensor], torch.Tensor]]] = None,
+        pooler: Optional[Union[torch.nn.Module, Callable[[torch.Tensor], torch.Tensor]]] = None,
         model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None,
     ):
         super().__init__()
