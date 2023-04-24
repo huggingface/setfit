@@ -176,8 +176,8 @@ class SetFitHead(models.Dense):
                 make sure to store embeddings under the key: 'sentence_embedding'
                 and the outputs will be under the key: 'prediction'.
             temperature (`float`, *optional*):
-                A logits' scaling factor. Higher values makes the model less
-                confident and higher values makes it more confident.
+                A logits' scaling factor. Higher values make the model less
+                confident and lower values makes it more confident.
                 Will override the temperature given during initialization.
         Returns:
             [`Dict[str, torch.Tensor]` or `Tuple[torch.Tensor]`]
