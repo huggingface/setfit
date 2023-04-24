@@ -113,7 +113,7 @@ class SetFitHead(models.Dense):
         out_features (`int`, defaults to `2`):
             The number of targets. If set `out_features` to 1 for binary classification, it will be changed to 2 as 2-class classification.
         temperature (`float`, defaults to `1.0`):
-            A logits' scaling factor. Higher values makes the model less confident and higher values makes
+            A logits' scaling factor. Higher values make the model less confident and lower values make
             it more confident.
         eps (`float`, defaults to `1e-5`):
             A value for numerical stability when scaling logits.
