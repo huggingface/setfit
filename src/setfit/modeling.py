@@ -177,7 +177,7 @@ class SetFitHead(models.Dense):
                 and the outputs will be under the key: 'prediction'.
             temperature (`float`, *optional*):
                 A logits' scaling factor. Higher values make the model less
-                confident and lower values makes it more confident.
+                confident and lower values make it more confident.
                 Will override the temperature given during initialization.
         Returns:
             [`Dict[str, torch.Tensor]` or `Tuple[torch.Tensor]`]
