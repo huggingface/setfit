@@ -3,12 +3,12 @@ import warnings
 from typing import Callable, Optional, Union
 
 import numpy as np
+import onnx
 import torch
 from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from transformers.modeling_utils import PreTrainedModel
 
-import onnx
 from setfit.exporters.utils import mean_pooling
 
 
