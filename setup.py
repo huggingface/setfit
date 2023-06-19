@@ -13,7 +13,7 @@ INTEGRATIONS_REQUIRE = ["optuna"]
 REQUIRED_PKGS = ["datasets>=2.3.0", "sentence-transformers>=2.2.1", "evaluate>=0.3.0"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
-OPENVINO_REQUIRE = ["hummingbird-ml", "openvino>=2022.3<2023.0.0"]
+OPENVINO_REQUIRE = ["hummingbird-ml", "openvino==2022.3.0"]
 TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
 DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
 EXTRAS_REQUIRE = {
