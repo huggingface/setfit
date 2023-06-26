@@ -178,10 +178,25 @@ class SetFitTrainer:
         Applies the provided column mapping to the dataset, renaming columns accordingly.
         Extra features not in the column mapping are prefixed with `"feat_"`.
         """
+        # Making sure the keys of the column mapping are in the dataset
+        # otherwise show a warning message and remove the key from the mapping
+        clean_column_mapping = {**column_mapping}
+        for key in list(clean_column_mapping.keys()):
+            if key not in dataset.column_names:
+                logger.warning(
+                    f"Column '{key}' in the column_mapping "
+                    "was not found in the dataset, so it was ignored."
+                )
+                clean_column_mapping.pop(key)
+
         dataset = dataset.rename_columns(
             {
-                **column_mapping,
-                **{col: f"feat_{col}" for col in dataset.column_names if col not in column_mapping},
+                **clean_column_mapping,
+                **{
+                    col: f"feat_{col}"
+                    for col in dataset.column_names
+                    if col not in clean_column_mapping
+                },
             }
         )
         dset_format = dataset.format
