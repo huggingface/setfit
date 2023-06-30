@@ -712,8 +712,9 @@ def sentence_pairs_generation(sentences: List[str], labels: List[int], pairs: Li
         negative_index = np.random.choice(negative_indices[label_to_index[current_label]])
         negative_sentence = sentences[negative_index]
         pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    
+
     return pairs
+
 
 def sentence_pairs_generation_multilabel(sentences: List[str], labels: np.ndarray, pairs: List[InputExample]):
     """
@@ -721,7 +722,7 @@ def sentence_pairs_generation_multilabel(sentences: List[str], labels: np.ndarra
     A positive pair is two sentences having at least one common label.
     A negative pair is two sentences having no common labels.
     """
-    
+
     for current_index, current_sentence in enumerate(sentences):
         associated_labels = np.where(labels[current_index, :] == 1)[0]
 
@@ -753,9 +754,7 @@ def sentence_pairs_generation_cos_sim(sentences: List[str], cos_sim_matrix: np.n
     The cosine similarity between each pair of sentences is used as the label for that pair.
     """
 
-
     for current_index, current_sentence in enumerate(sentences):
-
         # Get the indices of all other sentences
         other_indices = [i for i in range(len(sentences)) if i != current_index]
 
@@ -767,10 +766,19 @@ def sentence_pairs_generation_cos_sim(sentences: List[str], cos_sim_matrix: np.n
         third_sentence = sentences[third_index]
 
         # Prepare the pairs and add them to the list
-        pairs.append(InputExample(texts=[current_sentence, second_sentence], label=float(cos_sim_matrix[current_index][second_index])))
-        pairs.append(InputExample(texts=[current_sentence, third_sentence], label=float(cos_sim_matrix[current_index][third_index])))
+        pairs.append(
+            InputExample(
+                texts=[current_sentence, second_sentence], label=float(cos_sim_matrix[current_index][second_index])
+            )
+        )
+        pairs.append(
+            InputExample(
+                texts=[current_sentence, third_sentence], label=float(cos_sim_matrix[current_index][third_index])
+            )
+        )
 
     return pairs
+
 
 class SKLearnWrapper:
     def __init__(self, st_model=None, clf=None):
