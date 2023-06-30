@@ -690,79 +690,87 @@ class SupConLoss(nn.Module):
         return loss
 
 
-def sentence_pairs_generation(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
+def sentence_pairs_generation(sentences: List[str], labels: List[int], pairs: List[InputExample]):
+    """
+    Generate sentence pairs with their corresponding labels indicating whether the pair is positive or negative.
+    A positive pair consists of two sentences sharing the same label.
+    A negative pair consists of two sentences having different labels.
+    """
 
     num_classes = np.unique(labels)
-    label_to_idx = {x: i for i, x in enumerate(num_classes)}
-    positive_idxs = [np.where(labels == i)[0] for i in num_classes]
-    negative_idxs = [np.where(labels != i)[0] for i in num_classes]
+    label_to_index = {x: i for i, x in enumerate(num_classes)}
+    positive_indices = [np.where(labels == i)[0] for i in num_classes]
+    negative_indices = [np.where(labels != i)[0] for i in num_classes]
 
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        label = labels[first_idx]
-        second_idx = np.random.choice(positive_idxs[label_to_idx[label]])
-        positive_sentence = sentences[second_idx]
-        # Prepare a positive pair and update the sentences and labels
-        # lists, respectively
+    for current_sentence, current_label in zip(sentences, labels):
+        # Prepare a positive pair and append it
+        positive_index = np.random.choice(positive_indices[label_to_index[current_label]])
+        positive_sentence = sentences[positive_index]
         pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
 
-        third_idx = np.random.choice(negative_idxs[label_to_idx[label]])
-        negative_sentence = sentences[third_idx]
-        # Prepare a negative pair of sentences and update our lists
+        # Prepare a negative pair and append it
+        negative_index = np.random.choice(negative_indices[label_to_index[current_label]])
+        negative_sentence = sentences[negative_index]
         pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
+    
     return pairs
 
+def sentence_pairs_generation_multilabel(sentences: List[str], labels: np.ndarray, pairs: List[InputExample]):
+    """
+    Generate sentence pairs with their corresponding labels indicating whether the pair is positive or negative.
+    A positive pair is two sentences having at least one common label.
+    A negative pair is two sentences having no common labels.
+    """
+    
+    for current_index, current_sentence in enumerate(sentences):
+        associated_labels = np.where(labels[current_index, :] == 1)[0]
 
-def sentence_pairs_generation_multilabel(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        sample_labels = np.where(labels[first_idx, :] == 1)[0]
-        if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
+        # Check if there are no sentences that have no labels in common with the current sentence, then skip the current iteration
+        if len(np.where(labels.dot(labels[current_index, :].T) == 0)[0]) == 0:
             continue
-        else:
-            for _label in sample_labels:
-                second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
-                positive_sentence = sentences[second_idx]
-                # Prepare a positive pair and update the sentences and labels
-                # lists, respectively
-                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
 
-            # Search for sample that don't have a label in common with current
-            # sentence
-            negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
-            negative_sentence = sentences[np.random.choice(negative_idx)]
-            # Prepare a negative pair of sentences and update our lists
-            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
+        # For each label of the current sentence, find a different sentence that shares the same label
+        for label in associated_labels:
+            # Create a positive pair and append it
+            positive_index = np.random.choice(np.where(labels[:, label] == 1)[0])
+            positive_sentence = sentences[positive_index]
+            pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
 
+        # Find a sentence that has no labels in common with the current sentence
+        negative_indices = np.where(labels.dot(labels[current_index, :].T) == 0)[0]
+        negative_sentence = sentences[np.random.choice(negative_indices)]
 
-def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
-    # initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    idx = list(range(len(sentences)))
-
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
-
-        cos_sim = float(cos_sim_matrix[first_idx][second_idx])
-        paired_sentence = sentences[second_idx]
-        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
-
-        third_idx = np.random.choice([x for x in idx if x != first_idx])
-        cos_sim = float(cos_sim_matrix[first_idx][third_idx])
-        paired_sentence = sentences[third_idx]
-        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
+        # Create a negative pair and append it
+        pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
 
     return pairs
 
+
+def sentence_pairs_generation_cos_sim(sentences: List[str], cos_sim_matrix: np.ndarray, pairs: List[InputExample]):
+    """
+    Generate sentence pairs with their corresponding cosine similarity values.
+    Each sentence is paired with two other sentences, randomly chosen from the list (excluding itself).
+    The cosine similarity between each pair of sentences is used as the label for that pair.
+    """
+
+
+    for current_index, current_sentence in enumerate(sentences):
+
+        # Get the indices of all other sentences
+        other_indices = [i for i in range(len(sentences)) if i != current_index]
+
+        # Select two different sentences to pair with the current one
+        second_index, third_index = np.random.choice(other_indices, size=2, replace=False)
+
+        # Fetch the sentences
+        second_sentence = sentences[second_index]
+        third_sentence = sentences[third_index]
+
+        # Prepare the pairs and add them to the list
+        pairs.append(InputExample(texts=[current_sentence, second_sentence], label=float(cos_sim_matrix[current_index][second_index])))
+        pairs.append(InputExample(texts=[current_sentence, third_sentence], label=float(cos_sim_matrix[current_index][third_index])))
+
+    return pairs
 
 class SKLearnWrapper:
     def __init__(self, st_model=None, clf=None):

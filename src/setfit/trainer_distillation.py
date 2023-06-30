@@ -206,7 +206,7 @@ class DistillationSetFitTrainer(SetFitTrainer):
                 train_examples = []
                 for _ in range(self.num_iterations):
                     train_examples = sentence_pairs_generation_cos_sim(
-                        np.array(x_train), train_examples, cos_sim_matrix
+                        np.array(x_train), cos_sim_matrix, train_examples
                     )
 
                 # **************** student training END ****************
