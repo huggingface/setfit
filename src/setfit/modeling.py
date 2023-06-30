@@ -760,7 +760,7 @@ def sentence_pairs_generation_cos_sim(sentences: List[str], cos_sim_matrix: np.n
         other_indices = [i for i in range(len(sentences)) if i != current_index]
 
         # Select two different sentences to pair with the current one
-        second_index, third_index = np.random.choice(other_indices, size=2, replace=False)
+        second_index, third_index = np.random.choice(other_indices, size=2, replace=True)
 
         # Fetch the sentences
         second_sentence = sentences[second_index]
