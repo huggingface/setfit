@@ -149,3 +149,7 @@ scripts/tfew/run_tmux.sh
 # macOS
 .DS_Store
 .vscode/settings.json
+
+# Common SetFit Trainer logging folders
+wandb
+runs/

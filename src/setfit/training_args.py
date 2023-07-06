@@ -3,9 +3,15 @@ from __future__ import annotations
 import inspect
 from copy import copy
 from dataclasses import dataclass, field, fields
+import json
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 from sentence_transformers import losses
+import torch
+from transformers.integrations import get_available_reporting_integrations
+from transformers.training_args import default_logdir
+from transformers.utils import is_torch_available
+from transformers import IntervalStrategy
 
 
 @dataclass
@@ -67,6 +73,53 @@ class TrainingArguments:
             Random seed that will be set at the beginning of training. To ensure reproducibility across
             runs, use the [`~SetTrainer.model_init`] function to instantiate the model if it has some
             randomly initialized parameters.
+        report_to (`str` or `List[str]`, *optional*, defaults to `"all"`):
+            The list of integrations to report the results and logs to. Supported platforms are `"azure_ml"`,
+            `"comet_ml"`, `"mlflow"`, `"neptune"`, `"tensorboard"`,`"clearml"` and `"wandb"`. Use `"all"` to report to
+            all integrations installed, `"none"` for no integrations.
+        run_name (`str`, *optional*):
+            A descriptor for the run. Typically used for [wandb](https://www.wandb.com/) and
+            [mlflow](https://www.mlflow.org/) logging.
+        logging_dir (`str`, *optional*):
+            [TensorBoard](https://www.tensorflow.org/tensorboard) log directory. Will default to
+            *runs/**CURRENT_DATETIME_HOSTNAME***.
+        logging_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
+            The logging strategy to adopt during training. Possible values are:
+
+                - `"no"`: No logging is done during training.
+                - `"epoch"`: Logging is done at the end of each epoch.
+                - `"steps"`: Logging is done every `logging_steps`.
+
+        logging_first_step (`bool`, *optional*, defaults to `False`):
+            Whether to log and evaluate the first `global_step` or not.
+        logging_steps (`int`, *optional*, defaults to 500):
+            Number of update steps between two logs if `logging_strategy="steps"`.
+        evaluation_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
+            The evaluation strategy to adopt during training. Possible values are:
+
+                - `"no"`: No evaluation is done during training.
+                - `"steps"`: Evaluation is done (and logged) every `eval_steps`.
+                - `"epoch"`: Evaluation is done at the end of each epoch.
+
+        eval_steps (`int`, *optional*):
+            Number of update steps between two evaluations if `evaluation_strategy="steps"`. Will default to the same
+            value as `logging_steps` if not set.
+        eval_delay (`float`, *optional*):
+            Number of epochs or steps to wait for before the first evaluation can be performed, depending on the
+            evaluation_strategy.
+
+        save_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
+            The checkpoint save strategy to adopt during training. Possible values are:
+
+                - `"no"`: No save is done during training.
+                - `"epoch"`: Save is done at the end of each epoch.
+                - `"steps"`: Save is done every `save_steps`.
+        save_steps (`int`, *optional*, defaults to 500):
+            Number of updates steps before two checkpoint saves if `save_strategy="steps"`.
+        save_total_limit (`int`, *optional*):
+            If a value is passed, will limit the total amount of checkpoints. Deletes the older checkpoints in
+            `output_dir`.
+
     """
 
     # batch_size is only used to conveniently set `embedding_batch_size` and `classifier_batch_size`
@@ -107,6 +160,26 @@ class TrainingArguments:
     show_progress_bar: bool = True
     seed: int = 42
 
+    # Logging & callbacks
+    report_to: str = "all"
+    run_name: Optional[str] = None
+    logging_dir: Optional[str] = None
+    logging_strategy: str = "steps"
+    logging_first_step: bool = False
+    logging_steps: int = 5
+
+    evaluation_strategy: str = "steps"
+    eval_steps: Optional[int] = None
+    eval_delay: int = 0
+
+    save_strategy: str = "steps"
+    save_steps: int = 500
+    save_total_limit: Optional[int] = None
+
+    load_best_model_at_end: bool = True
+    metric_for_best_model: str = field(default="embedding_loss", repr=False)
+    greater_is_better: bool = field(default=False, repr=False)
+
     def __post_init__(self) -> None:
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
         if isinstance(self.batch_size, int):
@@ -138,6 +211,29 @@ class TrainingArguments:
                 f"warmup_proportion must be greater than or equal to 0.0 and less than or equal to 1.0! But it was: {self.warmup_proportion}"
             )
 
+        if self.report_to in (None, "all"):
+            self.report_to = get_available_reporting_integrations()
+
+        if self.logging_dir is None:
+            self.logging_dir = default_logdir()
+
+        self.logging_strategy = IntervalStrategy(self.logging_strategy)
+        self.evaluation_strategy = IntervalStrategy(self.evaluation_strategy)
+
+        # eval_steps has to be defined and non-zero, fallbacks to logging_steps if the latter is non-zero
+        if self.evaluation_strategy == IntervalStrategy.STEPS and (self.eval_steps is None or self.eval_steps == 0):
+            if self.logging_steps > 0:
+                self.eval_steps = self.logging_steps
+            else:
+                raise ValueError(
+                    f"evaluation strategy {self.evaluation_strategy} requires either non-zero `eval_steps` or"
+                    " `logging_steps`"
+                )
+
+        # logging_steps must be non-zero for logging_strategy that is other than 'no'
+        if self.logging_strategy == IntervalStrategy.STEPS and self.logging_steps == 0:
+            raise ValueError(f"logging strategy {self.logging_strategy} requires non-zero --logging_steps")
+
     def to_dict(self) -> Dict[str, Any]:
         # filter out fields that are defined as field(init=False)
         return {field.name: getattr(self, field.name) for field in fields(self) if field.init}
@@ -153,3 +249,23 @@ class TrainingArguments:
 
     def update(self, arguments: Dict[str, Any], ignore_extra: bool = False) -> TrainingArguments:
         return TrainingArguments.from_dict({**self.to_dict(), **arguments}, ignore_extra=ignore_extra)
+
+    def to_json_string(self):
+        """
+        Serializes this instance to a JSON string.
+        """
+        # TODO: This needs to be improved
+        return json.dumps({key: str(value) for key, value in self.to_dict().items()}, indent=2)
+
+    def to_sanitized_dict(self) -> Dict[str, Any]:
+        """
+        Sanitized serialization to use with TensorBoard’s hparams
+        """
+        d = self.to_dict()
+        d = {**d, **{"train_batch_size": self.embedding_batch_size, "eval_batch_size": self.embedding_batch_size}}
+
+        valid_types = [bool, int, float, str]
+        if is_torch_available():
+            valid_types.append(torch.Tensor)
+
+        return {k: v if type(v) in valid_types else str(v) for k, v in d.items()}

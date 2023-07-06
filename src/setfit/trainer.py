@@ -2,6 +2,8 @@ import math
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
+from setfit import sentence_transformer
+
 
 # Google Colab runs on Python 3.7, so we need this to be compatible
 try:
@@ -18,6 +20,18 @@ from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLo
 from torch.utils.data import DataLoader
 from tqdm.auto import trange
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
+import transformers
+from transformers.trainer_callback import (
+    CallbackHandler,
+    DefaultFlowCallback,
+    PrinterCallback,
+    ProgressCallback,
+    TrainerCallback,
+    TrainerState,
+    TrainerControl,
+)
+from transformers.integrations import get_reporting_integration_callbacks, get_available_reporting_integrations
+from transformers.utils.import_utils import is_in_notebook
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
@@ -35,6 +49,15 @@ if TYPE_CHECKING:
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
+
+
+DEFAULT_CALLBACKS = [DefaultFlowCallback]
+DEFAULT_PROGRESS_CALLBACK = ProgressCallback
+
+if is_in_notebook():
+    from transformers.utils.notebook import NotebookProgressCallback
+
+    DEFAULT_PROGRESS_CALLBACK = NotebookProgressCallback
 
 
 class Trainer:
@@ -77,9 +100,10 @@ class Trainer:
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         metric_kwargs: Optional[Dict[str, Any]] = None,
+        callbacks: Optional[List[TrainerCallback]] = None,
         column_mapping: Optional[Dict[str, str]] = None,
     ):
-        self.args = args
+        self.args = args or TrainingArguments()
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.model_init = model_init
@@ -98,6 +122,57 @@ class Trainer:
 
         self.model = model
         self.hp_search_backend = None
+
+        # Setup the callbacks
+        default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(self.args.report_to)
+        callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
+        # TODO: Observe optimizer and scheduler by wrapping SentenceTransformer._get_scheduler
+        self.callback_handler = CallbackHandler(
+            callbacks, self.model.model_body, self.model.model_body.tokenizer, None, None
+        )
+        self.state = TrainerState()
+        self.control = TrainerControl()
+        self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
+
+        self.control = self.callback_handler.on_init_end(args, self.state, self.control)
+
+    def add_callback(self, callback):
+        """
+        Add a callback to the current list of [`~transformer.TrainerCallback`].
+
+        Args:
+           callback (`type` or [`~transformer.TrainerCallback`]):
+               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+               first case, will instantiate a member of that class.
+        """
+        self.callback_handler.add_callback(callback)
+
+    def pop_callback(self, callback):
+        """
+        Remove a callback from the current list of [`~transformer.TrainerCallback`] and returns it.
+
+        If the callback is not found, returns `None` (and no error is raised).
+
+        Args:
+           callback (`type` or [`~transformer.TrainerCallback`]):
+               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+               first case, will pop the first member of that class found in the list of callbacks.
+
+        Returns:
+            [`~transformer.TrainerCallback`]: The callback removed, if found.
+        """
+        return self.callback_handler.pop_callback(callback)
+
+    def remove_callback(self, callback):
+        """
+        Remove a callback from the current list of [`~transformer.TrainerCallback`].
+
+        Args:
+           callback (`type` or [`~transformer.TrainerCallback`]):
+               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+               first case, will remove the first member of that class found in the list of callbacks.
+        """
+        self.callback_handler.remove_callback(callback)
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
@@ -275,20 +350,28 @@ class Trainer:
                 f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization."
             )
 
-        self._validate_column_mapping(self.train_dataset)
-        train_dataset = self.train_dataset
-        if self.column_mapping is not None:
-            logger.info("Applying column mapping to training dataset")
-            train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+        parameters = []
+        for dataset, dataset_name in [(self.train_dataset, "training"), (self.eval_dataset, "evaluation")]:
+            if dataset is None:
+                continue
 
-        x_train: List[str] = train_dataset["text"]
-        y_train: List[int] = train_dataset["label"]
+            self._validate_column_mapping(dataset)
+            if self.column_mapping is not None:
+                logger.info(f"Applying column mapping to {dataset_name} dataset")
+                dataset = self._apply_column_mapping(dataset, self.column_mapping)
 
-        self.train_embeddings(x_train, y_train, args)
-        self.train_classifier(x_train, y_train, args)
+            parameters.extend([dataset["text"], dataset["label"]])
+
+        self.train_embeddings(*parameters, args=args)
+        self.train_classifier(*parameters[:2], args=args)
 
     def train_embeddings(
-        self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
+        self,
+        x_train: List[str],
+        y_train: Union[List[int], List[List[int]]],
+        x_eval: List[str],
+        y_eval: Union[List[int], List[List[int]]],
+        args: Optional[TrainingArguments] = None,
     ) -> None:
         """
         Method to perform the embedding phase: finetuning the `SentenceTransformer` body.
@@ -301,6 +384,36 @@ class Trainer:
         """
         args = args or self.args or TrainingArguments()
 
+        train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
+        if x_eval is not None:
+            eval_dataloader, _, _ = self.get_dataloader(x_eval, y_eval, args=args)
+        else:
+            eval_dataloader = None
+
+        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
+        logger.info("***** Running training *****")
+        logger.info(f"  Num examples = {len(train_dataloader)}")
+        logger.info(f"  Num epochs = {args.embedding_num_epochs}")
+        logger.info(f"  Total optimization steps = {total_train_steps}")
+        logger.info(f"  Total train batch size = {batch_size}")
+
+        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
+        sentence_transformer.fit(
+            self.model.model_body,
+            train_dataloader=train_dataloader,
+            loss_func=loss_func,
+            eval_dataloader=eval_dataloader,
+            args=args,
+            callback_handler=self.callback_handler,
+            state=self.state,
+            control=self.control,
+            optimizer_params={"lr": args.body_embedding_learning_rate},
+            warmup_steps=warmup_steps,
+            show_progress_bar=args.show_progress_bar,
+            use_amp=args.use_amp,
+        )
+
+    def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
         # sentence-transformers adaptation
         if args.loss in [
             losses.BatchAllTripletLoss,
@@ -309,56 +422,38 @@ class Trainer:
             losses.BatchHardSoftMarginTripletLoss,
             SupConLoss,
         ]:
-            train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-            train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=args.samples_per_label)
+            examples = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
+            data_sampler = SentenceLabelDataset(examples, samples_per_label=args.samples_per_label)
 
-            batch_size = min(args.embedding_batch_size, len(train_data_sampler))
-            train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
+            batch_size = min(args.embedding_batch_size, len(data_sampler))
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=True)
 
             if args.loss is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = args.loss(
+                loss = args.loss(
                     model=self.model.model_body,
                     distance_metric=args.distance_metric,
                 )
             elif args.loss is SupConLoss:
-                train_loss = args.loss(model=self.model.model_body)
+                loss = args.loss(model=self.model.model_body)
             else:
-                train_loss = args.loss(
+                loss = args.loss(
                     model=self.model.model_body,
                     distance_metric=args.distance_metric,
                     margin=args.margin,
                 )
         else:
-            train_examples = []
+            examples = []
 
             for _ in trange(args.num_iterations, desc="Generating Training Pairs", disable=not args.show_progress_bar):
                 if self.model.multi_target_strategy is not None:
-                    train_examples = sentence_pairs_generation_multilabel(
-                        np.array(x_train), np.array(y_train), train_examples
-                    )
+                    examples = sentence_pairs_generation_multilabel(np.array(x), np.array(y), examples)
                 else:
-                    train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+                    examples = sentence_pairs_generation(np.array(x), np.array(y), examples)
 
             batch_size = args.embedding_batch_size
-            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-            train_loss = args.loss(self.model.model_body)
-
-        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_examples)}")
-        logger.info(f"  Num epochs = {args.embedding_num_epochs}")
-        logger.info(f"  Total optimization steps = {total_train_steps}")
-        logger.info(f"  Total train batch size = {batch_size}")
-
-        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
-        self.model.model_body.fit(
-            train_objectives=[(train_dataloader, train_loss)],
-            epochs=args.embedding_num_epochs,
-            optimizer_params={"lr": args.body_embedding_learning_rate},
-            warmup_steps=warmup_steps,
-            show_progress_bar=args.show_progress_bar,
-            use_amp=args.use_amp,
-        )
+            dataloader = DataLoader(examples, shuffle=True, batch_size=batch_size)
+            loss = args.loss(self.model.model_body)
+        return dataloader, loss, batch_size
 
     def train_classifier(
         self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
