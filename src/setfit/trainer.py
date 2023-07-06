@@ -1,37 +1,40 @@
 import math
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
-from setfit import sentence_transformer
-
-
-# Google Colab runs on Python 3.7, so we need this to be compatible
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
-
 import evaluate
 import numpy as np
+import torch
 from datasets import DatasetDict
-from sentence_transformers import InputExample, losses
+from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from sentence_transformers.util import batch_to_device
+from torch import nn
+from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
-from tqdm.auto import trange
-from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
-import transformers
+from tqdm.autonotebook import tqdm, trange
+from transformers.integrations import get_reporting_integration_callbacks
 from transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
     PrinterCallback,
     ProgressCallback,
     TrainerCallback,
-    TrainerState,
     TrainerControl,
+    TrainerState,
 )
-from transformers.integrations import get_reporting_integration_callbacks, get_available_reporting_integrations
+from transformers.trainer_utils import (
+    HPSearchBackend,
+    default_compute_objective,
+    number_of_arguments,
+    set_seed,
+    speed_metrics,
+)
 from transformers.utils.import_utils import is_in_notebook
+
+from setfit.training_args import TrainingArguments
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
@@ -39,6 +42,13 @@ from .losses import SupConLoss
 from .modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
+
+
+# Google Colab runs on Python 3.7, so we need this to be compatible
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 
 if TYPE_CHECKING:
@@ -398,19 +408,13 @@ class Trainer:
         logger.info(f"  Total train batch size = {batch_size}")
 
         warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
-        sentence_transformer.fit(
+        self._train_sentence_transformer(
             self.model.model_body,
             train_dataloader=train_dataloader,
-            loss_func=loss_func,
             eval_dataloader=eval_dataloader,
             args=args,
-            callback_handler=self.callback_handler,
-            state=self.state,
-            control=self.control,
-            optimizer_params={"lr": args.body_embedding_learning_rate},
+            loss_func=loss_func,
             warmup_steps=warmup_steps,
-            show_progress_bar=args.show_progress_bar,
-            use_amp=args.use_amp,
         )
 
     def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
@@ -454,6 +458,195 @@ class Trainer:
             dataloader = DataLoader(examples, shuffle=True, batch_size=batch_size)
             loss = args.loss(self.model.model_body)
         return dataloader, loss, batch_size
+
+    def log(self, args: TrainingArguments, logs: Dict[str, float]) -> None:
+        """
+        Log `logs` on the various objects watching training.
+
+        Subclass and override this method to inject custom behavior.
+
+        Args:
+            logs (`Dict[str, float]`):
+                The values to log.
+        """
+        if self.state.epoch is not None:
+            logs["epoch"] = round(self.state.epoch, 2)
+
+        output = {**logs, **{"step": self.state.global_step}}
+        self.state.log_history.append(output)
+        return self.callback_handler.on_log(args, self.state, self.control, logs)
+
+    def _train_sentence_transformer(
+        self,
+        model_body: SentenceTransformer,
+        train_dataloader: DataLoader,
+        eval_dataloader: DataLoader,
+        args: TrainingArguments,
+        loss_func: nn.Module,
+        warmup_steps: int = 10000,
+    ) -> None:
+        """
+        Train the model with the given training objective
+        Each training objective is sampled in turn for one batch.
+        We sample only as many batches from each objective as there are in the smallest one
+        to make sure of equal training with each dataset.
+        """
+        # TODO: Loading best model
+        # TODO: Saving/checkpointing
+        # TODO: args.gradient_accumulation_steps
+        # TODO: fp16/bf16, etc.
+
+        # Hardcoded training arguments
+        max_grad_norm = 1
+        weight_decay = 0.01
+
+        self.state.epoch = 0
+        start_time = time.time()
+        # TODO: Add max_steps via args.max_steps here?
+        self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
+        self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+
+        if args.use_amp:
+            scaler = torch.cuda.amp.GradScaler()
+
+        model_body.to(model_body._target_device)
+        loss_func.to(model_body._target_device)
+
+        # Use smart batching
+        train_dataloader.collate_fn = model_body.smart_batching_collate
+        if eval_dataloader:
+            eval_dataloader.collate_fn = model_body.smart_batching_collate
+
+        steps_per_epoch = len(train_dataloader)
+        num_train_steps = int(steps_per_epoch * args.embedding_num_epochs)
+
+        # Prepare optimizers
+        param_optimizer = list(loss_func.named_parameters())
+
+        no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+                "weight_decay": weight_decay,
+            },
+            {"params": [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+        ]
+
+        optimizer = torch.optim.AdamW(optimizer_grouped_parameters, **{"lr": args.body_embedding_learning_rate})
+        scheduler_obj = model_body._get_scheduler(
+            optimizer, scheduler="WarmupLinear", warmup_steps=warmup_steps, t_total=num_train_steps
+        )
+
+        data_iterator = iter(train_dataloader)
+        skip_scheduler = False
+        for epoch in range(args.embedding_num_epochs):
+            self.control = self.callback_handler.on_epoch_begin(args, self.state, self.control)
+
+            loss_func.zero_grad()
+            loss_func.train()
+
+            for step in range(steps_per_epoch):
+                self.control = self.callback_handler.on_step_begin(args, self.state, self.control)
+
+                try:
+                    data = next(data_iterator)
+                except StopIteration:
+                    data_iterator = iter(train_dataloader)
+                    data = next(data_iterator)
+
+                features, labels = data
+                labels = labels.to(model_body._target_device)
+                features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
+
+                if args.use_amp:
+                    with autocast():
+                        loss_value = loss_func(features, labels)
+
+                    scale_before_step = scaler.get_scale()
+                    scaler.scale(loss_value).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(loss_func.parameters(), max_grad_norm)
+                    scaler.step(optimizer)
+                    scaler.update()
+
+                    skip_scheduler = scaler.get_scale() != scale_before_step
+                else:
+                    loss_value = loss_func(features, labels)
+                    loss_value.backward()
+                    torch.nn.utils.clip_grad_norm_(loss_func.parameters(), max_grad_norm)
+                    optimizer.step()
+
+                optimizer.zero_grad()
+
+                if not skip_scheduler:
+                    scheduler_obj.step()
+
+                self.state.global_step += 1
+                self.state.epoch = epoch + (step + 1) / steps_per_epoch
+                self.control = self.callback_handler.on_step_end(args, self.state, self.control)
+
+                if self.control.should_log:
+                    learning_rate = scheduler_obj.get_last_lr()[0]
+                    metrics = {"embedding_loss": round(loss_value.item(), 4), "learning_rate": learning_rate}
+                    self.control = self.log(args, metrics)
+
+                if self.control.should_evaluate:
+                    eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
+                    learning_rate = scheduler_obj.get_last_lr()[0]
+                    metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
+                    self.control = self.log(args, metrics)
+
+                    self.control = self.callback_handler.on_evaluate(args, self.state, self.control, metrics)
+                    if self.state.best_metric is None or eval_loss < self.state.best_metric:
+                        self.state.best_metric = eval_loss
+
+                    loss_func.zero_grad()
+                    loss_func.train()
+
+                if self.control.should_epoch_stop or self.control.should_training_stop:
+                    break
+
+            self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
+
+            if self.control.should_training_stop:
+                break
+
+        # Ensure logging the speed metrics
+        num_train_samples = self.state.max_steps * args.embedding_batch_size  # * args.gradient_accumulation_steps
+        metrics = speed_metrics("train", start_time, num_samples=num_train_samples, num_steps=self.state.max_steps)
+        self.control.should_log = True
+        self.log(args, metrics)
+
+        self.control = self.callback_handler.on_train_end(args, self.state, self.control)
+
+    def _evaluate_with_loss(
+        self,
+        model_body: SentenceTransformer,
+        eval_dataloader: DataLoader,
+        args: TrainingArguments,
+        loss_func: nn.Module,
+    ) -> float:
+        model_body.eval()
+
+        if args.use_amp:
+            scaler = torch.cuda.amp.GradScaler()
+
+        losses = []
+        for data in tqdm(iter(eval_dataloader), leave=False, disable=not args.show_progress_bar):
+            features, labels = data
+            labels = labels.to(model_body._target_device)
+            features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
+
+            if args.use_amp:
+                with autocast():
+                    loss_value = loss_func(features, labels)
+
+                losses.append(scaler.scale(loss_value).item())
+            else:
+                losses.append(loss_func(features, labels).item())
+
+        model_body.train()
+        return sum(losses) / len(losses)
 
     def train_classifier(
         self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None

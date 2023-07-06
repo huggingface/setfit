@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import inspect
+import json
 from copy import copy
 from dataclasses import dataclass, field, fields
-import json
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from sentence_transformers import losses
 import torch
+from sentence_transformers import losses
+from transformers import IntervalStrategy
 from transformers.integrations import get_available_reporting_integrations
 from transformers.training_args import default_logdir
 from transformers.utils import is_torch_available
-from transformers import IntervalStrategy
 
 
 @dataclass
@@ -165,7 +165,7 @@ class TrainingArguments:
     run_name: Optional[str] = None
     logging_dir: Optional[str] = None
     logging_strategy: str = "steps"
-    logging_first_step: bool = False
+    logging_first_step: bool = True
     logging_steps: int = 5
 
     evaluation_strategy: str = "steps"
@@ -177,8 +177,8 @@ class TrainingArguments:
     save_total_limit: Optional[int] = None
 
     load_best_model_at_end: bool = True
-    metric_for_best_model: str = field(default="embedding_loss", repr=False)
-    greater_is_better: bool = field(default=False, repr=False)
+    metric_for_best_model: str = field(default="embedding_loss", repr=False, init=False)
+    greater_is_better: bool = field(default=False, repr=False, init=False)
 
     def __post_init__(self) -> None:
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
