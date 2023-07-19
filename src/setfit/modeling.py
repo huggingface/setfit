@@ -690,7 +690,9 @@ class SupConLoss(nn.Module):
         return loss
 
 
-def sentence_pairs_generation(sentences: List[str], labels: List[int], pairs: List[InputExample]) -> List[InputExample]:
+def sentence_pairs_generation(
+    sentences: List[str], labels: List[int], pairs: List[InputExample]
+) -> List[InputExample]:
     """
     Generate sentence pairs with their corresponding labels indicating whether the pair is positive or negative.
     A positive pair consists of two sentences sharing the same label.
@@ -716,7 +718,9 @@ def sentence_pairs_generation(sentences: List[str], labels: List[int], pairs: Li
     return pairs
 
 
-def sentence_pairs_generation_multilabel(sentences: List[str], labels: np.ndarray, pairs: List[InputExample]) -> List[InputExample]:
+def sentence_pairs_generation_multilabel(
+    sentences: List[str], labels: np.ndarray, pairs: List[InputExample]
+) -> List[InputExample]:
     """
     Generate sentence pairs with their corresponding labels indicating whether the pair is positive or negative.
     A positive pair is two sentences having at least one common label.
@@ -747,7 +751,9 @@ def sentence_pairs_generation_multilabel(sentences: List[str], labels: np.ndarra
     return pairs
 
 
-def sentence_pairs_generation_cos_sim(sentences: List[str], cos_sim_matrix: np.ndarray, pairs: List[InputExample]) -> List[InputExample]:
+def sentence_pairs_generation_cos_sim(
+    sentences: List[str], cos_sim_matrix: np.ndarray, pairs: List[InputExample]
+) -> List[InputExample]:
     """
     Generate sentence pairs with their corresponding cosine similarity values.
     Each sentence is paired with two other sentences, randomly chosen from the list (excluding itself).
