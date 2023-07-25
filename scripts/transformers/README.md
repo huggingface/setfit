@@ -1,6 +1,6 @@
 # Transformers Baselines
 
-This folder contains the scripts used to train the 🤗 Transformers baselines quoted in the SetFit paper [ADD LINK].
+This folder contains the scripts used to train the 🤗 Transformers baselines quoted in the SetFit paper: [_Efficient Few-Shot Learning Without Prompts_](https://arxiv.org/abs/2209.11055).
 
 ## Setup
 
