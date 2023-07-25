@@ -164,10 +164,6 @@ def create_samples(df: pd.DataFrame, sample_size: int, seed: int) -> pd.DataFram
 
 def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: int = 8, seed: int = 42) -> Dataset:
     """Samples a Dataset to create an equal number of samples per class (when possible)."""
-    # Conserve ClassLabel feature if present
-    is_class_encoded = isinstance(dataset.features[label_column], ClassLabel)
-    if is_class_encoded:
-        class_label = dataset.features[label_column]
     shuffled_dataset = dataset.shuffle(seed=seed)
 
     df = shuffled_dataset.to_pandas()
@@ -177,9 +173,7 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
     df = df.reset_index(drop=True)
 
-    all_samples = Dataset.from_pandas(df)
-    if is_class_encoded:
-        all_samples = all_samples.cast_column(label_column, class_label)
+    all_samples = Dataset.from_pandas(df, features=dataset.features)
     return all_samples.shuffle(seed=seed)
 
 

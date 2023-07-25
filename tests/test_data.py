@@ -225,3 +225,11 @@ def test_correct_model_inputs(tokenizer_name):
     # Verify that the x_batch contains exactly those keys that the model requires
     x_batch, _ = next(iter(dataloader))
     assert set(x_batch.keys()) == set(tokenizer.model_input_names)
+
+
+def test_preserve_features() -> None:
+    dataset = load_dataset("SetFit/sst5", split="train[:100]")
+    label_column = "label_text"
+    dataset = dataset.class_encode_column(label_column)
+    train_dataset = sample_dataset(dataset, label_column=label_column, num_samples=8)
+    assert train_dataset.features[label_column] == dataset.features[label_column]
