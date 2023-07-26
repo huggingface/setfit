@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
-from datasets import DatasetDict
+from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -19,7 +19,6 @@ from .utils import BestRun, default_hp_space_optuna
 
 if TYPE_CHECKING:
     import optuna
-    from datasets import Dataset
 
     from .modeling import SetFitModel
 
