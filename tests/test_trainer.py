@@ -68,6 +68,18 @@ class SetFitTrainerTest(TestCase):
         metrics = trainer.evaluate()
         self.assertEqual(metrics["accuracy"], 1.0)
 
+    def test_trainer_works_with_alternate_dataset_for_evaluate(self):
+        dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
+        alternate_dataset = Dataset.from_dict(
+            {"text": ["x", "y", "z"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+        trainer = SetFitTrainer(
+            model=self.model, train_dataset=dataset, eval_dataset=dataset, num_iterations=self.num_iterations
+        )
+        trainer.train()
+        metrics = trainer.evaluate(alternate_dataset)
+        self.assertNotEqual(metrics["accuracy"], 1.0)
+
     def test_trainer_raises_error_with_missing_label(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
         trainer = SetFitTrainer(
