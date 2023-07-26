@@ -415,20 +415,24 @@ class SetFitTrainer:
                 show_progress_bar=True,
             )
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self, dataset: Optional[Dataset] = None) -> Dict[str, float]:
         """
         Computes the metrics for a given classifier.
+
+        Args:
+            dataset (`Dataset`, *optional*):
+                The dataset to compute the metrics on. If not provided, will use the evaluation dataset passed in the eval_dataset argument at `SetFitTrainer` initialization.
 
         Returns:
             `Dict[str, float]`: The evaluation metrics.
         """
 
-        self._validate_column_mapping(self.eval_dataset)
-        eval_dataset = self.eval_dataset
+        eval_dataset = dataset or self.eval_dataset
+        self._validate_column_mapping(eval_dataset)
 
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
-            eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
+            eval_dataset = self._apply_column_mapping(eval_dataset, self.column_mapping)
 
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
