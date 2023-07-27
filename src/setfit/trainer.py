@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 import evaluate
 import numpy as np
 import torch
-from datasets import DatasetDict
+from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -20,7 +20,6 @@ from .utils import BestRun, default_hp_space_optuna
 
 if TYPE_CHECKING:
     import optuna
-    from datasets import Dataset
 
     from .modeling import SetFitModel
 
@@ -101,7 +100,7 @@ class SetFitTrainer:
         distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
         margin: float = 0.25,
         samples_per_label: int = 2,
-    ):
+    ) -> None:
         if (warmup_proportion < 0.0) or (warmup_proportion > 1.0):
             raise ValueError(
                 f"warmup_proportion must be greater than or equal to 0.0 and less than or equal to 1.0! But it was: {warmup_proportion}"
@@ -194,7 +193,7 @@ class SetFitTrainer:
         )
         return dataset
 
-    def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False):
+    def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False) -> None:
         """Applies a dictionary of hyperparameters to both the trainer and the model
 
         Args:
@@ -218,7 +217,7 @@ class SetFitTrainer:
         if final_model:
             self.model_init = None
 
-    def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]):
+    def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]) -> None:
         """HP search setup code"""
 
         # Heavily inspired by transformers.Trainer._hp_search_setup
@@ -235,7 +234,7 @@ class SetFitTrainer:
         logger.info(f"Trial: {params}")
         self.apply_hyperparameters(params, final_model=False)
 
-    def call_model_init(self, params: Optional[Dict[str, Any]] = None):
+    def call_model_init(self, params: Optional[Dict[str, Any]] = None) -> "SetFitModel":
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
@@ -249,7 +248,7 @@ class SetFitTrainer:
 
         return model
 
-    def freeze(self):
+    def freeze(self) -> None:
         """
         Freeze SetFitModel's differentiable head.
         Note: call this function only when using the differentiable head.
@@ -260,7 +259,7 @@ class SetFitTrainer:
         self._freeze = True  # Currently use self._freeze as a switch
         self.model.freeze("head")
 
-    def unfreeze(self, keep_body_frozen: bool = False):
+    def unfreeze(self, keep_body_frozen: bool = False) -> None:
         """
         Unfreeze SetFitModel's differentiable head.
         Note: call this function only when using the differentiable head.
@@ -289,7 +288,7 @@ class SetFitTrainer:
         max_length: Optional[int] = None,
         trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         show_progress_bar: bool = True,
-    ):
+    ) -> None:
         """
         Main training entry point.
 
@@ -416,20 +415,24 @@ class SetFitTrainer:
                 show_progress_bar=True,
             )
 
-    def evaluate(self):
+    def evaluate(self, dataset: Optional[Dataset] = None) -> Dict[str, float]:
         """
         Computes the metrics for a given classifier.
+
+        Args:
+            dataset (`Dataset`, *optional*):
+                The dataset to compute the metrics on. If not provided, will use the evaluation dataset passed in the eval_dataset argument at `SetFitTrainer` initialization.
 
         Returns:
             `Dict[str, float]`: The evaluation metrics.
         """
 
-        self._validate_column_mapping(self.eval_dataset)
-        eval_dataset = self.eval_dataset
+        eval_dataset = dataset or self.eval_dataset
+        self._validate_column_mapping(eval_dataset)
 
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
-            eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
+            eval_dataset = self._apply_column_mapping(eval_dataset, self.column_mapping)
 
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
