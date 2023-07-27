@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import evaluate
 import numpy as np
+import torch
 from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
@@ -438,6 +439,8 @@ class SetFitTrainer:
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
+        if isinstance(y_pred, torch.Tensor):
+            y_pred = y_pred.cpu()
 
         if isinstance(self.metric, str):
             metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
