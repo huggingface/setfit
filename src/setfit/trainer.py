@@ -1,4 +1,6 @@
 import math
+from pathlib import Path
+import shutil
 import time
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
@@ -33,8 +35,6 @@ from transformers.trainer_utils import (
     speed_metrics,
 )
 from transformers.utils.import_utils import is_in_notebook
-
-from setfit.training_args import TrainingArguments
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
@@ -379,8 +379,8 @@ class Trainer:
         self,
         x_train: List[str],
         y_train: Union[List[int], List[List[int]]],
-        x_eval: List[str],
-        y_eval: Union[List[int], List[List[int]]],
+        x_eval: List[str] = None,
+        y_eval: Union[List[int], List[List[int]]] = None,
         args: Optional[TrainingArguments] = None,
     ) -> None:
         """
@@ -480,7 +480,7 @@ class Trainer:
         self,
         model_body: SentenceTransformer,
         train_dataloader: DataLoader,
-        eval_dataloader: DataLoader,
+        eval_dataloader: Optional[DataLoader],
         args: TrainingArguments,
         loss_func: nn.Module,
         warmup_steps: int = 10000,
@@ -491,10 +491,9 @@ class Trainer:
         We sample only as many batches from each objective as there are in the smallest one
         to make sure of equal training with each dataset.
         """
-        # TODO: Loading best model
-        # TODO: Saving/checkpointing
         # TODO: args.gradient_accumulation_steps
         # TODO: fp16/bf16, etc.
+        # TODO: Safetensors
 
         # Hardcoded training arguments
         max_grad_norm = 1
@@ -590,18 +589,27 @@ class Trainer:
                     metrics = {"embedding_loss": round(loss_value.item(), 4), "learning_rate": learning_rate}
                     self.control = self.log(args, metrics)
 
-                if self.control.should_evaluate:
+                eval_loss = None
+                if self.control.should_evaluate and eval_dataloader:
                     eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
                     learning_rate = scheduler_obj.get_last_lr()[0]
                     metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
                     self.control = self.log(args, metrics)
 
                     self.control = self.callback_handler.on_evaluate(args, self.state, self.control, metrics)
-                    if self.state.best_metric is None or eval_loss < self.state.best_metric:
-                        self.state.best_metric = eval_loss
 
                     loss_func.zero_grad()
                     loss_func.train()
+
+                if self.control.should_save:
+                    checkpoint_dir = self._checkpoint(
+                        self.args.output_dir, args.save_total_limit, self.state.global_step
+                    )
+                    self.control = self.callback_handler.on_save(self.args, self.state, self.control)
+
+                    if eval_loss is not None and (self.state.best_metric is None or eval_loss < self.state.best_metric):
+                        self.state.best_metric = eval_loss
+                        self.state.best_model_checkpoint = checkpoint_dir
 
                 if self.control.should_epoch_stop or self.control.should_training_stop:
                     break
@@ -610,6 +618,12 @@ class Trainer:
 
             if self.control.should_training_stop:
                 break
+
+        if self.args.load_best_model_at_end and self.state.best_model_checkpoint:
+            dir_name = Path(self.state.best_model_checkpoint).name
+            if dir_name.startswith("step_"):
+                logger.info(f"Loading best SentenceTransformer model from step {dir_name[5:]}.")
+            self.model.model_body = SentenceTransformer(self.state.best_model_checkpoint, device=model_body.device)
 
         # Ensure logging the speed metrics
         num_train_samples = self.state.max_steps * args.embedding_batch_size  # * args.gradient_accumulation_steps
@@ -647,6 +661,24 @@ class Trainer:
 
         model_body.train()
         return sum(losses) / len(losses)
+
+    def _checkpoint(self, checkpoint_path: str, checkpoint_save_total_limit: int, step: int) -> None:
+        # Delete old checkpoints
+        if checkpoint_save_total_limit is not None and checkpoint_save_total_limit > 0:
+            old_checkpoints = []
+            for subdir in Path(checkpoint_path).glob("step_*"):
+                if subdir.name[5:].isdigit() and (
+                    self.state.best_model_checkpoint is None or subdir != Path(self.state.best_model_checkpoint)
+                ):
+                    old_checkpoints.append({"step": int(subdir.name[5:]), "path": str(subdir)})
+
+            if len(old_checkpoints) > checkpoint_save_total_limit - 1:
+                old_checkpoints = sorted(old_checkpoints, key=lambda x: x["step"])
+                shutil.rmtree(old_checkpoints[0]["path"])
+
+        checkpoint_file_path = str(Path(checkpoint_path) / f"step_{step}")
+        self.model.save_pretrained(checkpoint_file_path)
+        return checkpoint_file_path
 
     def train_classifier(
         self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None

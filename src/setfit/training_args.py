@@ -20,6 +20,8 @@ class TrainingArguments:
     TrainingArguments is the subset of the arguments which relate to the training loop itself.
 
     Parameters:
+        output_dir (`str`, defaults to `"checkpoints"`):
+            The output directory where the model predictions and checkpoints will be written.
         batch_size (`Union[int, Tuple[int, int]]`, defaults to `(16, 2)`):
             Set the batch sizes for the embedding and classifier training phases respectively,
             or set both if an integer is provided.
@@ -116,11 +118,21 @@ class TrainingArguments:
                 - `"steps"`: Save is done every `save_steps`.
         save_steps (`int`, *optional*, defaults to 500):
             Number of updates steps before two checkpoint saves if `save_strategy="steps"`.
-        save_total_limit (`int`, *optional*):
+        save_total_limit (`int`, *optional*, defaults to `1`):
             If a value is passed, will limit the total amount of checkpoints. Deletes the older checkpoints in
-            `output_dir`.
+            `output_dir`. Note, the best model is always preserved if the `evaluation_strategy` is not `"no"`.
+        load_best_model_at_end (`bool`, *optional*, defaults to `False`):
+            Whether or not to load the best model found during training at the end of training.
 
+            <Tip>
+
+            When set to `True`, the parameters `save_strategy` needs to be the same as `evaluation_strategy`, and in
+            the case it is "steps", `save_steps` must be a round multiple of `eval_steps`.
+
+            </Tip>
     """
+
+    output_dir: str = "checkpoints"
 
     # batch_size is only used to conveniently set `embedding_batch_size` and `classifier_batch_size`
     # which are used in practice
@@ -174,11 +186,11 @@ class TrainingArguments:
 
     save_strategy: str = "steps"
     save_steps: int = 500
-    save_total_limit: Optional[int] = None
+    save_total_limit: Optional[int] = 1
 
-    load_best_model_at_end: bool = True
-    metric_for_best_model: str = field(default="embedding_loss", repr=False, init=False)
-    greater_is_better: bool = field(default=False, repr=False, init=False)
+    load_best_model_at_end: bool = False
+    metric_for_best_model: str = field(default="embedding_loss", repr=False)
+    greater_is_better: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
@@ -211,8 +223,12 @@ class TrainingArguments:
                 f"warmup_proportion must be greater than or equal to 0.0 and less than or equal to 1.0! But it was: {self.warmup_proportion}"
             )
 
-        if self.report_to in (None, "all"):
+        if self.report_to in (None, "all", ["all"]):
             self.report_to = get_available_reporting_integrations()
+        elif self.report_to in ("none", ["none"]):
+            self.report_to = []
+        elif not isinstance(self.report_to, list):
+            self.report_to = [self.report_to]
 
         if self.logging_dir is None:
             self.logging_dir = default_logdir()
@@ -228,6 +244,33 @@ class TrainingArguments:
                 raise ValueError(
                     f"evaluation strategy {self.evaluation_strategy} requires either non-zero `eval_steps` or"
                     " `logging_steps`"
+                )
+
+        # Sanity checks for load_best_model_at_end: we require save and eval strategies to be compatible.
+        if self.load_best_model_at_end:
+            if self.evaluation_strategy != self.save_strategy:
+                raise ValueError(
+                    "`load_best_model_at_end` requires the save and eval strategy to match, but found\n- Evaluation "
+                    f"strategy: {self.evaluation_strategy}\n- Save strategy: {self.save_strategy}"
+                )
+            if self.evaluation_strategy == IntervalStrategy.STEPS and self.save_steps % self.eval_steps != 0:
+                if self.eval_steps < 1 or self.save_steps < 1:
+                    if not (self.eval_steps < 1 and self.save_steps < 1):
+                        raise ValueError(
+                            "`load_best_model_at_end` requires the saving steps to be a multiple of the evaluation "
+                            "steps, which cannot get guaranteed when mixing ratio and absolute steps for save_steps"
+                            f"{self.save_steps} and eval_steps {self.eval_steps}."
+                        )
+                    # Work around floating point precision issues
+                    LARGE_MULTIPLIER = 1_000_000
+                    if (self.save_steps * LARGE_MULTIPLIER) % (self.eval_steps * LARGE_MULTIPLIER) != 0:
+                        raise ValueError(
+                            "`load_best_model_at_end` requires the saving steps to be a multiple of the evaluation "
+                            f"steps, but found {self.save_steps}, which is not a multiple of {self.eval_steps}."
+                        )
+                raise ValueError(
+                    "`load_best_model_at_end` requires the saving steps to be a round multiple of the evaluation "
+                    f"steps, but found {self.save_steps}, which is not a round multiple of {self.eval_steps}."
                 )
 
         # logging_steps must be non-zero for logging_strategy that is other than 'no'
