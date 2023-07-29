@@ -154,7 +154,7 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
     df = df.reset_index(drop=True)
 
-    all_samples = Dataset.from_pandas(df)
+    all_samples = Dataset.from_pandas(df, features=dataset.features)
     return all_samples.shuffle(seed=seed)
 
 

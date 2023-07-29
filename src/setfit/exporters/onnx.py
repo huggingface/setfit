@@ -7,7 +7,6 @@ import onnx
 import torch
 from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
-from torch import nn
 from transformers.modeling_utils import PreTrainedModel
 
 from setfit.exporters.utils import mean_pooling
@@ -34,7 +33,7 @@ class OnnxSetFitModel(torch.nn.Module):
     def __init__(
         self,
         model_body: PreTrainedModel,
-        pooler: Optional[Union[nn.Module, Callable[[torch.Tensor], torch.Tensor]]] = None,
+        pooler: Optional[Union[torch.nn.Module, Callable[[torch.Tensor], torch.Tensor]]] = None,
         model_head: Optional[Union[torch.nn.Module, LogisticRegression]] = None,
     ):
         super().__init__()
@@ -136,15 +135,20 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
         """
         raise ImportError(msg)
 
-    # Check to see that the head has a coef_
-    if not hasattr(model_head, "coef_"):
-        raise ValueError(
-            "Head must have coef_ attribute check that this is supported by your model and the model has been fit."
-        )
-
     # Determine the initial type and the shape of the output.
-    input_shape = (None, *model_head.coef_.shape[1:])
-    dtype = guess_data_type(model_head.coef_, shape=input_shape)[0][1]
+    input_shape = (None, model_head.n_features_in_)
+    if hasattr(model_head, "coef_"):
+        dtype = guess_data_type(model_head.coef_, shape=input_shape)[0][1]
+    elif not hasattr(model_head, "coef_") and hasattr(model_head, "estimators_"):
+        if any([not hasattr(e, "coef_") for e in model_head.estimators_]):
+            raise ValueError(
+                "The model_head is a meta-estimator but not all of the estimators have a coef_ attribute."
+            )
+        dtype = guess_data_type(model_head.estimators_[0].coef_, shape=input_shape)[0][1]
+    else:
+        raise ValueError(
+            "The model_head either does not have a coef_ attribute or some estimators in model_head.estimators_ do not have a coef_ attribute. Conversion to ONNX only supports these cases."
+        )
     dtype.shape = input_shape
 
     # If the datatype of the model is double we need to cast the outputs
@@ -235,10 +239,6 @@ def export_onnx(
             meta.value = str(value)
 
     else:
-        # TODO:: Make this work for other sklearn models without coef_.
-        if not hasattr(model_head, "coef_"):
-            raise ValueError("Model head must have coef_ attribute for weights.")
-
         # Export the sklearn head first to get the minimum opset.  sklearn is behind
         # in supported opsets.
         # Hummingbird-ML can be used as an option to export to standard opset

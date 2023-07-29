@@ -5,6 +5,7 @@ from unittest import TestCase
 
 import evaluate
 import pytest
+import torch
 from datasets import Dataset, load_dataset
 from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
@@ -67,6 +68,16 @@ class TrainerTest(TestCase):
         trainer.train()
         metrics = trainer.evaluate()
         self.assertEqual(metrics["accuracy"], 1.0)
+
+    def test_trainer_works_with_alternate_dataset_for_evaluate(self):
+        dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
+        alternate_dataset = Dataset.from_dict(
+            {"text": ["x", "y", "z"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]}
+        )
+        trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
+        trainer.train()
+        metrics = trainer.evaluate(alternate_dataset)
+        self.assertNotEqual(metrics["accuracy"], 1.0)
 
     def test_trainer_raises_error_with_missing_label(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
@@ -453,3 +464,26 @@ def test_trainer_evaluate_multilabel_f1():
     trainer.train()
     metrics = trainer.evaluate()
     assert metrics == {"f1": 1.0}
+
+
+def test_trainer_evaluate_on_cpu() -> None:
+    # This test used to fail if CUDA was available
+    dataset = Dataset.from_dict({"text": ["positive sentence", "negative sentence"], "label": [1, 0]})
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
+    )
+
+    def compute_metric(y_pred, y_test) -> None:
+        assert y_pred.device == torch.device("cpu")
+        return 1.0
+
+    args = TrainingArguments(num_iterations=5)
+    trainer = Trainer(
+        model=model,
+        args=args,
+        train_dataset=dataset,
+        eval_dataset=dataset,
+        metric=compute_metric,
+    )
+    trainer.train()
+    trainer.evaluate()
