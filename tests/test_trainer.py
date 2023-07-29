@@ -1,3 +1,4 @@
+import os
 import pathlib
 import re
 import tempfile
@@ -8,6 +9,7 @@ import pytest
 import torch
 from datasets import Dataset, load_dataset
 from sentence_transformers import losses
+from transformers import TrainerCallback
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
@@ -428,11 +430,10 @@ def test_trainer_works_with_non_default_loss_class(loss_class):
     # no asserts here because this is a regression test - we only test if an exception is raised
 
 
-def test_trainer_evaluate_with_strings():
+def test_trainer_evaluate_with_strings(model: SetFitModel):
     dataset = Dataset.from_dict(
         {"text": ["positive sentence", "negative sentence"], "label": ["positive", "negative"]}
     )
-    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
     trainer = Trainer(
         model=model,
         args=TrainingArguments(num_iterations=1),
@@ -487,3 +488,77 @@ def test_trainer_evaluate_on_cpu() -> None:
     )
     trainer.train()
     trainer.evaluate()
+
+
+def test_no_model_no_model_init():
+    with pytest.raises(RuntimeError, match="`Trainer` requires either a `model` or `model_init` argument."):
+        Trainer()
+
+
+def test_model_and_model_init(model: SetFitModel):
+    def model_init() -> SetFitModel:
+        return model
+
+    with pytest.raises(RuntimeError, match="`Trainer` requires either a `model` or `model_init` argument."):
+        Trainer(model=model, model_init=model_init)
+
+
+def test_trainer_callbacks(model: SetFitModel):
+    trainer = Trainer(model=model)
+    assert len(trainer.callback_handler.callbacks) == 2
+
+    class TestCallback(TrainerCallback):
+        pass
+
+    callback = TestCallback()
+    trainer.add_callback(callback)
+    assert len(trainer.callback_handler.callbacks) == 3
+    assert trainer.callback_handler.callbacks[-1] == callback
+
+    assert trainer.pop_callback(callback) == callback
+    trainer.add_callback(callback)
+    assert trainer.callback_handler.callbacks[-1] == callback
+    trainer.remove_callback(callback)
+    assert callback not in trainer.callback_handler.callbacks
+
+
+def test_trainer_warn_freeze(model: SetFitModel):
+    trainer = Trainer(model)
+    with pytest.warns(
+        DeprecationWarning,
+        match="Trainer.freeze` is deprecated and will be removed in v2.0.0 of SetFit. "
+        "Please use `SetFitModel.freeze` directly instead.",
+    ):
+        trainer.freeze()
+
+
+def test_train_with_kwargs(model: SetFitModel):
+    train_dataset = Dataset.from_dict({"text": ["positive sentence", "negative sentence"], "label": [1, 0]})
+    trainer = Trainer(model, train_dataset=train_dataset)
+    with pytest.warns(DeprecationWarning, match="`Trainer.train` does not accept keyword arguments anymore."):
+        trainer.train(num_epochs=5)
+
+
+def test_train_no_dataset(model: SetFitModel):
+    trainer = Trainer(model)
+    with pytest.raises(ValueError, match="Training requires a `train_dataset` given to the `Trainer` initialization."):
+        trainer.train()
+
+
+def test_train_amp_save(model: SetFitModel, tmp_path):
+    args = TrainingArguments(output_dir=tmp_path, use_amp=True, save_steps=5)
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
+    trainer = Trainer(model, args=args, train_dataset=dataset, eval_dataset=dataset)
+    trainer.train()
+    assert trainer.evaluate() == {"accuracy": 1.0}
+    assert os.listdir(tmp_path) == ["step_5"]
+
+
+def test_train_load_best(model: SetFitModel, tmp_path, caplog):
+    args = TrainingArguments(output_dir=tmp_path, save_steps=5, eval_steps=5, load_best_model_at_end=True)
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
+    trainer = Trainer(model, args=args, train_dataset=dataset, eval_dataset=dataset)
+    with caplog.at_level(logging.INFO):
+        trainer.train()
+
+    assert any("Load pretrained SentenceTransformer" in text for _, _, text in caplog.record_tuples)

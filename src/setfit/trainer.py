@@ -801,7 +801,7 @@ class Trainer:
         if backend is None:
             backend = default_hp_search_backend()
             if backend is None:
-                raise RuntimeError("optuna should be installed. To install optuna run `pip install optuna`. ")
+                raise RuntimeError("optuna should be installed. To install optuna run `pip install optuna`.")
         backend = HPSearchBackend(backend)
         if backend == HPSearchBackend.OPTUNA and not is_optuna_available():
             raise RuntimeError("You picked the optuna backend, but it is not installed. Use `pip install optuna`.")
