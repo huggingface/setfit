@@ -74,9 +74,7 @@ class TrainerTest(TestCase):
         alternate_dataset = Dataset.from_dict(
             {"text": ["x", "y", "z"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]}
         )
-        trainer = Trainer(
-            model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset
-        )
+        trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
         trainer.train()
         metrics = trainer.evaluate(alternate_dataset)
         self.assertNotEqual(metrics["accuracy"], 1.0)
@@ -470,9 +468,7 @@ def test_trainer_evaluate_multilabel_f1():
 
 def test_trainer_evaluate_on_cpu() -> None:
     # This test used to fail if CUDA was available
-    dataset = Dataset.from_dict(
-        {"text": ["positive sentence", "negative sentence"], "label": [1, 0]}
-    )
+    dataset = Dataset.from_dict({"text": ["positive sentence", "negative sentence"], "label": [1, 0]})
     model = SetFitModel.from_pretrained(
         "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True
     )
