@@ -1,24 +1,40 @@
 import math
+import shutil
+import time
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
-
-
-# Google Colab runs on Python 3.7, so we need this to be compatible
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
 
 import evaluate
 import numpy as np
 import torch
 from datasets import Dataset, DatasetDict
-from sentence_transformers import InputExample, losses
+from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from sentence_transformers.util import batch_to_device
+from torch import nn
+from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
-from tqdm.auto import trange
-from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
+from tqdm.autonotebook import tqdm, trange
+from transformers.integrations import get_reporting_integration_callbacks
+from transformers.trainer_callback import (
+    CallbackHandler,
+    DefaultFlowCallback,
+    PrinterCallback,
+    ProgressCallback,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
+)
+from transformers.trainer_utils import (
+    HPSearchBackend,
+    default_compute_objective,
+    number_of_arguments,
+    set_seed,
+    speed_metrics,
+)
+from transformers.utils.import_utils import is_in_notebook
 
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
@@ -28,6 +44,13 @@ from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
 
 
+# Google Colab runs on Python 3.7, so we need this to be compatible
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
+
 if TYPE_CHECKING:
     import optuna
 
@@ -35,6 +58,15 @@ if TYPE_CHECKING:
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
+
+
+DEFAULT_CALLBACKS = [DefaultFlowCallback]
+DEFAULT_PROGRESS_CALLBACK = ProgressCallback
+
+if is_in_notebook():
+    from transformers.utils.notebook import NotebookProgressCallback
+
+    DEFAULT_PROGRESS_CALLBACK = NotebookProgressCallback
 
 
 class Trainer:
@@ -77,9 +109,10 @@ class Trainer:
         model_init: Optional[Callable[[], "SetFitModel"]] = None,
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         metric_kwargs: Optional[Dict[str, Any]] = None,
+        callbacks: Optional[List[TrainerCallback]] = None,
         column_mapping: Optional[Dict[str, str]] = None,
     ) -> None:
-        self.args = args
+        self.args = args or TrainingArguments()
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.model_init = model_init
@@ -98,6 +131,57 @@ class Trainer:
 
         self.model = model
         self.hp_search_backend = None
+
+        # Setup the callbacks
+        default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(self.args.report_to)
+        callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
+        # TODO: Observe optimizer and scheduler by wrapping SentenceTransformer._get_scheduler
+        self.callback_handler = CallbackHandler(
+            callbacks, self.model.model_body, self.model.model_body.tokenizer, None, None
+        )
+        self.state = TrainerState()
+        self.control = TrainerControl()
+        self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
+
+        self.control = self.callback_handler.on_init_end(args, self.state, self.control)
+
+    def add_callback(self, callback):
+        """
+        Add a callback to the current list of [`~transformer.TrainerCallback`].
+
+        Args:
+           callback (`type` or [`~transformer.TrainerCallback`]):
+               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+               first case, will instantiate a member of that class.
+        """
+        self.callback_handler.add_callback(callback)
+
+    def pop_callback(self, callback):
+        """
+        Remove a callback from the current list of [`~transformer.TrainerCallback`] and returns it.
+
+        If the callback is not found, returns `None` (and no error is raised).
+
+        Args:
+           callback (`type` or [`~transformer.TrainerCallback`]):
+               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+               first case, will pop the first member of that class found in the list of callbacks.
+
+        Returns:
+            [`~transformer.TrainerCallback`]: The callback removed, if found.
+        """
+        return self.callback_handler.pop_callback(callback)
+
+    def remove_callback(self, callback):
+        """
+        Remove a callback from the current list of [`~transformer.TrainerCallback`].
+
+        Args:
+           callback (`type` or [`~transformer.TrainerCallback`]):
+               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+               first case, will remove the first member of that class found in the list of callbacks.
+        """
+        self.callback_handler.remove_callback(callback)
 
     def _validate_column_mapping(self, dataset: "Dataset") -> None:
         """
@@ -275,20 +359,28 @@ class Trainer:
                 f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization."
             )
 
-        self._validate_column_mapping(self.train_dataset)
-        train_dataset = self.train_dataset
-        if self.column_mapping is not None:
-            logger.info("Applying column mapping to training dataset")
-            train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
+        parameters = []
+        for dataset, dataset_name in [(self.train_dataset, "training"), (self.eval_dataset, "evaluation")]:
+            if dataset is None:
+                continue
 
-        x_train: List[str] = train_dataset["text"]
-        y_train: List[int] = train_dataset["label"]
+            self._validate_column_mapping(dataset)
+            if self.column_mapping is not None:
+                logger.info(f"Applying column mapping to {dataset_name} dataset")
+                dataset = self._apply_column_mapping(dataset, self.column_mapping)
 
-        self.train_embeddings(x_train, y_train, args)
-        self.train_classifier(x_train, y_train, args)
+            parameters.extend([dataset["text"], dataset["label"]])
+
+        self.train_embeddings(*parameters, args=args)
+        self.train_classifier(*parameters[:2], args=args)
 
     def train_embeddings(
-        self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
+        self,
+        x_train: List[str],
+        y_train: Union[List[int], List[List[int]]],
+        x_eval: List[str] = None,
+        y_eval: Union[List[int], List[List[int]]] = None,
+        args: Optional[TrainingArguments] = None,
     ) -> None:
         """
         Method to perform the embedding phase: finetuning the `SentenceTransformer` body.
@@ -301,6 +393,30 @@ class Trainer:
         """
         args = args or self.args or TrainingArguments()
 
+        train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
+        if x_eval is not None:
+            eval_dataloader, _, _ = self.get_dataloader(x_eval, y_eval, args=args)
+        else:
+            eval_dataloader = None
+
+        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
+        logger.info("***** Running training *****")
+        logger.info(f"  Num examples = {len(train_dataloader)}")
+        logger.info(f"  Num epochs = {args.embedding_num_epochs}")
+        logger.info(f"  Total optimization steps = {total_train_steps}")
+        logger.info(f"  Total train batch size = {batch_size}")
+
+        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
+        self._train_sentence_transformer(
+            self.model.model_body,
+            train_dataloader=train_dataloader,
+            eval_dataloader=eval_dataloader,
+            args=args,
+            loss_func=loss_func,
+            warmup_steps=warmup_steps,
+        )
+
+    def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
         # sentence-transformers adaptation
         if args.loss in [
             losses.BatchAllTripletLoss,
@@ -309,56 +425,261 @@ class Trainer:
             losses.BatchHardSoftMarginTripletLoss,
             SupConLoss,
         ]:
-            train_examples = [InputExample(texts=[text], label=label) for text, label in zip(x_train, y_train)]
-            train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=args.samples_per_label)
+            examples = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
+            data_sampler = SentenceLabelDataset(examples, samples_per_label=args.samples_per_label)
 
-            batch_size = min(args.embedding_batch_size, len(train_data_sampler))
-            train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
+            batch_size = min(args.embedding_batch_size, len(data_sampler))
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=True)
 
             if args.loss is losses.BatchHardSoftMarginTripletLoss:
-                train_loss = args.loss(
+                loss = args.loss(
                     model=self.model.model_body,
                     distance_metric=args.distance_metric,
                 )
             elif args.loss is SupConLoss:
-                train_loss = args.loss(model=self.model.model_body)
+                loss = args.loss(model=self.model.model_body)
             else:
-                train_loss = args.loss(
+                loss = args.loss(
                     model=self.model.model_body,
                     distance_metric=args.distance_metric,
                     margin=args.margin,
                 )
         else:
-            train_examples = []
+            examples = []
 
             for _ in trange(args.num_iterations, desc="Generating Training Pairs", disable=not args.show_progress_bar):
                 if self.model.multi_target_strategy is not None:
-                    train_examples = sentence_pairs_generation_multilabel(
-                        np.array(x_train), np.array(y_train), train_examples
-                    )
+                    examples = sentence_pairs_generation_multilabel(np.array(x), np.array(y), examples)
                 else:
-                    train_examples = sentence_pairs_generation(np.array(x_train), np.array(y_train), train_examples)
+                    examples = sentence_pairs_generation(np.array(x), np.array(y), examples)
 
             batch_size = args.embedding_batch_size
-            train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-            train_loss = args.loss(self.model.model_body)
+            dataloader = DataLoader(examples, shuffle=True, batch_size=batch_size)
+            loss = args.loss(self.model.model_body)
+        return dataloader, loss, batch_size
 
-        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_examples)}")
-        logger.info(f"  Num epochs = {args.embedding_num_epochs}")
-        logger.info(f"  Total optimization steps = {total_train_steps}")
-        logger.info(f"  Total train batch size = {batch_size}")
+    def log(self, args: TrainingArguments, logs: Dict[str, float]) -> None:
+        """
+        Log `logs` on the various objects watching training.
 
-        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
-        self.model.model_body.fit(
-            train_objectives=[(train_dataloader, train_loss)],
-            epochs=args.embedding_num_epochs,
-            optimizer_params={"lr": args.body_embedding_learning_rate},
-            warmup_steps=warmup_steps,
-            show_progress_bar=args.show_progress_bar,
-            use_amp=args.use_amp,
+        Subclass and override this method to inject custom behavior.
+
+        Args:
+            logs (`Dict[str, float]`):
+                The values to log.
+        """
+        if self.state.epoch is not None:
+            logs["epoch"] = round(self.state.epoch, 2)
+
+        output = {**logs, **{"step": self.state.global_step}}
+        self.state.log_history.append(output)
+        return self.callback_handler.on_log(args, self.state, self.control, logs)
+
+    def _train_sentence_transformer(
+        self,
+        model_body: SentenceTransformer,
+        train_dataloader: DataLoader,
+        eval_dataloader: Optional[DataLoader],
+        args: TrainingArguments,
+        loss_func: nn.Module,
+        warmup_steps: int = 10000,
+    ) -> None:
+        """
+        Train the model with the given training objective
+        Each training objective is sampled in turn for one batch.
+        We sample only as many batches from each objective as there are in the smallest one
+        to make sure of equal training with each dataset.
+        """
+        # TODO: args.gradient_accumulation_steps
+        # TODO: fp16/bf16, etc.
+        # TODO: Safetensors
+
+        # Hardcoded training arguments
+        max_grad_norm = 1
+        weight_decay = 0.01
+
+        self.state.epoch = 0
+        start_time = time.time()
+        # TODO: Add max_steps via args.max_steps here?
+        self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
+        self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+
+        if args.use_amp:
+            scaler = torch.cuda.amp.GradScaler()
+
+        model_body.to(model_body._target_device)
+        loss_func.to(model_body._target_device)
+
+        # Use smart batching
+        train_dataloader.collate_fn = model_body.smart_batching_collate
+        if eval_dataloader:
+            eval_dataloader.collate_fn = model_body.smart_batching_collate
+
+        steps_per_epoch = len(train_dataloader)
+        num_train_steps = int(steps_per_epoch * args.embedding_num_epochs)
+
+        # Prepare optimizers
+        param_optimizer = list(loss_func.named_parameters())
+
+        no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+                "weight_decay": weight_decay,
+            },
+            {"params": [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+        ]
+
+        optimizer = torch.optim.AdamW(optimizer_grouped_parameters, **{"lr": args.body_embedding_learning_rate})
+        scheduler_obj = model_body._get_scheduler(
+            optimizer, scheduler="WarmupLinear", warmup_steps=warmup_steps, t_total=num_train_steps
         )
+
+        data_iterator = iter(train_dataloader)
+        skip_scheduler = False
+        for epoch in range(args.embedding_num_epochs):
+            self.control = self.callback_handler.on_epoch_begin(args, self.state, self.control)
+
+            loss_func.zero_grad()
+            loss_func.train()
+
+            for step in range(steps_per_epoch):
+                self.control = self.callback_handler.on_step_begin(args, self.state, self.control)
+
+                try:
+                    data = next(data_iterator)
+                except StopIteration:
+                    data_iterator = iter(train_dataloader)
+                    data = next(data_iterator)
+
+                features, labels = data
+                labels = labels.to(model_body._target_device)
+                features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
+
+                if args.use_amp:
+                    with autocast():
+                        loss_value = loss_func(features, labels)
+
+                    scale_before_step = scaler.get_scale()
+                    scaler.scale(loss_value).backward()
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(loss_func.parameters(), max_grad_norm)
+                    scaler.step(optimizer)
+                    scaler.update()
+
+                    skip_scheduler = scaler.get_scale() != scale_before_step
+                else:
+                    loss_value = loss_func(features, labels)
+                    loss_value.backward()
+                    torch.nn.utils.clip_grad_norm_(loss_func.parameters(), max_grad_norm)
+                    optimizer.step()
+
+                optimizer.zero_grad()
+
+                if not skip_scheduler:
+                    scheduler_obj.step()
+
+                self.state.global_step += 1
+                self.state.epoch = epoch + (step + 1) / steps_per_epoch
+                self.control = self.callback_handler.on_step_end(args, self.state, self.control)
+
+                if self.control.should_log:
+                    learning_rate = scheduler_obj.get_last_lr()[0]
+                    metrics = {"embedding_loss": round(loss_value.item(), 4), "learning_rate": learning_rate}
+                    self.control = self.log(args, metrics)
+
+                eval_loss = None
+                if self.control.should_evaluate and eval_dataloader:
+                    eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
+                    learning_rate = scheduler_obj.get_last_lr()[0]
+                    metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
+                    self.control = self.log(args, metrics)
+
+                    self.control = self.callback_handler.on_evaluate(args, self.state, self.control, metrics)
+
+                    loss_func.zero_grad()
+                    loss_func.train()
+
+                if self.control.should_save:
+                    checkpoint_dir = self._checkpoint(
+                        self.args.output_dir, args.save_total_limit, self.state.global_step
+                    )
+                    self.control = self.callback_handler.on_save(self.args, self.state, self.control)
+
+                    if eval_loss is not None and (
+                        self.state.best_metric is None or eval_loss < self.state.best_metric
+                    ):
+                        self.state.best_metric = eval_loss
+                        self.state.best_model_checkpoint = checkpoint_dir
+
+                if self.control.should_epoch_stop or self.control.should_training_stop:
+                    break
+
+            self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
+
+            if self.control.should_training_stop:
+                break
+
+        if self.args.load_best_model_at_end and self.state.best_model_checkpoint:
+            dir_name = Path(self.state.best_model_checkpoint).name
+            if dir_name.startswith("step_"):
+                logger.info(f"Loading best SentenceTransformer model from step {dir_name[5:]}.")
+            self.model.model_body = SentenceTransformer(self.state.best_model_checkpoint, device=model_body.device)
+
+        # Ensure logging the speed metrics
+        num_train_samples = self.state.max_steps * args.embedding_batch_size  # * args.gradient_accumulation_steps
+        metrics = speed_metrics("train", start_time, num_samples=num_train_samples, num_steps=self.state.max_steps)
+        self.control.should_log = True
+        self.log(args, metrics)
+
+        self.control = self.callback_handler.on_train_end(args, self.state, self.control)
+
+    def _evaluate_with_loss(
+        self,
+        model_body: SentenceTransformer,
+        eval_dataloader: DataLoader,
+        args: TrainingArguments,
+        loss_func: nn.Module,
+    ) -> float:
+        model_body.eval()
+
+        if args.use_amp:
+            scaler = torch.cuda.amp.GradScaler()
+
+        losses = []
+        for data in tqdm(iter(eval_dataloader), leave=False, disable=not args.show_progress_bar):
+            features, labels = data
+            labels = labels.to(model_body._target_device)
+            features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
+
+            if args.use_amp:
+                with autocast():
+                    loss_value = loss_func(features, labels)
+
+                losses.append(scaler.scale(loss_value).item())
+            else:
+                losses.append(loss_func(features, labels).item())
+
+        model_body.train()
+        return sum(losses) / len(losses)
+
+    def _checkpoint(self, checkpoint_path: str, checkpoint_save_total_limit: int, step: int) -> None:
+        # Delete old checkpoints
+        if checkpoint_save_total_limit is not None and checkpoint_save_total_limit > 0:
+            old_checkpoints = []
+            for subdir in Path(checkpoint_path).glob("step_*"):
+                if subdir.name[5:].isdigit() and (
+                    self.state.best_model_checkpoint is None or subdir != Path(self.state.best_model_checkpoint)
+                ):
+                    old_checkpoints.append({"step": int(subdir.name[5:]), "path": str(subdir)})
+
+            if len(old_checkpoints) > checkpoint_save_total_limit - 1:
+                old_checkpoints = sorted(old_checkpoints, key=lambda x: x["step"])
+                shutil.rmtree(old_checkpoints[0]["path"])
+
+        checkpoint_file_path = str(Path(checkpoint_path) / f"step_{step}")
+        self.model.save_pretrained(checkpoint_file_path)
+        return checkpoint_file_path
 
     def train_classifier(
         self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
