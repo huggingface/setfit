@@ -12,9 +12,18 @@ from setfit.trainer import Trainer
 from setfit.training_args import TrainingArguments
 
 
-def test_export_onnx_sklearn_head():
+@pytest.mark.parametrize(
+    "model_path, input_text",
+    [
+        ("lewtun/my-awesome-setfit-model", ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]),
+        (
+            "lewtun/setfit-ethos-multilabel-example",
+            ["I'm a really hateful guy!", "I hate this one person in particular!"],
+        ),
+    ],
+)
+def test_export_onnx_sklearn_head(model_path, input_text):
     """Test that the exported `ONNX` model returns the same predictions as the original model."""
-    model_path = "lewtun/my-awesome-setfit-model"
     model = SetFitModel.from_pretrained(model_path)
 
     # Export the sklearn based model
@@ -26,7 +35,6 @@ def test_export_onnx_sklearn_head():
         assert output_path in os.listdir(), "Model not saved to output_path"
 
         # Run inference using the original model.
-        input_text = ["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"]
         pytorch_preds = model(input_text)
 
         # Run inference using the exported onnx model.

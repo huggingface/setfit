@@ -11,7 +11,8 @@ except ImportError:
 
 import evaluate
 import numpy as np
-from datasets import DatasetDict
+import torch
+from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -29,7 +30,6 @@ from .utils import BestRun, default_hp_space_optuna
 
 if TYPE_CHECKING:
     import optuna
-    from datasets import Dataset
 
     from .modeling import SetFitModel
 
@@ -78,7 +78,7 @@ class Trainer:
         metric: Union[str, Callable[["Dataset", "Dataset"], Dict[str, float]]] = "accuracy",
         metric_kwargs: Optional[Dict[str, Any]] = None,
         column_mapping: Optional[Dict[str, str]] = None,
-    ):
+    ) -> None:
         self.args = args
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
@@ -154,7 +154,7 @@ class Trainer:
         )
         return dataset
 
-    def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False):
+    def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False) -> None:
         """Applies a dictionary of hyperparameters to both the trainer and the model
 
         Args:
@@ -171,7 +171,7 @@ class Trainer:
         if final_model:
             self.model_init = None
 
-    def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]):
+    def _hp_search_setup(self, trial: Union["optuna.Trial", Dict[str, Any]]) -> None:
         """HP search setup code"""
 
         # Heavily inspired by transformers.Trainer._hp_search_setup
@@ -188,7 +188,7 @@ class Trainer:
         logger.info(f"Trial: {params}")
         self.apply_hyperparameters(params, final_model=False)
 
-    def call_model_init(self, params: Optional[Dict[str, Any]] = None):
+    def call_model_init(self, params: Optional[Dict[str, Any]] = None) -> "SetFitModel":
         model_init_argcount = number_of_arguments(self.model_init)
         if model_init_argcount == 0:
             model = self.model_init()
@@ -387,26 +387,33 @@ class Trainer:
             end_to_end=args.end_to_end,
         )
 
-    def evaluate(self):
+    def evaluate(self, dataset: Optional[Dataset] = None) -> Dict[str, float]:
         """
         Computes the metrics for a given classifier.
+
+        Args:
+            dataset (`Dataset`, *optional*):
+                The dataset to compute the metrics on. If not provided, will use the evaluation dataset passed via
+                the `eval_dataset` argument at `Trainer` initialization.
 
         Returns:
             `Dict[str, float]`: The evaluation metrics.
         """
 
-        self._validate_column_mapping(self.eval_dataset)
-        eval_dataset = self.eval_dataset
+        eval_dataset = dataset or self.eval_dataset
+        self._validate_column_mapping(eval_dataset)
 
         if self.column_mapping is not None:
             logger.info("Applying column mapping to evaluation dataset")
-            eval_dataset = self._apply_column_mapping(self.eval_dataset, self.column_mapping)
+            eval_dataset = self._apply_column_mapping(eval_dataset, self.column_mapping)
 
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test)
+        if isinstance(y_pred, torch.Tensor):
+            y_pred = y_pred.cpu()
 
         if isinstance(self.metric, str):
             metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
