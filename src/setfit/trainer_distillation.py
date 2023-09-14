@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from transformers.trainer_utils import set_seed
 
 from . import logging
-from .modeling import sentence_pairs_generation_cos_sim
+from .sampler import sentence_pairs_generation_cos_sim
 from .trainer import Trainer
 from .training_args import TrainingArguments
 

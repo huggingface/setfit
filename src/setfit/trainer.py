@@ -39,7 +39,7 @@ from transformers.utils.import_utils import is_in_notebook
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
-from .modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .sampler import ConstrastiveDataset
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
 
@@ -417,7 +417,10 @@ class Trainer:
         )
 
     def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
+      
         # sentence-transformers adaptation
+        input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
+
         if args.loss in [
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
@@ -425,9 +428,7 @@ class Trainer:
             losses.BatchHardSoftMarginTripletLoss,
             SupConLoss,
         ]:
-            examples = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
-            data_sampler = SentenceLabelDataset(examples, samples_per_label=args.samples_per_label)
-
+            data_sampler = SentenceLabelDataset(input_data, samples_per_label=args.samples_per_label)
             batch_size = min(args.embedding_batch_size, len(data_sampler))
             dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=True)
 
@@ -445,17 +446,13 @@ class Trainer:
                     margin=args.margin,
                 )
         else:
-            examples = []
-
-            for _ in trange(args.num_iterations, desc="Generating Training Pairs", disable=not args.show_progress_bar):
-                if self.model.multi_target_strategy is not None:
-                    examples = sentence_pairs_generation_multilabel(np.array(x), np.array(y), examples)
-                else:
-                    examples = sentence_pairs_generation(np.array(x), np.array(y), examples)
-
-            batch_size = args.embedding_batch_size
-            dataloader = DataLoader(examples, shuffle=True, batch_size=batch_size)
+            data_sampler = ConstrastiveDataset(
+                input_data, self.model.multi_target_strategy, args.num_iterations
+            ) # sets default sampling_strategy="oversampling"
+            batch_size = min(args.embedding_batch_size, len(data_sampler))
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False) # shuffle=True can be dropped in for 'randomising'
             loss = args.loss(self.model.model_body)
+
         return dataloader, loss, batch_size
 
     def log(self, args: TrainingArguments, logs: Dict[str, float]) -> None:
