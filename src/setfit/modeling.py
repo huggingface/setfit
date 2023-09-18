@@ -309,7 +309,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
-                        outputs = torch.nn.functional.normalize(outputs, p=2, dim=1)
+                        outputs["logits"] = torch.nn.functional.normalize(outputs["logits"], p=2, dim=1)
                     outputs = self.model_head(outputs)
                     logits = outputs["logits"]
 
