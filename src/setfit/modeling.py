@@ -90,8 +90,7 @@ copyright = {{Creative Commons Attribution 4.0 International}}
 """
 
 #Mean Pooling - Take attention mask into account for correct averaging
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+def mean_pooling(token_embeddings, attention_mask):
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
@@ -315,8 +314,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
-                        print(outputs)
-                        outputs = mean_pooling(outputs, features["attention_mask"])
+                        outputs["sentence_embedding"] = mean_pooling(outputs["token_embeddings"], outputs["attention_mask"])
                     outputs = self.model_head(outputs)
                     logits = outputs["logits"]
 
