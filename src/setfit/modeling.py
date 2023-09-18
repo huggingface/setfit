@@ -315,6 +315,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
+                        print(outputs)
                         outputs = mean_pooling(outputs, features["attention_mask"])
                     outputs = self.model_head(outputs)
                     logits = outputs["logits"]
