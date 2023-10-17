@@ -153,7 +153,7 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
 
     # If the datatype of the model is double we need to cast the outputs
     # from the setfit model to doubles for compatibility inside of ONNX.
-    if isinstance(onnxconverter_common.data_types.DoubleTensorType, dtype):
+    if type(dtype) == onnxconverter_common.data_types.DoubleTensorType:
         sklearn_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model_head)])
     else:
         sklearn_model = model_head
