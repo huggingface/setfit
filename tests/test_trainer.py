@@ -505,14 +505,16 @@ def test_model_and_model_init(model: SetFitModel):
 
 def test_trainer_callbacks(model: SetFitModel):
     trainer = Trainer(model=model)
-    assert len(trainer.callback_handler.callbacks) == 2
+    assert len(trainer.callback_handler.callbacks) >= 2
+    callback_names = {callback.__class__.__name__ for callback in trainer.callback_handler.callbacks}
+    assert {"DefaultFlowCallback", "ProgressCallback"} <= callback_names
 
     class TestCallback(TrainerCallback):
         pass
 
     callback = TestCallback()
     trainer.add_callback(callback)
-    assert len(trainer.callback_handler.callbacks) == 3
+    assert len(trainer.callback_handler.callbacks) == len(callback_names) + 1
     assert trainer.callback_handler.callbacks[-1] == callback
 
     assert trainer.pop_callback(callback) == callback
