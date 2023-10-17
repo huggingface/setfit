@@ -3,7 +3,7 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import evaluate
 import torch
@@ -415,7 +415,9 @@ class Trainer:
             warmup_steps=warmup_steps,
         )
 
-    def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
+    def get_dataloader(
+        self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments
+    ) -> Tuple[DataLoader, nn.Module, int]:
         # sentence-transformers adaptation
         input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
 
