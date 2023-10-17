@@ -141,7 +141,6 @@ class Trainer:
         self.state = TrainerState()
         self.control = TrainerControl()
         self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
-
         self.control = self.callback_handler.on_init_end(args, self.state, self.control)
 
     def add_callback(self, callback):
@@ -391,6 +390,10 @@ class Trainer:
                 Temporarily change the training arguments for this training call.
         """
         args = args or self.args or TrainingArguments()
+        # Since transformers v4.32.0, the log/eval/save steps should be saved on the state instead
+        self.state.logging_steps = args.logging_steps
+        self.state.eval_steps = args.eval_steps
+        self.state.save_steps = args.save_steps
 
         train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
         if x_eval is not None:
