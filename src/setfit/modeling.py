@@ -426,7 +426,9 @@ class SetFitModel(PyTorchModelHubMixin):
             outputs = torch.from_numpy(outputs)
         return outputs
 
-    def predict(self, x_test: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None) -> Union[torch.Tensor, "ndarray"]:
+    def predict(
+        self, x_test: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None
+    ) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
             x_test,
             normalize_embeddings=self.normalize_embeddings,
@@ -437,12 +439,14 @@ class SetFitModel(PyTorchModelHubMixin):
         outputs = self.model_head.predict(embeddings)
         return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
-    def predict_proba(self, x_test: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None) -> Union[torch.Tensor, "ndarray"]:
+    def predict_proba(
+        self, x_test: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None
+    ) -> Union[torch.Tensor, "ndarray"]:
         embeddings = self.model_body.encode(
             x_test,
             normalize_embeddings=self.normalize_embeddings,
             convert_to_tensor=self.has_differentiable_head,
-            show_progress_bar=show_progress_bar
+            show_progress_bar=show_progress_bar,
         )
 
         outputs = self.model_head.predict_proba(embeddings)
