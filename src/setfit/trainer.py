@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 import evaluate
-import numpy as np
 import torch
 from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, SentenceTransformer, losses
@@ -16,7 +15,7 @@ from sentence_transformers.util import batch_to_device
 from torch import nn
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
-from tqdm.autonotebook import tqdm, trange
+from tqdm.autonotebook import tqdm
 from transformers.integrations import get_reporting_integration_callbacks
 from transformers.trainer_callback import (
     CallbackHandler,
@@ -417,7 +416,6 @@ class Trainer:
         )
 
     def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
-      
         # sentence-transformers adaptation
         input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
 
@@ -446,11 +444,11 @@ class Trainer:
                     margin=args.margin,
                 )
         else:
-            data_sampler = ConstrastiveDataset(
-                input_data, self.model.multi_target_strategy, args.num_iterations
-            ) # sets default sampling_strategy="oversampling"
+            # sets default sampling_strategy="oversampling"
+            data_sampler = ConstrastiveDataset(input_data, self.model.multi_target_strategy, args.num_iterations)
             batch_size = min(args.embedding_batch_size, len(data_sampler))
-            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False) # shuffle=True can be dropped in for 'randomising'
+            # shuffle=True can be dropped in for 'randomising'
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False)
             loss = args.loss(self.model.model_body)
 
         return dataloader, loss, batch_size

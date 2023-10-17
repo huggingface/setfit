@@ -1,9 +1,8 @@
-from typing import Generator, Iterable, List, Optional
+from typing import Generator, Iterable, Iterator, List, Optional
 
 import numpy as np
-from torch.utils.data import IterableDataset
-
 from sentence_transformers import InputExample
+from torch.utils.data import IterableDataset
 
 from . import logging
 
@@ -54,12 +53,13 @@ def shuffle_combinations(iterable: Iterable, replacement: bool = True) -> Genera
 
 
 class ConstrastiveDataset(IterableDataset):
-    def __init__(self,
+    def __init__(
+        self,
         examples: InputExample,
         multilabel: bool,
         num_iterations: Optional[None] = None,
         sampling_strategy: str = "oversampling",
-    ):
+    ) -> None:
         """Generates positive and negative text pairs for contrastive learning.
 
         Args:
@@ -105,7 +105,7 @@ class ConstrastiveDataset(IterableDataset):
     def generate_pairs(self) -> None:
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
             if _label == label:
-                self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0)) 
+                self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0))
             else:
                 self.neg_pairs.append(InputExample(texts=[_text, text], label=0.0))
 
@@ -113,7 +113,7 @@ class ConstrastiveDataset(IterableDataset):
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
             if any(np.logical_and(_label, label)):
                 # logical_and checks if labels are both set for each class
-                self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0)) 
+                self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0))
             else:
                 self.neg_pairs.append(InputExample(texts=[_text, text], label=0.0))
 
@@ -135,10 +135,10 @@ class ConstrastiveDataset(IterableDataset):
             self.neg_index += 1
         return pairs
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[InputExample]:
         for pos_pair, neg_pair in zip(self.get_positive_pairs(), self.get_negative_pairs()):
             yield pos_pair
             yield neg_pair
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.len_pos_pairs + self.len_neg_pairs

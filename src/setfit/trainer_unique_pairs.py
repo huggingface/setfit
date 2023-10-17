@@ -337,7 +337,7 @@ class SetFitTrainer:
                 train_data_sampler = SentenceLabelDataset(train_examples, samples_per_label=self.samples_per_label)
                 batch_size = min(batch_size, len(train_data_sampler))
                 train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=True)
-            else: 
+            else:
                 train_data_sampler = ConstrastiveDataset(train_examples, multilabel, self.sampling_strategy)
                 train_dataloader = DataLoader(train_data_sampler, batch_size=batch_size, drop_last=False)
 
@@ -515,7 +515,6 @@ class SetFitTrainer:
         config: Optional[dict] = None,
         skip_lfs_files: bool = False,
     ):
-
         return self.model.push_to_hub(
             repo_path_or_name,
             repo_url,

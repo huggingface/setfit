@@ -17,7 +17,7 @@ import numpy as np
 import requests
 import torch
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
-from sentence_transformers import InputExample, SentenceTransformer, models
+from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
