@@ -1,3 +1,4 @@
+from itertools import zip_longest
 from typing import Generator, Iterable, List, Optional
 
 import numpy as np
@@ -136,9 +137,11 @@ class ConstrastiveDataset(IterableDataset):
         return pairs
 
     def __iter__(self):
-        for pos_pair, neg_pair in zip(self.get_positive_pairs(), self.get_negative_pairs()):
-            yield pos_pair
-            yield neg_pair
+        for pos_pair, neg_pair in zip_longest(self.get_positive_pairs(), self.get_negative_pairs()):
+            if pos_pair is not None:
+                yield pos_pair
+            if neg_pair is not None:
+                yield neg_pair
 
     def __len__(self):
         return self.len_pos_pairs + self.len_neg_pairs
