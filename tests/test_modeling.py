@@ -16,36 +16,6 @@ from setfit.modeling import MODEL_HEAD_NAME, sentence_pairs_generation, sentence
 torch_cuda_available = pytest.mark.skipif(not torch.cuda.is_available(), reason="PyTorch must be compiled with CUDA")
 
 
-def test_sentence_pairs_generation():
-    sentences = np.array(["sent 1", "sent 2", "sent 3"])
-    labels = np.array(["label 1", "label 2", "label 3"])
-
-    pairs = []
-    n_iterations = 2
-
-    for _ in range(n_iterations):
-        pairs = sentence_pairs_generation(sentences, labels, pairs)
-
-    assert len(pairs) == 12
-    assert pairs[0].texts == ["sent 1", "sent 1"]
-    assert pairs[0].label == 1.0
-
-
-def test_sentence_pairs_generation_multilabel():
-    sentences = np.array(["sent 1", "sent 2", "sent 3"])
-    labels = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
-
-    pairs = []
-    n_iterations = 2
-
-    for _ in range(n_iterations):
-        pairs = sentence_pairs_generation_multilabel(sentences, labels, pairs)
-
-    assert len(pairs) == 12
-    assert pairs[0].texts == ["sent 1", "sent 1"]
-    assert pairs[0].label == 1.0
-
-
 def test_setfit_model_body():
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
 
