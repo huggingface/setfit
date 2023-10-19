@@ -30,10 +30,25 @@ class TrainingArguments:
             Set the number of epochs the embedding and classifier training phases respectively,
             or set both if an integer is provided.
             Note that the number of epochs for the classifier is only used with a differentiable PyTorch head.
-        num_iterations (`int`, defaults to `20`):
-            The number of iterations to generate sentence pairs for.
+        num_iterations (`int`, *optional*):
+            If not set the `sampling_strategy` will determine the number of sentence pairs to generate.
+            This argument sets the number of iterations to generate sentence pairs for
+            and provides compatability with Setfit <v1.0.0. 
             This argument is ignored if triplet loss is used.
             It is only used in conjunction with `CosineSimilarityLoss`.
+        sampling_strategy (`str`, defaults to `"oversampling"`):
+            The sampling strategy of how to draw pairs in training. Possible values are:
+
+                - `"oversampling"`: Draws even number of positive/ negative sentence pairs until every 
+                    sentence pair has been drawn.
+                - `"undersampling"`: Draws the minimum number of positive/ negative sentence pairs until
+                    every sentence pair in the minority class has been drawn.
+                - `"unique"`: Draws every sentence pair combination (likely resulting in unbalanced 
+                    number of positive/ negative sentence pairs).
+
+            The default is set to `"oversampling"` ensuring all sentence pairs are drawn at least once.
+            Alternatively setting tje num_iterations will override this argument and determine the number of
+            generated sentence pairs. 
         body_learning_rate (`Union[float, Tuple[float, float]]`, defaults to `(2e-5, 1e-5)`):
             Set the learning rate for the `SentenceTransformer` body for the embedding and classifier
             training phases respectively, or set both if a float is provided.
@@ -146,7 +161,8 @@ class TrainingArguments:
     embedding_num_epochs: int = None
     classifier_num_epochs: int = None
 
-    num_iterations: int = 20
+    num_iterations: Optional[int] = None
+    sampling_strategy: str = "oversampling"
 
     # As with batch_size and num_epochs, the first value in the tuple is the learning rate
     # for the embeddings step, while the second value is the learning rate for the classifier step.

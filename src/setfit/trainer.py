@@ -447,10 +447,12 @@ class Trainer:
                 )
         else:
             data_sampler = ConstrastiveDataset(
-                input_data, self.model.multi_target_strategy, args.num_iterations
-            ) # sets default sampling_strategy="oversampling"
+                input_data, self.model.multi_target_strategy, args.num_iterations, args.sampling_strategy
+            )
+            # shuffle_sampler = True can be dropped in for further 'randomising'
+            shuffle_sampler = True if args.sampling_strategy == "unique" else False
             batch_size = min(args.embedding_batch_size, len(data_sampler))
-            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False) # shuffle=True can be dropped in for 'randomising'
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, shuffle=shuffle_sampler, drop_last=False) 
             loss = args.loss(self.model.model_body)
 
         return dataloader, loss, batch_size
