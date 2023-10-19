@@ -95,6 +95,11 @@ class Trainer:
             A mapping from the column names in the dataset to the column names expected by the model.
             The expected format is a dictionary with the following format:
             `{"text_column_name": "text", "label_column_name: "label"}`.
+        num_iterations (`int`, *optional*):
+            This argument sets the number of iterations to generate sentence pairs for
+            and provides compatability with Setfit <v1.0.0. Old default was set to 20.
+            This argument is ignored if triplet loss is used.
+            It is only used in conjunction with `CosineSimilarityLoss`.
     """
 
     _REQUIRED_COLUMNS = {"text", "label"}
@@ -110,6 +115,7 @@ class Trainer:
         metric_kwargs: Optional[Dict[str, Any]] = None,
         callbacks: Optional[List[TrainerCallback]] = None,
         column_mapping: Optional[Dict[str, str]] = None,
+        num_iterations: Optional[int] = None,
     ) -> None:
         self.args = args or TrainingArguments()
         self.train_dataset = train_dataset
@@ -118,6 +124,7 @@ class Trainer:
         self.metric = metric
         self.metric_kwargs = metric_kwargs
         self.column_mapping = column_mapping
+        self.num_iterations = num_iterations
 
         if model is None:
             if model_init is not None:
@@ -450,7 +457,7 @@ class Trainer:
                 )
         else:
             data_sampler = ConstrastiveDataset(
-                input_data, self.model.multi_target_strategy, args.num_iterations, args.sampling_strategy
+                input_data, self.model.multi_target_strategy, self.num_iterations, args.sampling_strategy
             )
             # shuffle_sampler = True can be dropped in for further 'randomising'
             shuffle_sampler = True if args.sampling_strategy == "unique" else False
@@ -905,7 +912,6 @@ class SetFitTrainer(Trainer):
             stacklevel=2,
         )
         args = TrainingArguments(
-            num_iterations=num_iterations,
             num_epochs=num_epochs,
             body_learning_rate=learning_rate,
             head_learning_rate=learning_rate,
@@ -927,4 +933,5 @@ class SetFitTrainer(Trainer):
             metric=metric,
             metric_kwargs=metric_kwargs,
             column_mapping=column_mapping,
+            num_iterations=num_iterations
         )
