@@ -3,10 +3,9 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import evaluate
-import numpy as np
 import torch
 from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, SentenceTransformer, losses
@@ -16,7 +15,7 @@ from sentence_transformers.util import batch_to_device
 from torch import nn
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
-from tqdm.autonotebook import tqdm, trange
+from tqdm.autonotebook import tqdm
 from transformers.integrations import get_reporting_integration_callbacks
 from transformers.trainer_callback import (
     CallbackHandler,
@@ -142,7 +141,6 @@ class Trainer:
         self.state = TrainerState()
         self.control = TrainerControl()
         self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
-
         self.control = self.callback_handler.on_init_end(args, self.state, self.control)
 
     def add_callback(self, callback):
@@ -392,6 +390,10 @@ class Trainer:
                 Temporarily change the training arguments for this training call.
         """
         args = args or self.args or TrainingArguments()
+        # Since transformers v4.32.0, the log/eval/save steps should be saved on the state instead
+        self.state.logging_steps = args.logging_steps
+        self.state.eval_steps = args.eval_steps
+        self.state.save_steps = args.save_steps
 
         train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
         if x_eval is not None:
@@ -416,8 +418,9 @@ class Trainer:
             warmup_steps=warmup_steps,
         )
 
-    def get_dataloader(self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments):
-      
+    def get_dataloader(
+        self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments
+    ) -> Tuple[DataLoader, nn.Module, int]:
         # sentence-transformers adaptation
         input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
 
