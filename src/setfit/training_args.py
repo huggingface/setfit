@@ -109,7 +109,7 @@ class TrainingArguments:
 
         logging_first_step (`bool`, *optional*, defaults to `False`):
             Whether to log and evaluate the first `global_step` or not.
-        logging_steps (`int`, *optional*, defaults to 500):
+        logging_steps (`int`, *optional*, defaults to 50):
             Number of update steps between two logs if `logging_strategy="steps"`.
         evaluation_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
             The evaluation strategy to adopt during training. Possible values are:
@@ -194,7 +194,7 @@ class TrainingArguments:
     logging_dir: Optional[str] = None
     logging_strategy: str = "steps"
     logging_first_step: bool = True
-    logging_steps: int = 5
+    logging_steps: int = 50
 
     evaluation_strategy: str = "no"
     eval_steps: Optional[int] = None
