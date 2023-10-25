@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from sentence_transformers import InputExample
 
-from setfit.sampler import ConstrastiveDataset
+from setfit.sampler import ContrastiveDataset
 
 
 @pytest.mark.parametrize(
@@ -16,7 +16,7 @@ def test_sentence_pairs_generation(sampling_strategy: str, expected_pos_pairs: i
     data = [InputExample(texts=[text], label=label) for text, label in zip(sentences, labels)]
     multilabel = False
 
-    data_sampler = ConstrastiveDataset(data, multilabel, sampling_strategy=sampling_strategy)
+    data_sampler = ContrastiveDataset(data, multilabel, sampling_strategy=sampling_strategy)
 
     assert data_sampler.len_pos_pairs == expected_pos_pairs
     assert data_sampler.len_neg_pairs == expected_neg_pairs
@@ -41,7 +41,7 @@ def test_sentence_pairs_generation_multilabel(
     data = [InputExample(texts=[text], label=label) for text, label in zip(sentences, labels)]
     multilabel = True
 
-    data_sampler = ConstrastiveDataset(data, multilabel, sampling_strategy=sampling_strategy)
+    data_sampler = ContrastiveDataset(data, multilabel, sampling_strategy=sampling_strategy)
     assert data_sampler.len_pos_pairs == expected_pos_pairs
     assert data_sampler.len_neg_pairs == expected_neg_pairs
 

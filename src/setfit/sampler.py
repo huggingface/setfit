@@ -3,6 +3,7 @@ from typing import Generator, Iterable, List, Optional
 
 import numpy as np
 from sentence_transformers import InputExample
+import torch
 from torch.utils.data import IterableDataset
 
 from . import logging
@@ -10,28 +11,6 @@ from . import logging
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
-
-
-def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
-    # initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    idx = list(range(len(sentences)))
-
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
-
-        cos_sim = float(cos_sim_matrix[first_idx][second_idx])
-        paired_sentence = sentences[second_idx]
-        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
-
-        third_idx = np.random.choice([x for x in idx if x != first_idx])
-        cos_sim = float(cos_sim_matrix[first_idx][third_idx])
-        paired_sentence = sentences[third_idx]
-        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
-
-    return pairs
 
 
 def shuffle_combinations(iterable: Iterable, replacement: bool = True) -> Generator:
@@ -53,10 +32,10 @@ def shuffle_combinations(iterable: Iterable, replacement: bool = True) -> Genera
         yield iterable[_idx], iterable[idx]
 
 
-class ConstrastiveDataset(IterableDataset):
+class ContrastiveDataset(IterableDataset):
     def __init__(
         self,
-        examples: InputExample,
+        examples: List[InputExample],
         multilabel: bool,
         num_iterations: Optional[None] = None,
         sampling_strategy: str = "oversampling",
@@ -145,3 +124,33 @@ class ConstrastiveDataset(IterableDataset):
 
     def __len__(self) -> int:
         return self.len_pos_pairs + self.len_neg_pairs
+
+
+class ContrastiveDistillationDataset(ContrastiveDataset):
+    def __init__(
+        self,
+        examples: List[InputExample],
+        cos_sim_matrix: torch.Tensor,
+        num_iterations: Optional[None] = None,
+        sampling_strategy: str = "oversampling",
+    ) -> None:
+        self.cos_sim_matrix = cos_sim_matrix
+        super().__init__(
+            examples,
+            multilabel=False,
+            num_iterations=num_iterations,
+            sampling_strategy=sampling_strategy,
+        )
+        # Internally we store all pairs in pos_pairs, regardless of sampling strategy.
+        # After all, without labels, there isn't much of a strategy.
+        self.sentence_labels = list(enumerate(self.sentences))
+
+        self.len_neg_pairs = 0
+        if num_iterations is not None and num_iterations > 0:
+            self.len_pos_pairs = num_iterations * len(self.sentences)
+        else:
+            self.len_pos_pairs = len(self.pos_pairs)
+
+    def generate_pairs(self) -> None:
+        for (text_one, id_one), (text_two, id_two) in shuffle_combinations(self.sentence_labels):
+            self.pos_pairs.append(InputExample(texts=[text_one, text_two], label=self.cos_sim_matrix[id_one][id_two]))

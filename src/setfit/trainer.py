@@ -3,7 +3,7 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import evaluate
 import torch
@@ -38,7 +38,7 @@ from transformers.utils.import_utils import is_in_notebook
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
-from .sampler import ConstrastiveDataset
+from .sampler import ContrastiveDataset
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
 
@@ -367,17 +367,21 @@ class Trainer:
                 logger.info(f"Applying column mapping to {dataset_name} dataset")
                 dataset = self._apply_column_mapping(dataset, self.column_mapping)
 
-            parameters.extend([dataset["text"], dataset["label"]])
+            parameters.extend(self.dataset_to_parameters(dataset))
 
         self.train_embeddings(*parameters, args=args)
-        self.train_classifier(*parameters[:2], args=args)
+        training_parameters = parameters[:len(parameters) // 2] if self.eval_dataset else parameters
+        self.train_classifier(*training_parameters, args=args)
+
+    def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
+        return [dataset["text"], dataset["label"]]
 
     def train_embeddings(
         self,
         x_train: List[str],
-        y_train: Union[List[int], List[List[int]]],
-        x_eval: List[str] = None,
-        y_eval: Union[List[int], List[List[int]]] = None,
+        y_train: Optional[Union[List[int], List[List[int]]]] = None,
+        x_eval: Optional[List[str]] = None,
+        y_eval: Optional[Union[List[int], List[List[int]]]] = None,
         args: Optional[TrainingArguments] = None,
     ) -> None:
         """
@@ -449,7 +453,7 @@ class Trainer:
                     margin=args.margin,
                 )
         else:
-            data_sampler = ConstrastiveDataset(
+            data_sampler = ContrastiveDataset(
                 input_data, self.model.multi_target_strategy, args.num_iterations, args.sampling_strategy
             )
             # shuffle_sampler = True can be dropped in for further 'randomising'
