@@ -506,7 +506,7 @@ class Trainer:
 
         self.state.epoch = 0
         start_time = time.time()
-        if args.max_steps:
+        if args.max_steps > 0:
             self.state.max_steps = args.max_steps
         else:
             self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
