@@ -40,9 +40,15 @@ class TrainingArguments:
                 - `"unique"`: Draws every sentence pair combination (likely resulting in unbalanced
                     number of positive/ negative sentence pairs).
 
-            The default is set to `"oversampling"` ensuring all sentence pairs are drawn at least once.
-            Alternatively setting the num_iterations in the SetFitTrainer class will override this
-            argument and determine the number of generated sentence pairs.
+            The default is set to `"oversampling"`, ensuring all sentence pairs are drawn at least once.
+            Alternatively setting `num_iterations` will override this argument and determine the number
+            of generated sentence pairs.
+        num_iterations (`int`, *optional*):
+            If not set the `sampling_strategy` will determine the number of sentence pairs to generate.
+            This argument sets the number of iterations to generate sentence pairs for
+            and provides compatability with Setfit <v1.0.0.
+            This argument is ignored if triplet loss is used.
+            It is only used in conjunction with `CosineSimilarityLoss`.
         body_learning_rate (`Union[float, Tuple[float, float]]`, defaults to `(2e-5, 1e-5)`):
             Set the learning rate for the `SentenceTransformer` body for the embedding and classifier
             training phases respectively, or set both if a float is provided.
@@ -156,6 +162,7 @@ class TrainingArguments:
     classifier_num_epochs: int = None
 
     sampling_strategy: str = "oversampling"
+    num_iterations: Optional[int] = None
 
     # As with batch_size and num_epochs, the first value in the tuple is the learning rate
     # for the embeddings step, while the second value is the learning rate for the classifier step.
