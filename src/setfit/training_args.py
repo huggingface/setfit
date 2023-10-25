@@ -33,15 +33,15 @@ class TrainingArguments:
         sampling_strategy (`str`, defaults to `"oversampling"`):
             The sampling strategy of how to draw pairs in training. Possible values are:
 
-                - `"oversampling"`: Draws even number of positive/ negative sentence pairs until every 
+                - `"oversampling"`: Draws even number of positive/ negative sentence pairs until every
                     sentence pair has been drawn.
                 - `"undersampling"`: Draws the minimum number of positive/ negative sentence pairs until
                     every sentence pair in the minority class has been drawn.
-                - `"unique"`: Draws every sentence pair combination (likely resulting in unbalanced 
+                - `"unique"`: Draws every sentence pair combination (likely resulting in unbalanced
                     number of positive/ negative sentence pairs).
 
             The default is set to `"oversampling"` ensuring all sentence pairs are drawn at least once.
-            Alternatively setting the num_iterations in the SetFitTrainer class will override this 
+            Alternatively setting the num_iterations in the SetFitTrainer class will override this
             argument and determine the number of generated sentence pairs.
         body_learning_rate (`Union[float, Tuple[float, float]]`, defaults to `(2e-5, 1e-5)`):
             Set the learning rate for the `SentenceTransformer` body for the embedding and classifier
