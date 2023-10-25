@@ -189,7 +189,7 @@ class TrainingArguments:
     logging_first_step: bool = True
     logging_steps: int = 5
 
-    evaluation_strategy: str = "steps"
+    evaluation_strategy: str = "no"
     eval_steps: Optional[int] = None
     eval_delay: int = 0
 
