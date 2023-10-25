@@ -506,8 +506,10 @@ class Trainer:
 
         self.state.epoch = 0
         start_time = time.time()
-        # TODO: Add max_steps via args.max_steps here?
-        self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
+        if args.max_steps:
+            self.state.max_steps = args.max_steps
+        else:
+            self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
         self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
 
         if args.use_amp:

@@ -30,6 +30,9 @@ class TrainingArguments:
             Set the number of epochs the embedding and classifier training phases respectively,
             or set both if an integer is provided.
             Note that the number of epochs for the classifier is only used with a differentiable PyTorch head.
+        max_steps (`int`, *optional*, defaults to `-1`):
+            If set to a positive number, the total number of training steps to perform. Overrides `num_epochs`.
+            The training may stop before reaching the set number of steps when all data is exhausted.
         sampling_strategy (`str`, defaults to `"oversampling"`):
             The sampling strategy of how to draw pairs in training. Possible values are:
 
@@ -160,6 +163,8 @@ class TrainingArguments:
     num_epochs: Union[int, Tuple[int, int]] = field(default=(1, 16), repr=False)
     embedding_num_epochs: int = None
     classifier_num_epochs: int = None
+
+    max_steps: int = -1
 
     sampling_strategy: str = "oversampling"
     num_iterations: Optional[int] = None
