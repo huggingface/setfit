@@ -3,10 +3,9 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import evaluate
-import numpy as np
 import torch
 from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, SentenceTransformer, losses
@@ -16,7 +15,7 @@ from sentence_transformers.util import batch_to_device
 from torch import nn
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
-from tqdm.autonotebook import tqdm, trange
+from tqdm.autonotebook import tqdm
 from transformers.integrations import get_reporting_integration_callbacks
 from transformers.trainer_callback import (
     CallbackHandler,
@@ -39,7 +38,7 @@ from transformers.utils.import_utils import is_in_notebook
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
-from .modeling import sentence_pairs_generation, sentence_pairs_generation_multilabel
+from .sampler import ContrastiveDataset
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
 
@@ -368,17 +367,21 @@ class Trainer:
                 logger.info(f"Applying column mapping to {dataset_name} dataset")
                 dataset = self._apply_column_mapping(dataset, self.column_mapping)
 
-            parameters.extend([dataset["text"], dataset["label"]])
+            parameters.extend(self.dataset_to_parameters(dataset))
 
         self.train_embeddings(*parameters, args=args)
-        self.train_classifier(*parameters[:2], args=args)
+        training_parameters = parameters[:len(parameters) // 2] if self.eval_dataset else parameters
+        self.train_classifier(*training_parameters, args=args)
+
+    def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
+        return [dataset["text"], dataset["label"]]
 
     def train_embeddings(
         self,
         x_train: List[str],
-        y_train: Union[List[int], List[List[int]]],
-        x_eval: List[str] = None,
-        y_eval: Union[List[int], List[List[int]]] = None,
+        y_train: Optional[Union[List[int], List[List[int]]]] = None,
+        x_eval: Optional[List[str]] = None,
+        y_eval: Optional[Union[List[int], List[List[int]]]] = None,
         args: Optional[TrainingArguments] = None,
     ) -> None:
         """
@@ -423,6 +426,8 @@ class Trainer:
         self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments
     ) -> Tuple[DataLoader, nn.Module, int]:
         # sentence-transformers adaptation
+        input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
+
         if args.loss in [
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
@@ -430,9 +435,7 @@ class Trainer:
             losses.BatchHardSoftMarginTripletLoss,
             SupConLoss,
         ]:
-            examples = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
-            data_sampler = SentenceLabelDataset(examples, samples_per_label=args.samples_per_label)
-
+            data_sampler = SentenceLabelDataset(input_data, samples_per_label=args.samples_per_label)
             batch_size = min(args.embedding_batch_size, len(data_sampler))
             dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=True)
 
@@ -450,17 +453,15 @@ class Trainer:
                     margin=args.margin,
                 )
         else:
-            examples = []
-
-            for _ in trange(args.num_iterations, desc="Generating Training Pairs", disable=not args.show_progress_bar):
-                if self.model.multi_target_strategy is not None:
-                    examples = sentence_pairs_generation_multilabel(np.array(x), np.array(y), examples)
-                else:
-                    examples = sentence_pairs_generation(np.array(x), np.array(y), examples)
-
-            batch_size = args.embedding_batch_size
-            dataloader = DataLoader(examples, shuffle=True, batch_size=batch_size)
+            data_sampler = ContrastiveDataset(
+                input_data, self.model.multi_target_strategy, args.num_iterations, args.sampling_strategy
+            )
+            # shuffle_sampler = True can be dropped in for further 'randomising'
+            shuffle_sampler = True if args.sampling_strategy == "unique" else False
+            batch_size = min(args.embedding_batch_size, len(data_sampler))
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, shuffle=shuffle_sampler, drop_last=False)
             loss = args.loss(self.model.model_body)
+
         return dataloader, loss, batch_size
 
     def log(self, args: TrainingArguments, logs: Dict[str, float]) -> None:
@@ -505,8 +506,10 @@ class Trainer:
 
         self.state.epoch = 0
         start_time = time.time()
-        # TODO: Add max_steps via args.max_steps here?
-        self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
+        if args.max_steps > 0:
+            self.state.max_steps = args.max_steps
+        else:
+            self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
         self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
 
         if args.use_amp:

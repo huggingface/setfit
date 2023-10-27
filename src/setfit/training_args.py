@@ -30,8 +30,26 @@ class TrainingArguments:
             Set the number of epochs the embedding and classifier training phases respectively,
             or set both if an integer is provided.
             Note that the number of epochs for the classifier is only used with a differentiable PyTorch head.
-        num_iterations (`int`, defaults to `20`):
-            The number of iterations to generate sentence pairs for.
+        max_steps (`int`, *optional*, defaults to `-1`):
+            If set to a positive number, the total number of training steps to perform. Overrides `num_epochs`.
+            The training may stop before reaching the set number of steps when all data is exhausted.
+        sampling_strategy (`str`, defaults to `"oversampling"`):
+            The sampling strategy of how to draw pairs in training. Possible values are:
+
+                - `"oversampling"`: Draws even number of positive/ negative sentence pairs until every
+                    sentence pair has been drawn.
+                - `"undersampling"`: Draws the minimum number of positive/ negative sentence pairs until
+                    every sentence pair in the minority class has been drawn.
+                - `"unique"`: Draws every sentence pair combination (likely resulting in unbalanced
+                    number of positive/ negative sentence pairs).
+
+            The default is set to `"oversampling"`, ensuring all sentence pairs are drawn at least once.
+            Alternatively setting `num_iterations` will override this argument and determine the number
+            of generated sentence pairs.
+        num_iterations (`int`, *optional*):
+            If not set the `sampling_strategy` will determine the number of sentence pairs to generate.
+            This argument sets the number of iterations to generate sentence pairs for
+            and provides compatability with Setfit <v1.0.0.
             This argument is ignored if triplet loss is used.
             It is only used in conjunction with `CosineSimilarityLoss`.
         body_learning_rate (`Union[float, Tuple[float, float]]`, defaults to `(2e-5, 1e-5)`):
@@ -94,7 +112,7 @@ class TrainingArguments:
 
         logging_first_step (`bool`, *optional*, defaults to `False`):
             Whether to log and evaluate the first `global_step` or not.
-        logging_steps (`int`, *optional*, defaults to 500):
+        logging_steps (`int`, *optional*, defaults to 50):
             Number of update steps between two logs if `logging_strategy="steps"`.
         evaluation_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
             The evaluation strategy to adopt during training. Possible values are:
@@ -146,7 +164,10 @@ class TrainingArguments:
     embedding_num_epochs: int = None
     classifier_num_epochs: int = None
 
-    num_iterations: int = 20
+    max_steps: int = -1
+
+    sampling_strategy: str = "oversampling"
+    num_iterations: Optional[int] = None
 
     # As with batch_size and num_epochs, the first value in the tuple is the learning rate
     # for the embeddings step, while the second value is the learning rate for the classifier step.
@@ -178,9 +199,9 @@ class TrainingArguments:
     logging_dir: Optional[str] = None
     logging_strategy: str = "steps"
     logging_first_step: bool = True
-    logging_steps: int = 5
+    logging_steps: int = 50
 
-    evaluation_strategy: str = "steps"
+    evaluation_strategy: str = "no"
     eval_steps: Optional[int] = None
     eval_delay: int = 0
 

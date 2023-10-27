@@ -1,23 +1,19 @@
-import math
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-import numpy as np
+from datasets import Dataset
 import torch
-from sentence_transformers import losses, util
+from sentence_transformers import losses, util, InputExample
+from torch import nn
 from torch.utils.data import DataLoader
-from transformers.trainer_utils import set_seed
 
 from . import logging
-from .modeling import sentence_pairs_generation_cos_sim
+from .sampler import ContrastiveDistillationDataset
 from .trainer import Trainer
 from .training_args import TrainingArguments
 
 
 if TYPE_CHECKING:
-    import optuna
-    from datasets import Dataset
-
     from .modeling import SetFitModel
 
 logging.set_verbosity_info()
@@ -78,99 +74,27 @@ class DistillationTrainer(Trainer):
         self.teacher_model = teacher_model
         self.student_model = self.model
 
-    def train(
-        self,
-        args: Optional[TrainingArguments] = None,
-        trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
-        **kwargs,
-    ) -> None:
-        """
-        Main training entry point.
+    def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
+        return [dataset["text"]]
 
-        Args:
-            args (`TrainingArguments`, *optional*):
-                Temporarily change the training arguments for this training call.
-            trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
-                The trial run or the hyperparameter dictionary for hyperparameter search.
-        """
-        if len(kwargs):
-            warnings.warn(
-                f"`{self.__class__.__name__}.train` does not accept keyword arguments anymore. "
-                f"Please provide training arguments via a `TrainingArguments` instance to the `{self.__class__.__name__}` "
-                f"initialisation or the `{self.__class__.__name__}.train` method.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        args = args or self.args or TrainingArguments()
-
-        set_seed(args.seed)  # Seed must be set before instantiating the model when using model_init.
-
-        if trial:  # Trial and model initialization
-            self._hp_search_setup(trial)  # sets trainer parameters and initializes model
-
-        if self.train_dataset is None:
-            raise ValueError(
-                f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization."
-            )
-
-        self._validate_column_mapping(self.train_dataset)
-        train_dataset = self.train_dataset
-        if self.column_mapping is not None:
-            logger.info("Applying column mapping to training dataset")
-            train_dataset = self._apply_column_mapping(self.train_dataset, self.column_mapping)
-
-        x_train: List[str] = train_dataset["text"]
-
-        self.train_embeddings(x_train, args)
-        self.train_classifier(x_train, args)
-
-    def train_embeddings(
-        self,
-        x_train: List[str],
-        args: Optional[TrainingArguments] = None,
-    ) -> None:
-        """
-        Method to perform the embedding phase: finetuning the student its `SentenceTransformer` body.
-
-        Args:
-            x_train (`List[str]`): A list of training sentences.
-            args (`TrainingArguments`, *optional*):
-                Temporarily change the training arguments for this training call.
-        """
-        args = args or self.args or TrainingArguments()
-
-        # **************** student training *********************
-        x_train_embd_student = self.teacher_model.model_body.encode(
-            x_train, convert_to_tensor=self.teacher_model.has_differentiable_head
+    def get_dataloader(
+        self, x: List[str], y: Optional[Union[List[int], List[List[int]]]], args: TrainingArguments
+    ) -> Tuple[DataLoader, nn.Module, int]:
+        x_embd_student = self.teacher_model.model_body.encode(
+            x, convert_to_tensor=self.teacher_model.has_differentiable_head
         )
-        cos_sim_matrix = util.cos_sim(x_train_embd_student, x_train_embd_student)
+        cos_sim_matrix = util.cos_sim(x_embd_student, x_embd_student)
 
-        train_examples = []
-        for _ in range(args.num_iterations):
-            train_examples = sentence_pairs_generation_cos_sim(np.array(x_train), train_examples, cos_sim_matrix)
-        # **************** student training END *****************
-
-        batch_size = args.embedding_batch_size
-        train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=batch_size)
-        train_loss = args.loss(self.student_model.model_body)
-
-        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
-        logger.info("***** Running training *****")
-        logger.info(f"  Num examples = {len(train_examples)}")
-        logger.info(f"  Num epochs = {args.embedding_num_epochs}")
-        logger.info(f"  Total optimization steps = {total_train_steps}")
-        logger.info(f"  Total train batch size = {batch_size}")
-
-        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
-        self.student_model.model_body.fit(
-            train_objectives=[(train_dataloader, train_loss)],
-            epochs=args.embedding_num_epochs,
-            optimizer_params={"lr": args.body_embedding_learning_rate},
-            warmup_steps=warmup_steps,
-            show_progress_bar=args.show_progress_bar,
-            use_amp=args.use_amp,
+        input_data = [InputExample(texts=[text]) for text in x]
+        data_sampler = ContrastiveDistillationDataset(
+            input_data, cos_sim_matrix, args.num_iterations, args.sampling_strategy
         )
+        # shuffle_sampler = True can be dropped in for further 'randomising'
+        shuffle_sampler = True if args.sampling_strategy == "unique" else False
+        batch_size = min(args.embedding_batch_size, len(data_sampler))
+        dataloader = DataLoader(data_sampler, batch_size=batch_size, shuffle=shuffle_sampler, drop_last=False)
+        loss = args.loss(self.model.model_body)
+        return dataloader, loss, batch_size
 
     def train_classifier(self, x_train: List[str], args: Optional[TrainingArguments] = None) -> None:
         """

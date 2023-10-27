@@ -548,7 +548,7 @@ def test_train_no_dataset(model: SetFitModel):
 
 
 def test_train_amp_save(model: SetFitModel, tmp_path):
-    args = TrainingArguments(output_dir=tmp_path, use_amp=True, save_steps=5)
+    args = TrainingArguments(output_dir=tmp_path, use_amp=True, save_steps=5, num_epochs=5)
     dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
     trainer = Trainer(model, args=args, train_dataset=dataset, eval_dataset=dataset)
     trainer.train()
@@ -557,7 +557,14 @@ def test_train_amp_save(model: SetFitModel, tmp_path):
 
 
 def test_train_load_best(model: SetFitModel, tmp_path, caplog):
-    args = TrainingArguments(output_dir=tmp_path, save_steps=5, eval_steps=5, load_best_model_at_end=True)
+    args = TrainingArguments(
+        output_dir=tmp_path,
+        save_steps=5,
+        eval_steps=5,
+        evaluation_strategy="steps",
+        load_best_model_at_end=True,
+        num_epochs=5,
+    )
     dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
     trainer = Trainer(model, args=args, train_dataset=dataset, eval_dataset=dataset)
     with caplog.at_level(logging.INFO):
