@@ -14,7 +14,7 @@ REQUIRED_PKGS = [
     "datasets>=2.3.0",
     "sentence-transformers>=2.2.1",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.12.0",
+    "huggingface_hub>=0.13.0",
     "scikit-learn",
 ]
 ABSA_REQUIRE = ["spacy"]
