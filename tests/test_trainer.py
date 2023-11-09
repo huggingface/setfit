@@ -1,15 +1,17 @@
 import os
-import pathlib
 import re
 import tempfile
+from pathlib import Path
 from unittest import TestCase
 
 import evaluate
 import pytest
 import torch
 from datasets import Dataset, load_dataset
+from pytest import LogCaptureFixture
 from sentence_transformers import losses
 from transformers import TrainerCallback
+from transformers import TrainingArguments as TransformersTrainingArguments
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
@@ -132,7 +134,7 @@ class TrainerTest(TestCase):
     def test_trainer_raises_error_when_dataset_is_dataset_dict_with_train(self):
         """Verify that a useful error is raised if we pass an unsplit dataset with only a `train` split to the trainer."""
         with tempfile.TemporaryDirectory() as tmpdirname:
-            path = pathlib.Path(tmpdirname) / "test_dataset_dict_with_train.csv"
+            path = Path(tmpdirname) / "test_dataset_dict_with_train.csv"
             path.write_text("label,text\n1,good\n0,terrible\n")
             dataset = load_dataset("csv", data_files=str(path))
         trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
@@ -534,20 +536,20 @@ def test_trainer_warn_freeze(model: SetFitModel):
         trainer.freeze()
 
 
-def test_train_with_kwargs(model: SetFitModel):
+def test_train_with_kwargs(model: SetFitModel) -> None:
     train_dataset = Dataset.from_dict({"text": ["positive sentence", "negative sentence"], "label": [1, 0]})
     trainer = Trainer(model, train_dataset=train_dataset)
     with pytest.warns(DeprecationWarning, match="`Trainer.train` does not accept keyword arguments anymore."):
         trainer.train(num_epochs=5)
 
 
-def test_train_no_dataset(model: SetFitModel):
+def test_train_no_dataset(model: SetFitModel) -> None:
     trainer = Trainer(model)
     with pytest.raises(ValueError, match="Training requires a `train_dataset` given to the `Trainer` initialization."):
         trainer.train()
 
 
-def test_train_amp_save(model: SetFitModel, tmp_path):
+def test_train_amp_save(model: SetFitModel, tmp_path: Path) -> None:
     args = TrainingArguments(output_dir=tmp_path, use_amp=True, save_steps=5, num_epochs=5)
     dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
     trainer = Trainer(model, args=args, train_dataset=dataset, eval_dataset=dataset)
@@ -556,7 +558,7 @@ def test_train_amp_save(model: SetFitModel, tmp_path):
     assert os.listdir(tmp_path) == ["step_5"]
 
 
-def test_train_load_best(model: SetFitModel, tmp_path, caplog):
+def test_train_load_best(model: SetFitModel, tmp_path: Path, caplog: LogCaptureFixture) -> None:
     args = TrainingArguments(
         output_dir=tmp_path,
         save_steps=5,
@@ -571,3 +573,21 @@ def test_train_load_best(model: SetFitModel, tmp_path, caplog):
         trainer.train()
 
     assert any("Load pretrained SentenceTransformer" in text for _, _, text in caplog.record_tuples)
+
+
+def test_evaluate_with_strings(model: SetFitModel) -> None:
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": ["positive", "positive", "negative"]})
+    trainer = Trainer(model, train_dataset=dataset, eval_dataset=dataset)
+    trainer.train()
+    metrics = trainer.evaluate()
+    assert "accuracy" in metrics
+
+
+def test_trainer_wrong_args(model: SetFitModel, tmp_path: Path) -> None:
+    args = TransformersTrainingArguments(output_dir=tmp_path)
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
+    expected = "`args` must be a `TrainingArguments` instance imported from `setfit`."
+    with pytest.raises(ValueError, match=expected):
+        Trainer(model, args=args)
+    with pytest.raises(ValueError, match=expected):
+        Trainer(model, dataset)

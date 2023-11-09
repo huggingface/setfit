@@ -10,11 +10,18 @@ MAINTAINER = "Lewis Tunstall, Tom Aarsen"
 MAINTAINER_EMAIL = "lewis@huggingface.co"
 
 INTEGRATIONS_REQUIRE = ["optuna"]
-REQUIRED_PKGS = ["datasets>=2.3.0", "sentence-transformers>=2.2.1", "evaluate>=0.3.0"]
+REQUIRED_PKGS = [
+    "datasets>=2.3.0",
+    "sentence-transformers>=2.2.1",
+    "evaluate>=0.3.0",
+    "huggingface_hub>=0.11.0",
+    "scikit-learn",
+]
+ABSA_REQUIRE = ["spacy"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 OPENVINO_REQUIRE = ["hummingbird-ml<0.4.9", "openvino==2022.3.0"]
-TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
+TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE + ABSA_REQUIRE
 DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
 EXTRAS_REQUIRE = {
     "optuna": INTEGRATIONS_REQUIRE,
@@ -23,6 +30,7 @@ EXTRAS_REQUIRE = {
     "onnx": ONNX_REQUIRE,
     "openvino": ONNX_REQUIRE + OPENVINO_REQUIRE,
     "docs": DOCS_REQUIRE,
+    "absa": ABSA_REQUIRE,
 }
 
 

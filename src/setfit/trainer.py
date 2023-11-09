@@ -12,6 +12,7 @@ from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sentence_transformers.util import batch_to_device
+from sklearn.preprocessing import LabelEncoder
 from torch import nn
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
@@ -68,7 +69,70 @@ if is_in_notebook():
     DEFAULT_PROGRESS_CALLBACK = NotebookProgressCallback
 
 
-class Trainer:
+class ColumnMappingMixin:
+    _REQUIRED_COLUMNS = {"text", "label"}
+
+    def _validate_column_mapping(self, dataset: "Dataset") -> None:
+        """
+        Validates the provided column mapping against the dataset.
+        """
+        column_names = set(dataset.column_names)
+        if self.column_mapping is None and not self._REQUIRED_COLUMNS.issubset(column_names):
+            # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
+            if column_names == {"train"} and isinstance(dataset, DatasetDict):
+                raise ValueError(
+                    "SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
+                    "Did you mean to select the training split with dataset['train']?"
+                )
+            elif isinstance(dataset, DatasetDict):
+                raise ValueError(
+                    f"SetFit expected a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
+                    "Did you mean to select one of these splits from the dataset?"
+                )
+            else:
+                raise ValueError(
+                    f"SetFit expected the dataset to have the columns {sorted(self._REQUIRED_COLUMNS)}, "
+                    f"but only the columns {sorted(column_names)} were found. "
+                    "Either make sure these columns are present, or specify which columns to use with column_mapping in Trainer."
+                )
+        if self.column_mapping is not None:
+            missing_columns = self._REQUIRED_COLUMNS.difference(self.column_mapping.values())
+            if missing_columns:
+                raise ValueError(
+                    f"The following columns are missing from the column mapping: {missing_columns}. Please provide a mapping for all required columns."
+                )
+            if not set(self.column_mapping.keys()).issubset(column_names):
+                raise ValueError(
+                    f"The column mapping expected the columns {sorted(self.column_mapping.keys())} in the dataset, "
+                    f"but the dataset had the columns {sorted(column_names)}."
+                )
+
+    def _apply_column_mapping(self, dataset: "Dataset", column_mapping: Dict[str, str]) -> "Dataset":
+        """
+        Applies the provided column mapping to the dataset, renaming columns accordingly.
+        Extra features not in the column mapping are prefixed with `"feat_"`.
+        """
+        dataset = dataset.rename_columns(
+            {
+                **column_mapping,
+                **{
+                    col: f"feat_{col}"
+                    for col in dataset.column_names
+                    if col not in column_mapping and col not in self._REQUIRED_COLUMNS
+                },
+            }
+        )
+        dset_format = dataset.format
+        dataset = dataset.with_format(
+            type=dset_format["type"],
+            columns=dataset.column_names,
+            output_all_columns=dset_format["output_all_columns"],
+            **dset_format["format_kwargs"],
+        )
+        return dataset
+
+
+class Trainer(ColumnMappingMixin):
     """Trainer to train a SetFit model.
 
     Args:
@@ -91,13 +155,15 @@ class Trainer:
         metric_kwargs (`Dict[str, Any]`, *optional*):
             Keyword arguments passed to the evaluation function if `metric` is an evaluation string like "f1".
             For example useful for providing an averaging strategy for computing f1 in a multi-label setting.
+        callbacks: (`List[~transformers.TrainerCallback]`, *optional*):
+            A list of callbacks to customize the training loop. Will add those to the list of default callbacks
+            detailed in [here](https://huggingface.co/docs/transformers/main/en/main_classes/callback).
+            If you want to remove one of the default callbacks used, use the `Trainer.remove_callback()` method.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model.
             The expected format is a dictionary with the following format:
             `{"text_column_name": "text", "label_column_name: "label"}`.
     """
-
-    _REQUIRED_COLUMNS = {"text", "label"}
 
     def __init__(
         self,
@@ -111,6 +177,8 @@ class Trainer:
         callbacks: Optional[List[TrainerCallback]] = None,
         column_mapping: Optional[Dict[str, str]] = None,
     ) -> None:
+        if args is not None and not isinstance(args, TrainingArguments):
+            raise ValueError("`args` must be a `TrainingArguments` instance imported from `setfit`.")
         self.args = args or TrainingArguments()
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
@@ -118,6 +186,7 @@ class Trainer:
         self.metric = metric
         self.metric_kwargs = metric_kwargs
         self.column_mapping = column_mapping
+        self.logs_mapper = {}
 
         # Seed must be set before instantiating the model when using model_init.
         set_seed(12)
@@ -183,61 +252,6 @@ class Trainer:
                first case, will remove the first member of that class found in the list of callbacks.
         """
         self.callback_handler.remove_callback(callback)
-
-    def _validate_column_mapping(self, dataset: "Dataset") -> None:
-        """
-        Validates the provided column mapping against the dataset.
-        """
-        column_names = set(dataset.column_names)
-        if self.column_mapping is None and not self._REQUIRED_COLUMNS.issubset(column_names):
-            # Issue #226: load_dataset will automatically assign points to "train" if no split is specified
-            if column_names == {"train"} and isinstance(dataset, DatasetDict):
-                raise ValueError(
-                    "SetFit expected a Dataset, but it got a DatasetDict with the split ['train']. "
-                    "Did you mean to select the training split with dataset['train']?"
-                )
-            elif isinstance(dataset, DatasetDict):
-                raise ValueError(
-                    f"SetFit expected a Dataset, but it got a DatasetDict with the splits {sorted(column_names)}. "
-                    "Did you mean to select one of these splits from the dataset?"
-                )
-            else:
-                raise ValueError(
-                    f"SetFit expected the dataset to have the columns {sorted(self._REQUIRED_COLUMNS)}, "
-                    f"but only the columns {sorted(column_names)} were found. "
-                    "Either make sure these columns are present, or specify which columns to use with column_mapping in Trainer."
-                )
-        if self.column_mapping is not None:
-            missing_columns = self._REQUIRED_COLUMNS.difference(self.column_mapping.values())
-            if missing_columns:
-                raise ValueError(
-                    f"The following columns are missing from the column mapping: {missing_columns}. Please provide a mapping for all required columns."
-                )
-            if not set(self.column_mapping.keys()).issubset(column_names):
-                raise ValueError(
-                    f"The column mapping expected the columns {sorted(self.column_mapping.keys())} in the dataset, "
-                    f"but the dataset had the columns {sorted(column_names)}."
-                )
-
-    def _apply_column_mapping(self, dataset: "Dataset", column_mapping: Dict[str, str]) -> "Dataset":
-        """
-        Applies the provided column mapping to the dataset, renaming columns accordingly.
-        Extra features not in the column mapping are prefixed with `"feat_"`.
-        """
-        dataset = dataset.rename_columns(
-            {
-                **column_mapping,
-                **{col: f"feat_{col}" for col in dataset.column_names if col not in column_mapping},
-            }
-        )
-        dset_format = dataset.format
-        dataset = dataset.with_format(
-            type=dset_format["type"],
-            columns=dataset.column_names,
-            output_all_columns=dset_format["output_all_columns"],
-            **dset_format["format_kwargs"],
-        )
-        return dataset
 
     def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False) -> None:
         """Applies a dictionary of hyperparameters to both the trainer and the model
@@ -329,7 +343,7 @@ class Trainer:
         args: Optional[TrainingArguments] = None,
         trial: Optional[Union["optuna.Trial", Dict[str, Any]]] = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         Main training entry point.
 
@@ -478,12 +492,21 @@ class Trainer:
             logs (`Dict[str, float]`):
                 The values to log.
         """
+        logs = {self.logs_mapper.get(key, key): value for key, value in logs.items()}
         if self.state.epoch is not None:
             logs["epoch"] = round(self.state.epoch, 2)
 
         output = {**logs, **{"step": self.state.global_step}}
         self.state.log_history.append(output)
         return self.callback_handler.on_log(args, self.state, self.control, logs)
+
+    def _set_logs_mapper(self, logs_mapper: Dict[str, str]) -> None:
+        """Set the logging mapper.
+
+        Args:
+            logs_mapper (str): The logging mapper, e.g. {"eval_embedding_loss": "eval_aspect_embedding_loss"}.
+        """
+        self.logs_mapper = logs_mapper
 
     def _train_sentence_transformer(
         self,
@@ -732,6 +755,8 @@ class Trainer:
         """
 
         eval_dataset = dataset or self.eval_dataset
+        if eval_dataset is None:
+            raise ValueError("No evaluation dataset provided to `Trainer.evaluate` nor the `Trainer` initialzation.")
         self._validate_column_mapping(eval_dataset)
 
         if self.column_mapping is not None:
@@ -745,6 +770,13 @@ class Trainer:
         y_pred = self.model.predict(x_test)
         if isinstance(y_pred, torch.Tensor):
             y_pred = y_pred.cpu()
+
+        # Normalize string outputs
+        if y_test and isinstance(y_test[0], str):
+            encoder = LabelEncoder()
+            encoder.fit(list(y_test) + list(y_pred))
+            y_test = encoder.transform(y_test)
+            y_pred = encoder.transform(y_pred)
 
         if isinstance(self.metric, str):
             metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
@@ -843,7 +875,7 @@ class Trainer:
 
         Args:
             repo_id (`str`):
-                The full repository ID to push to, e.g. `"tomaarsen/setfit_sst2"`.
+                The full repository ID to push to, e.g. `"tomaarsen/setfit-sst2"`.
             config (`dict`, *optional*):
                 Configuration object to be saved alongside the model weights.
             commit_message (`str`, *optional*):
@@ -873,7 +905,7 @@ class Trainer:
         """
         if "/" not in repo_id:
             raise ValueError(
-                '`repo_id` must be a full repository ID, including organisation, e.g. "tomaarsen/setfit_sst2".'
+                '`repo_id` must be a full repository ID, including organisation, e.g. "tomaarsen/setfit-sst2".'
             )
         commit_message = kwargs.pop("commit_message", "Add SetFit model")
         return self.model.push_to_hub(repo_id, commit_message=commit_message, **kwargs)

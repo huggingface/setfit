@@ -4,6 +4,7 @@ import warnings
 
 from .data import get_templated_dataset, sample_dataset
 from .modeling import SetFitHead, SetFitModel
+from .span import AbsaModel, AbsaTrainer, AspectExtractor, AspectModel, PolarityModel
 from .trainer import SetFitTrainer, Trainer
 from .trainer_distillation import DistillationSetFitTrainer, DistillationTrainer
 from .training_args import TrainingArguments

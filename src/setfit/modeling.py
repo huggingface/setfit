@@ -17,6 +17,7 @@ import numpy as np
 import requests
 import torch
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
+from huggingface_hub.utils import validate_hf_hub_args
 from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
@@ -74,14 +75,14 @@ preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 
 
 ```bibtex
 @article{{https://doi.org/10.48550/arxiv.2209.11055,
-doi = {{10.48550/ARXIV.2209.11055}},
-url = {{https://arxiv.org/abs/2209.11055}},
-author = {{Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren}},
-keywords = {{Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences}},
-title = {{Efficient Few-Shot Learning Without Prompts}},
-publisher = {{arXiv}},
-year = {{2022}},
-copyright = {{Creative Commons Attribution 4.0 International}}
+    doi = {{10.48550/ARXIV.2209.11055}},
+    url = {{https://arxiv.org/abs/2209.11055}},
+    author = {{Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren}},
+    keywords = {{Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences}},
+    title = {{Efficient Few-Shot Learning Without Prompts}},
+    publisher = {{arXiv}},
+    year = {{2022}},
+    copyright = {{Creative Commons Attribution 4.0 International}}
 }}
 ```
 """
@@ -246,7 +247,6 @@ class SetFitModel(PyTorchModelHubMixin):
     model_body: Optional[SentenceTransformer] = (None,)
     model_head: Optional[Union[SetFitHead, LogisticRegression]] = None
     multi_target_strategy: Optional[str] = None
-    l2_weight: float = 1e-2
     normalize_embeddings: bool = False
 
     @property
@@ -372,7 +372,7 @@ class SetFitModel(PyTorchModelHubMixin):
         l2_weight: float,
     ) -> torch.optim.Optimizer:
         body_learning_rate = body_learning_rate or head_learning_rate
-        l2_weight = l2_weight or self.l2_weight
+        l2_weight = l2_weight or 1e-2
         optimizer = torch.optim.AdamW(
             [
                 {
@@ -519,6 +519,15 @@ class SetFitModel(PyTorchModelHubMixin):
         outputs = self.model_head.predict_proba(embeddings)
         return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
+    @property
+    def device(self) -> torch.device:
+        """Get the Torch device that this model is on.
+
+        Returns:
+            torch.device: The device that the model is on.
+        """
+        return self.model_body.device
+
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
         """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
 
@@ -589,6 +598,7 @@ class SetFitModel(PyTorchModelHubMixin):
         joblib.dump(self.model_head, str(Path(save_directory) / MODEL_HEAD_NAME))
 
     @classmethod
+    @validate_hf_hub_args
     def _from_pretrained(
         cls,
         model_id: str,
@@ -598,13 +608,13 @@ class SetFitModel(PyTorchModelHubMixin):
         proxies: Optional[Dict] = None,
         resume_download: Optional[bool] = None,
         local_files_only: Optional[bool] = None,
-        use_auth_token: Optional[Union[bool, str]] = None,
+        token: Optional[Union[bool, str]] = None,
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
         normalize_embeddings: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
-        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=use_auth_token)
+        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=token)
         target_device = model_body._target_device
         model_body.to(target_device)  # put `model_body` on the target device
 
@@ -628,7 +638,7 @@ class SetFitModel(PyTorchModelHubMixin):
                     force_download=force_download,
                     proxies=proxies,
                     resume_download=resume_download,
-                    use_auth_token=use_auth_token,
+                    token=token,
                     local_files_only=local_files_only,
                 )
             except requests.exceptions.RequestException:
@@ -641,7 +651,7 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
         else:
-            head_params = model_kwargs.get("head_params", {})
+            head_params = model_kwargs.pop("head_params", {})
             if use_differentiable_head:
                 if multi_target_strategy is None:
                     use_multitarget = False
@@ -677,9 +687,12 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
+        # Remove the `transformers` config
+        model_kwargs.pop("config", None)
         return cls(
             model_body=model_body,
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,
             normalize_embeddings=normalize_embeddings,
+            **model_kwargs,
         )
