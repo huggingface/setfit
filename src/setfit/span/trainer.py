@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 from datasets import Dataset
 from transformers.trainer_callback import TrainerCallback
 
-from setfit.span.modeling import AbsaModel, AspectModel, PolarityModel, SpanSetFitModel
+from setfit.span.modeling import AbsaModel, AspectModel, PolarityModel
 from setfit.training_args import TrainingArguments
 
 from .. import logging
@@ -88,7 +88,10 @@ class AbsaTrainer(ColumnMappingMixin):
             callbacks=callbacks,
         )
         self.aspect_trainer._set_logs_mapper(
-            {"eval_embedding_loss": "eval_aspect_embedding_loss", "embedding_loss": "aspect_embedding_loss"}
+            {
+                "eval_embedding_loss": "eval_aspect_embedding_loss",
+                "embedding_loss": "aspect_embedding_loss",
+            }
         )
         self.polarity_trainer = Trainer(
             model.polarity_model,
@@ -100,7 +103,10 @@ class AbsaTrainer(ColumnMappingMixin):
             callbacks=callbacks,
         )
         self.polarity_trainer._set_logs_mapper(
-            {"eval_embedding_loss": "eval_polarity_embedding_loss", "embedding_loss": "polarity_embedding_loss"}
+            {
+                "eval_embedding_loss": "eval_polarity_embedding_loss",
+                "embedding_loss": "polarity_embedding_loss",
+            }
         )
 
     def preprocess_dataset(
