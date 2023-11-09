@@ -1,7 +1,6 @@
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
-import optuna
 from datasets import Dataset
 from transformers.trainer_callback import TrainerCallback
 
@@ -11,6 +10,9 @@ from setfit.training_args import TrainingArguments
 from .. import logging
 from ..trainer import ColumnMappingMixin, Trainer
 
+
+if TYPE_CHECKING:
+    import optuna
 
 logger = logging.get_logger(__name__)
 
