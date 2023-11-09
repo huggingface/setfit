@@ -1,9 +1,9 @@
 import warnings
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
-from datasets import Dataset
 import torch
-from sentence_transformers import losses, util, InputExample
+from datasets import Dataset
+from sentence_transformers import InputExample, losses, util
 from torch import nn
 from torch.utils.data import DataLoader
 

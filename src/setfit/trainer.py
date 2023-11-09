@@ -374,7 +374,7 @@ class Trainer:
             parameters.extend(self.dataset_to_parameters(dataset))
 
         self.train_embeddings(*parameters, args=args)
-        training_parameters = parameters[:len(parameters) // 2] if self.eval_dataset else parameters
+        training_parameters = parameters[: len(parameters) // 2] if self.eval_dataset else parameters
         self.train_classifier(*training_parameters, args=args)
 
     def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
@@ -655,7 +655,9 @@ class Trainer:
     ) -> float:
         model_body.eval()
         losses = []
-        for data in tqdm(iter(eval_dataloader), total=len(eval_dataloader), leave=False, disable=not args.show_progress_bar):
+        for data in tqdm(
+            iter(eval_dataloader), total=len(eval_dataloader), leave=False, disable=not args.show_progress_bar
+        ):
             features, labels = data
             labels = labels.to(model_body._target_device)
             features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))

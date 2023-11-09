@@ -15,7 +15,9 @@ from transformers.utils import is_torch_available
 
 from . import logging
 
+
 logger = logging.get_logger(__name__)
+
 
 @dataclass
 class TrainingArguments:
@@ -261,7 +263,7 @@ class TrainingArguments:
         self.evaluation_strategy = IntervalStrategy(self.evaluation_strategy)
 
         if self.eval_steps is not None and self.evaluation_strategy == IntervalStrategy.NO:
-            logger.info("Using `evaluation_strategy=\"steps\"` as `eval_steps` is defined.")
+            logger.info('Using `evaluation_strategy="steps"` as `eval_steps` is defined.')
             self.evaluation_strategy = IntervalStrategy.STEPS
 
         # eval_steps has to be defined and non-zero, fallbacks to logging_steps if the latter is non-zero

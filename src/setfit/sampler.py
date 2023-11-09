@@ -2,8 +2,8 @@ from itertools import zip_longest
 from typing import Generator, Iterable, List, Optional
 
 import numpy as np
-from sentence_transformers import InputExample
 import torch
+from sentence_transformers import InputExample
 from torch.utils.data import IterableDataset
 
 from . import logging
