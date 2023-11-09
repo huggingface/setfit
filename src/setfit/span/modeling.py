@@ -85,14 +85,14 @@ class SpanSetFitModel(SetFitModel):
             model_kwargs["span_context"] = span_context
 
         return super(SpanSetFitModel, cls)._from_pretrained(
-            model_id,
-            revision,
-            cache_dir,
-            force_download,
-            proxies,
-            resume_download,
-            local_files_only,
-            token,
+            model_id=model_id,
+            revision=revision,
+            cache_dir=cache_dir,
+            force_download=force_download,
+            proxies=proxies,
+            resume_download=resume_download,
+            local_files_only=local_files_only,
+            token=token,
             **model_kwargs,
         )
 
