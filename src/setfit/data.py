@@ -151,7 +151,7 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     df = df.groupby(label_column)
 
     # sample num_samples, or at least as much as possible
-    df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
+    df = df.apply(lambda x: x.sample(min(num_samples, len(x)), random_state=seed))
     df = df.reset_index(drop=True)
 
     all_samples = Dataset.from_pandas(df, features=dataset.features)

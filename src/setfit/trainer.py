@@ -119,6 +119,9 @@ class Trainer:
         self.metric_kwargs = metric_kwargs
         self.column_mapping = column_mapping
 
+        # Seed must be set before instantiating the model when using model_init.
+        set_seed(12)
+
         if model is None:
             if model_init is not None:
                 model = self.call_model_init()
@@ -347,7 +350,8 @@ class Trainer:
 
         args = args or self.args or TrainingArguments()
 
-        set_seed(args.seed)  # Seed must be set before instantiating the model when using model_init.
+        # Seed must be set before instantiating the model when using model_init.
+        set_seed(args.seed)
 
         if trial:  # Trial and model initialization
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
