@@ -601,7 +601,7 @@ class Trainer:
                     self.control = self.log(args, metrics)
 
                 eval_loss = None
-                if self.control.should_evaluate and eval_dataloader:
+                if self.control.should_evaluate and eval_dataloader is not None:
                     eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
                     learning_rate = scheduler_obj.get_last_lr()[0]
                     metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
@@ -654,12 +654,8 @@ class Trainer:
         loss_func: nn.Module,
     ) -> float:
         model_body.eval()
-
-        if args.use_amp:
-            scaler = torch.cuda.amp.GradScaler()
-
         losses = []
-        for data in tqdm(iter(eval_dataloader), leave=False, disable=not args.show_progress_bar):
+        for data in tqdm(iter(eval_dataloader), total=len(eval_dataloader), leave=False, disable=not args.show_progress_bar):
             features, labels = data
             labels = labels.to(model_body._target_device)
             features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
@@ -668,7 +664,7 @@ class Trainer:
                 with autocast():
                     loss_value = loss_func(features, labels)
 
-                losses.append(scaler.scale(loss_value).item())
+                losses.append(loss_value.item())
             else:
                 losses.append(loss_func(features, labels).item())
 
