@@ -5,9 +5,12 @@ on:
     branches:
       - main
       - v*-release
+      - v*-pre
   pull_request:
     branches:
       - main
+      - v*-pre
+  workflow_dispatch:
 
 jobs:
 
