@@ -1,4 +1,3 @@
-import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -19,15 +18,6 @@ if TYPE_CHECKING:
 TokenizerOutput = Dict[str, List[int]]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
-
-
-def get_augmented_samples(*args, **kwargs) -> None:
-    warnings.warn(
-        "`get_augmented_samples` has been deprecated and will be removed in v1.0.0 of SetFit. "
-        "Please use `get_templated_dataset` instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
 
 
 def get_templated_dataset(
@@ -115,15 +105,6 @@ def get_templated_dataset(
     return dataset
 
 
-def add_templated_examples(*args, **kwargs) -> None:
-    warnings.warn(
-        "`add_templated_examples` has been deprecated and will be removed in v1.0.0 of SetFit. "
-        "Please use `get_templated_dataset` instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-
 def get_candidate_labels(dataset_name: str, label_names_column: str = "label_text") -> List[str]:
     dataset = load_dataset(dataset_name, split="train")
 
@@ -170,7 +151,7 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     df = df.groupby(label_column)
 
     # sample num_samples, or at least as much as possible
-    df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
+    df = df.apply(lambda x: x.sample(min(num_samples, len(x)), random_state=seed))
     df = df.reset_index(drop=True)
 
     all_samples = Dataset.from_pandas(df, features=dataset.features)
