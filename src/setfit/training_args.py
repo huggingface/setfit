@@ -117,7 +117,7 @@ class TrainingArguments:
 
         logging_first_step (`bool`, *optional*, defaults to `False`):
             Whether to log and evaluate the first `global_step` or not.
-        logging_steps (`int`, *optional*, defaults to 50):
+        logging_steps (`int`, defaults to 50):
             Number of update steps between two logs if `logging_strategy="steps"`.
         evaluation_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
             The evaluation strategy to adopt during training. Possible values are:
@@ -284,20 +284,6 @@ class TrainingArguments:
                     f"strategy: {self.evaluation_strategy}\n- Save strategy: {self.save_strategy}"
                 )
             if self.evaluation_strategy == IntervalStrategy.STEPS and self.save_steps % self.eval_steps != 0:
-                if self.eval_steps < 1 or self.save_steps < 1:
-                    if not (self.eval_steps < 1 and self.save_steps < 1):
-                        raise ValueError(
-                            "`load_best_model_at_end` requires the saving steps to be a multiple of the evaluation "
-                            "steps, which cannot get guaranteed when mixing ratio and absolute steps for save_steps"
-                            f"{self.save_steps} and eval_steps {self.eval_steps}."
-                        )
-                    # Work around floating point precision issues
-                    LARGE_MULTIPLIER = 1_000_000
-                    if (self.save_steps * LARGE_MULTIPLIER) % (self.eval_steps * LARGE_MULTIPLIER) != 0:
-                        raise ValueError(
-                            "`load_best_model_at_end` requires the saving steps to be a multiple of the evaluation "
-                            f"steps, but found {self.save_steps}, which is not a multiple of {self.eval_steps}."
-                        )
                 raise ValueError(
                     "`load_best_model_at_end` requires the saving steps to be a round multiple of the evaluation "
                     f"steps, but found {self.save_steps}, which is not a round multiple of {self.eval_steps}."
@@ -305,7 +291,7 @@ class TrainingArguments:
 
         # logging_steps must be non-zero for logging_strategy that is other than 'no'
         if self.logging_strategy == IntervalStrategy.STEPS and self.logging_steps == 0:
-            raise ValueError(f"logging strategy {self.logging_strategy} requires non-zero --logging_steps")
+            raise ValueError(f"Logging strategy {self.logging_strategy} requires non-zero `logging_steps`")
 
     def to_dict(self) -> Dict[str, Any]:
         # filter out fields that are defined as field(init=False)
