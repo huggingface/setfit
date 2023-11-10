@@ -11,7 +11,7 @@ def model() -> SetFitModel:
 
 @pytest.fixture()
 def absa_model() -> AbsaModel:
-    return AbsaModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    return AbsaModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm")
 
 
 @pytest.fixture()

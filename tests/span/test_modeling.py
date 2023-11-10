@@ -10,7 +10,7 @@ from setfit.span.modeling import AspectModel, PolarityModel
 
 
 def test_loading():
-    model = AbsaModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    model = AbsaModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm")
     assert isinstance(model, AbsaModel)
     assert isinstance(model.aspect_extractor, AspectExtractor)
     assert isinstance(model.aspect_model, AspectModel)
@@ -19,12 +19,14 @@ def test_loading():
     model = AbsaModel.from_pretrained(
         "sentence-transformers/paraphrase-albert-small-v2@6c91e73a51599e35bd1145dfdcd3289215225009",
         "sentence-transformers/paraphrase-albert-small-v2",
+        spacy_model="en_core_web_sm",
     )
     assert isinstance(model, AbsaModel)
 
     model = AbsaModel.from_pretrained(
         "sentence-transformers/paraphrase-albert-small-v2",
         "sentence-transformers/paraphrase-albert-small-v2@6c91e73a51599e35bd1145dfdcd3289215225009",
+        spacy_model="en_core_web_sm",
     )
     assert isinstance(model, AbsaModel)
 
@@ -33,16 +35,24 @@ def test_loading():
             "sentence-transformers/paraphrase-albert-small-v2", spacy_model="not_a_spacy_model"
         )
 
-    model = AbsaModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", normalize_embeddings=True)
+    model = AbsaModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm", normalize_embeddings=True
+    )
     assert model.aspect_model.normalize_embeddings
     assert model.polarity_model.normalize_embeddings
 
-    aspect_model = AspectModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", span_context=12)
+    aspect_model = AspectModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm", span_context=12
+    )
     assert aspect_model.span_context == 12
-    polarity_model = PolarityModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", span_context=12)
+    polarity_model = PolarityModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm", span_context=12
+    )
     assert polarity_model.span_context == 12
 
-    model = AbsaModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", span_contexts=(12, None))
+    model = AbsaModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm", span_contexts=(12, None)
+    )
     assert model.aspect_model.span_context == 12
     assert model.polarity_model.span_context == 3  # <- default
 
@@ -56,7 +66,9 @@ def test_save_load(absa_model: AbsaModel) -> None:
         assert (Path(tmp_dir + "-aspect") / "config_span_setfit.json").exists()
         assert (Path(tmp_dir + "-polarity") / "config_span_setfit.json").exists()
 
-        fresh_model = AbsaModel.from_pretrained(tmp_dir + "-aspect", tmp_dir + "-polarity")
+        fresh_model = AbsaModel.from_pretrained(
+            tmp_dir + "-aspect", tmp_dir + "-polarity", spacy_model="en_core_web_sm"
+        )
         assert fresh_model.polarity_model.span_context == 5
 
     with TemporaryDirectory() as aspect_tmp_dir:
@@ -65,7 +77,7 @@ def test_save_load(absa_model: AbsaModel) -> None:
             assert (Path(aspect_tmp_dir) / "config_span_setfit.json").exists()
             assert (Path(polarity_tmp_dir) / "config_span_setfit.json").exists()
 
-            fresh_model = AbsaModel.from_pretrained(aspect_tmp_dir, polarity_tmp_dir)
+            fresh_model = AbsaModel.from_pretrained(aspect_tmp_dir, polarity_tmp_dir, spacy_model="en_core_web_sm")
             assert fresh_model.polarity_model.span_context == 5
 
 
