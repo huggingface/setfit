@@ -41,13 +41,9 @@ def test_loading():
     assert model.aspect_model.normalize_embeddings
     assert model.polarity_model.normalize_embeddings
 
-    aspect_model = AspectModel.from_pretrained(
-        "sentence-transformers/paraphrase-albert-small-v2", span_context=12
-    )
+    aspect_model = AspectModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", span_context=12)
     assert aspect_model.span_context == 12
-    polarity_model = PolarityModel.from_pretrained(
-        "sentence-transformers/paraphrase-albert-small-v2", span_context=12
-    )
+    polarity_model = PolarityModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", span_context=12)
     assert polarity_model.span_context == 12
 
     model = AbsaModel.from_pretrained(
