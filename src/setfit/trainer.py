@@ -21,12 +21,12 @@ from transformers.integrations import get_reporting_integration_callbacks
 from transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
+    IntervalStrategy,
     PrinterCallback,
     ProgressCallback,
     TrainerCallback,
     TrainerControl,
     TrainerState,
-    IntervalStrategy,
 )
 from transformers.trainer_utils import (
     HPSearchBackend,

@@ -1,9 +1,9 @@
 from unittest import TestCase
 
 import pytest
+from transformers import IntervalStrategy
 
 from setfit.training_args import TrainingArguments
-from transformers import IntervalStrategy
 
 
 class TestTrainingArguments(TestCase):
@@ -124,7 +124,7 @@ class TestTrainingArguments(TestCase):
     def test_eval_steps_without_eval_strat(self):
         args = TrainingArguments(eval_steps=5)
         self.assertEqual(args.evaluation_strategy, IntervalStrategy.STEPS)
-    
+
     def test_eval_strat_steps_without_eval_steps(self):
         args = TrainingArguments(evaluation_strategy="steps")
         self.assertEqual(args.eval_steps, args.logging_steps)
@@ -135,10 +135,22 @@ class TestTrainingArguments(TestCase):
         with self.assertRaises(ValueError):
             TrainingArguments(load_best_model_at_end=True, evaluation_strategy="steps", save_strategy="epoch")
         with self.assertRaises(ValueError):
-            TrainingArguments(load_best_model_at_end=True, evaluation_strategy="steps", save_strategy="steps", eval_steps=100, save_steps=50)
+            TrainingArguments(
+                load_best_model_at_end=True,
+                evaluation_strategy="steps",
+                save_strategy="steps",
+                eval_steps=100,
+                save_steps=50,
+            )
         # No error: save_steps is a round multiple of eval_steps
-        TrainingArguments(load_best_model_at_end=True, evaluation_strategy="steps", save_strategy="steps", eval_steps=50, save_steps=100)
-    
+        TrainingArguments(
+            load_best_model_at_end=True,
+            evaluation_strategy="steps",
+            save_strategy="steps",
+            eval_steps=50,
+            save_steps=100,
+        )
+
     def test_logging_steps_zero(self):
         with self.assertRaises(ValueError):
             TrainingArguments(logging_strategy="steps", logging_steps=0)
