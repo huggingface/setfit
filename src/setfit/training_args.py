@@ -35,7 +35,7 @@ class TrainingArguments:
             Set the number of epochs the embedding and classifier training phases respectively,
             or set both if an integer is provided.
             Note that the number of epochs for the classifier is only used with a differentiable PyTorch head.
-        max_steps (`int`, *optional*, defaults to `-1`):
+        max_steps (`int`, defaults to `-1`):
             If set to a positive number, the total number of training steps to perform. Overrides `num_epochs`.
             The training may stop before reaching the set number of steps when all data is exhausted.
         sampling_strategy (`str`, defaults to `"oversampling"`):
