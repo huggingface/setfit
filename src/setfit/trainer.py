@@ -26,6 +26,7 @@ from transformers.trainer_callback import (
     TrainerCallback,
     TrainerControl,
     TrainerState,
+    IntervalStrategy,
 )
 from transformers.trainer_utils import (
     HPSearchBackend,
@@ -418,7 +419,7 @@ class Trainer(ColumnMappingMixin):
         self.state.save_steps = args.save_steps
 
         train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
-        if x_eval is not None:
+        if x_eval is not None and args.evaluation_strategy != IntervalStrategy.NO:
             eval_dataloader, _, _ = self.get_dataloader(x_eval, y_eval, args=args)
         else:
             eval_dataloader = None
