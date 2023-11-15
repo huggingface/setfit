@@ -267,6 +267,8 @@ class Trainer(ColumnMappingMixin):
         else:
             self.args = TrainingArguments.from_dict(params, ignore_extra=True)
 
+        # Seed must be set before instantiating the model when using model_init.
+        set_seed(self.args.seed)
         self.model = self.model_init(params)
         if final_model:
             self.model_init = None
@@ -363,13 +365,10 @@ class Trainer(ColumnMappingMixin):
                 stacklevel=2,
             )
 
-        args = args or self.args or TrainingArguments()
-
-        # Seed must be set before instantiating the model when using model_init.
-        set_seed(args.seed)
-
         if trial:  # Trial and model initialization
             self._hp_search_setup(trial)  # sets trainer parameters and initializes model
+
+        args = args or self.args or TrainingArguments()
 
         if self.train_dataset is None:
             raise ValueError(
@@ -417,6 +416,9 @@ class Trainer(ColumnMappingMixin):
         self.state.logging_steps = args.logging_steps
         self.state.eval_steps = args.eval_steps
         self.state.save_steps = args.save_steps
+        # Reset the state
+        self.state.global_step = 0
+        self.state.total_flos = 0
 
         train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
         if x_eval is not None and args.evaluation_strategy != IntervalStrategy.NO:

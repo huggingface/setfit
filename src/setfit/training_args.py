@@ -23,6 +23,10 @@ logger = logging.get_logger(__name__)
 class TrainingArguments:
     """
     TrainingArguments is the subset of the arguments which relate to the training loop itself.
+    Note that training with SetFit consists of two phases behind the scenes: **finetuning embeddings** and
+    **training a classification head**. As a result, some of the training arguments can be tuples,
+    where the two values are used for each of the two phases, respectively. The second value is often only
+    used when training the model was loaded using `use_differentiable_head=True`.
 
     Parameters:
         output_dir (`str`, defaults to `"checkpoints"`):
@@ -63,7 +67,8 @@ class TrainingArguments:
             Note that the body learning rate for the classifier is only used with a differentiable PyTorch
             head *and* if `end_to_end=True`.
         head_learning_rate (`float`, defaults to `1e-2`):
-            Set the learning rate for the head for the classifier training phase.
+            Set the learning rate for the head for the classifier training phase. Only used with a
+            differentiable PyTorch head.
         loss (`nn.Module`, defaults to `CosineSimilarityLoss`):
             The loss function to use for contrastive training of the embedding training phase.
         distance_metric (`Callable`, defaults to `BatchHardTripletLossDistanceFunction.cosine_distance`):
@@ -160,14 +165,10 @@ class TrainingArguments:
     # batch_size is only used to conveniently set `embedding_batch_size` and `classifier_batch_size`
     # which are used in practice
     batch_size: Union[int, Tuple[int, int]] = field(default=(16, 2), repr=False)
-    embedding_batch_size: int = None
-    classifier_batch_size: int = None
 
     # num_epochs is only used to conveniently set `embedding_num_epochs` and `classifier_num_epochs`
     # which are used in practice
     num_epochs: Union[int, Tuple[int, int]] = field(default=(1, 16), repr=False)
-    embedding_num_epochs: int = None
-    classifier_num_epochs: int = None
 
     max_steps: int = -1
 
@@ -177,8 +178,6 @@ class TrainingArguments:
     # As with batch_size and num_epochs, the first value in the tuple is the learning rate
     # for the embeddings step, while the second value is the learning rate for the classifier step.
     body_learning_rate: Union[float, Tuple[float, float]] = field(default=(2e-5, 1e-5), repr=False)
-    body_embedding_learning_rate: float = None
-    body_classifier_learning_rate: float = None
     head_learning_rate: float = 1e-2
 
     # Loss-related arguments
@@ -222,27 +221,15 @@ class TrainingArguments:
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
         if isinstance(self.batch_size, int):
             self.batch_size = (self.batch_size, self.batch_size)
-        if self.embedding_batch_size is None:
-            self.embedding_batch_size = self.batch_size[0]
-        if self.classifier_batch_size is None:
-            self.classifier_batch_size = self.batch_size[1]
 
         # Set `self.embedding_num_epochs` and `self.classifier_num_epochs` using values from `self.num_epochs`
         if isinstance(self.num_epochs, int):
             self.num_epochs = (self.num_epochs, self.num_epochs)
-        if self.embedding_num_epochs is None:
-            self.embedding_num_epochs = self.num_epochs[0]
-        if self.classifier_num_epochs is None:
-            self.classifier_num_epochs = self.num_epochs[1]
 
         # Set `self.body_embedding_learning_rate` and `self.body_classifier_learning_rate` using
         # values from `self.body_learning_rate`
         if isinstance(self.body_learning_rate, float):
             self.body_learning_rate = (self.body_learning_rate, self.body_learning_rate)
-        if self.body_embedding_learning_rate is None:
-            self.body_embedding_learning_rate = self.body_learning_rate[0]
-        if self.body_classifier_learning_rate is None:
-            self.body_classifier_learning_rate = self.body_learning_rate[1]
 
         if self.warmup_proportion < 0.0 or self.warmup_proportion > 1.0:
             raise ValueError(
@@ -292,6 +279,30 @@ class TrainingArguments:
         # logging_steps must be non-zero for logging_strategy that is other than 'no'
         if self.logging_strategy == IntervalStrategy.STEPS and self.logging_steps == 0:
             raise ValueError(f"Logging strategy {self.logging_strategy} requires non-zero `logging_steps`")
+
+    @property
+    def embedding_batch_size(self) -> int:
+        return self.batch_size[0]
+
+    @property
+    def classifier_batch_size(self) -> int:
+        return self.batch_size[1]
+
+    @property
+    def embedding_num_epochs(self) -> int:
+        return self.num_epochs[0]
+
+    @property
+    def classifier_num_epochs(self) -> int:
+        return self.num_epochs[1]
+
+    @property
+    def body_embedding_learning_rate(self) -> float:
+        return self.body_learning_rate[0]
+
+    @property
+    def body_classifier_learning_rate(self) -> float:
+        return self.body_learning_rate[1]
 
     def to_dict(self) -> Dict[str, Any]:
         # filter out fields that are defined as field(init=False)
