@@ -44,9 +44,9 @@ def get_templated_dataset(
     Args:
         dataset (`Dataset`, *optional*): A Dataset to add templated examples to.
         candidate_labels (`List[str]`, *optional*): The list of candidate
-        labels to be fed into the template to construct examples.
+            labels to be fed into the template to construct examples.
         reference_dataset (`str`, *optional*): A dataset to take labels
-        from, if `candidate_labels` is not supplied.
+            from, if `candidate_labels` is not supplied.
         template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
             used to turn each label into a synthetic training example. This template
             must include a {} for the candidate label to be inserted into the template.
@@ -54,16 +54,16 @@ def get_templated_dataset(
             candidate label "sports", this would produce an example
             "This sentence is sports".
         sample_size (`int`, *optional*, defaults to 2): The number of examples to make for
-        each candidate label.
+            each candidate label.
         text_column (`str`, *optional*, defaults to `"text"`): The name of the column
-        containing the text of the examples.
+            containing the text of the examples.
         label_column (`str`, *optional*, defaults to `"label"`): The name of the column
-        in `dataset` containing the labels of the examples.
+            in `dataset` containing the labels of the examples.
         multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple
-        candidate labels can be true.
+            candidate labels can be true.
         label_names_column (`str`, *optional*, defaults to "label_text"): The name of the
-        label column in the `reference_dataset`, to be used in case there is no ClassLabel
-        feature for the label column.
+            label column in the `reference_dataset`, to be used in case there is no ClassLabel
+            feature for the label column.
 
     Returns:
         `Dataset`: A copy of the input Dataset with templated examples added.
