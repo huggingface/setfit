@@ -209,7 +209,7 @@ class Trainer(ColumnMappingMixin):
         callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
         # TODO: Observe optimizer and scheduler by wrapping SentenceTransformer._get_scheduler
         self.callback_handler = CallbackHandler(
-            callbacks, self.model.model_body, self.model.model_body.tokenizer, None, None
+            callbacks, self.model, self.model.model_body.tokenizer, None, None
         )
         self.state = TrainerState()
         self.control = TrainerControl()
