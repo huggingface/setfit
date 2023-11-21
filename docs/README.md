@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -78,7 +78,7 @@ The `preview` command only works with existing doc files. When you add a complet
 Accepted files are Markdown (.md or .mdx).
 
 Create a file with its extension and put it in the source directory. You can then link it to the toc-tree by putting
-the filename without the extension in the [`_toctree.yml`](https://github.com/huggingface/setfit/blob/main/docs/source/_toctree.yml) file.
+the filename without the extension in the [`_toctree.yml`](https://github.com/huggingface/setfit/blob/main/docs/source/en/_toctree.yml) file.
 
 ## Renaming section headers and moving sections
 
@@ -103,7 +103,7 @@ Sections that were moved:
 
 Use the relative style to link to the new file so that the versioned docs continue to work.
 
-For an example of a rich moved section set please see the very end of [the Trainer doc](https://github.com/huggingface/transformers/blob/main/docs/source/en/main_classes/trainer.mdx).
+For an example of a rich moved section set please see the very end of [the Trainer doc](https://github.com/huggingface/transformers/blob/main/docs/source/en/main_classes/trainer.md).
 
 
 ## Writing Documentation - Specification
@@ -123,34 +123,10 @@ Make sure to put your new file under the proper section. It's unlikely to go in 
 depending on the intended targets (beginners, more advanced users, or researchers) it should go in sections two, three, or
 four.
 
-### Translating
 
-When translating, refer to the guide at [./TRANSLATING.md](https://github.com/huggingface/setfit/blob/main/docs/TRANSLATING.md).
+### Autodoc
 
-
-### Adding a new model
-
-When adding a new model:
-
-- Create a file `xxx.mdx` or under `./source/model_doc` (don't hesitate to copy an existing file as template).
-- Link that file in `./source/_toctree.yml`.
-- Write a short overview of the model:
-    - Overview with paper & authors
-    - Paper abstract
-    - Tips and tricks and how to use it best
-- Add the classes that should be linked in the model. This generally includes the configuration, the tokenizer, and
-  every model of that class (the base model, alongside models with additional heads), both in PyTorch and TensorFlow.
-  The order is generally:
-    - Configuration,
-    - Tokenizer
-    - PyTorch base model
-    - PyTorch head models
-    - TensorFlow base model
-    - TensorFlow head models
-    - Flax base model
-    - Flax head models
-
-These classes should be added using our Markdown syntax. Usually as follows:
+The following are some examples of `[[autodoc]]` for documentation building.
 
 ```
 ## XXXConfig

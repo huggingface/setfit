@@ -47,7 +47,7 @@ This list contains new functionality that can be used starting from v1.0.0.
 
     The default is set to `"oversampling"`, ensuring all sentence pairs are drawn at least once. Alternatively, setting `num_iterations` will override this argument and determine the number of generated sentence pairs.
     * `report_to`: The list of integrations to report the results and logs to. Supported platforms are `"azure_ml"`, `"comet_ml"`, `"mlflow"`, `"neptune"`, `"tensorboard"`,`"clearml"` and `"wandb"`. Use `"all"` to report to all integrations installed, `"none"` for no integrations.
-    * `run_name`: A descriptor for the run. Typically used for [wandb](https://www.wandb.com/) and [mlflow](https://www.mlflow.org/) logging.
+    * `run_name`: A descriptor for the run. Typically used for [wandb](https://wandb.ai/) and [mlflow](https://www.mlflow.org/) logging.
     * `logging_strategy`: The logging strategy to adopt during training. Possible values are:
 
         - `"no"`: No logging is done during training.
