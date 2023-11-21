@@ -426,7 +426,10 @@ class Trainer(ColumnMappingMixin):
         else:
             eval_dataloader = None
 
-        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
+        if args.max_steps > 0:
+            total_train_steps = args.max_steps
+        else:
+            total_train_steps = len(train_dataloader) * args.embedding_num_epochs
         logger.info("***** Running training *****")
         logger.info(f"  Num examples = {len(train_dataloader)}")
         logger.info(f"  Num epochs = {args.embedding_num_epochs}")
@@ -541,6 +544,7 @@ class Trainer(ColumnMappingMixin):
         else:
             self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
         self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+        steps_per_epoch = len(train_dataloader)
 
         if args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
@@ -552,9 +556,6 @@ class Trainer(ColumnMappingMixin):
         train_dataloader.collate_fn = model_body.smart_batching_collate
         if eval_dataloader:
             eval_dataloader.collate_fn = model_body.smart_batching_collate
-
-        steps_per_epoch = len(train_dataloader)
-        num_train_steps = int(steps_per_epoch * args.embedding_num_epochs)
 
         # Prepare optimizers
         param_optimizer = list(loss_func.named_parameters())
@@ -570,8 +571,12 @@ class Trainer(ColumnMappingMixin):
 
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, **{"lr": args.body_embedding_learning_rate})
         scheduler_obj = model_body._get_scheduler(
-            optimizer, scheduler="WarmupLinear", warmup_steps=warmup_steps, t_total=num_train_steps
+            optimizer, scheduler="WarmupLinear", warmup_steps=warmup_steps, t_total=self.state.max_steps
         )
+        self.callback_handler.optimizer = optimizer
+        self.callback_handler.lr_scheduler = scheduler_obj
+        self.callback_handler.train_dataloader = train_dataloader
+        self.callback_handler.eval_dataloader = eval_dataloader
 
         data_iterator = iter(train_dataloader)
         skip_scheduler = False
