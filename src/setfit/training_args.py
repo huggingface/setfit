@@ -53,7 +53,7 @@ class TrainingArguments:
                     number of positive/ negative sentence pairs).
 
             The default is set to `"oversampling"`, ensuring all sentence pairs are drawn at least once.
-            Alternatively setting `num_iterations` will override this argument and determine the number
+            Alternatively, setting `num_iterations` will override this argument and determine the number
             of generated sentence pairs.
         num_iterations (`int`, *optional*):
             If not set the `sampling_strategy` will determine the number of sentence pairs to generate.
