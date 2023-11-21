@@ -136,7 +136,7 @@ print(transformers_accuracy)
 
 With its 59.1% accuracy, the 0-shot SetFit heavily outperforms the recommended zero-shot model by `transformers`.
 
-### Prediction latency
+## Prediction latency
 
 Beyond getting higher accuracies, SetFit is much faster too. Let's compute the latency of SetFit with `BAAI/bge-small-en-v1.5` versus the latency of `transformers` with `facebook/bart-large-mnli`. Both tests were performed on a GPU.
 
@@ -164,4 +164,6 @@ print(f"SetFit with `BAAI/bge-small-en-v1.5` latency: {delta_t / len(test_datase
 SetFit with `BAAI/bge-small-en-v1.5` latency: 0.4600ms per sentence
 ```
 
-So, SetFit with `BAAI/bge-small-en-v1.5` is 67x faster than `transformers` with `facebook/bart-large-mnli`, alongside being more accurate.
+So, SetFit with `BAAI/bge-small-en-v1.5` is 67x faster than `transformers` with `facebook/bart-large-mnli`, alongside being more accurate:
+
+![zero_shot_transformers_vs_setfit](https://github.com/huggingface/setfit/assets/37621491/33f574d9-c51b-4e02-8d98-6e04e18427ef)
