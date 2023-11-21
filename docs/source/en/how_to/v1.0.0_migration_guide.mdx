@@ -1,0 +1,82 @@
+
+# SetFit v1.0.0 Migration Guide
+
+To update your code to work with v1.0.0, the following changes must be made:
+
+## General Migration Guide
+
+1. `keep_body_frozen` from `SetFitModel.unfreeze` has been deprecated, simply either pass `"head"`, `"body"` or no arguments to unfreeze both.
+2. `SupConLoss` has been moved from `setfit.modeling` to `setfit.losses`. If you are importing it using `from setfit.modeling import SupConLoss`, then import it like `from setfit import SupConLoss` now instead.
+
+## Training Migration Guide
+
+1. Replace all uses of `SetFitTrainer` with [`Trainer`], and all uses of `DistillationSetFitTrainer` with [`DistillationTrainer`].
+2. Remove `num_iterations`, `num_epochs`, `learning_rate`, `batch_size`, `seed`, `use_amp`, `warmup_proportion`, `distance_metric`, `margin`, `samples_per_label` and `loss_class` from a `Trainer` initialisation, and move them to a `TrainerArguments` initialisation instead. This instance should then be passed to the trainer via the `args` argument.
+
+    * `num_iterations` has been deprecated, the number of training steps should now be controlled exclusively via `num_epochs`, `max_steps` or [`EarlyStoppingCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.EarlyStoppingCallback).
+    * `learning_rate` has been split up into `body_learning_rate` and `head_learning_rate`.
+    * `loss_class` has been renamed to `loss`.
+
+3. Stop providing training arguments like `num_epochs` directly to `Trainer.train`: pass a `TrainingArguments` instance instead.
+4. Refactor multiple `trainer.train()`, `trainer.freeze()` and `trainer.unfreeze()` calls that were previously necessary to train the differentiable head into just one `trainer.train()` call by setting `batch_size` and `num_epochs` on the `TrainingArguments` dataclass with Tuples. The first value is for training the embeddings, and the second is for training the classifier. 
+
+## Hard deprecations
+
+* `SetFitBaseModel`, `SKLearnWrapper` and `SetFitPipeline` have been removed. These can no longer be used starting from v1.0.0.
+
+## New functionality
+
+This list contains new functionality that can be used starting from v1.0.0.
+
+* [`SetFitModel.encode`] has been introduce to convert input sentences to embeddings using the `SentenceTransformer` body.
+* [`SetFitModel.device`] has been introduced to determine the device of the model.
+* [`AbsaTrainer`] and [`AbsaModel`] have been introduced for applying SetFit for Aspect Based Sentiment Analysis.
+* [`Trainer`] now supports a `callbacks` argument for a list of [`transformers` `TrainerCallback` instances](https://huggingface.co/docs/transformers/main/en/main_classes/callback).
+    * By default, all installed callbacks integrated with `transformers` are supported, including [`TensorBoardCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.TensorBoardCallback), [`WandbCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.WandbCallback) to log training logs to TensorBoard and W&B, respectively.
+    * The [`Trainer`] will now print `embedding_loss` in the terminal, as well as `eval_embedding_loss` if `evaluation_strategy` is set to `"epoch"` or `"steps"` in [`TrainingArguments`].
+* [`Trainer.evaluate`] now works with string labels.
+* An updated contrastive pair sampler increases the variety of training pairs.
+* [`TrainingArguments`] supports various new arguments:
+    * `output_dir`: The output directory where the model predictions and checkpoints will be written.
+    * `max_steps`: If set to a positive number, the total number of training steps to perform. Overrides num_epochs. The training may stop before reaching the set number of steps when all data is exhausted.
+    * `sampling_strategy`: The sampling strategy of how to draw pairs in training. Possible values are:
+
+        * `"oversampling"`: Draws even number of positive/negative sentence pairs until every sentence pair has been drawn.
+        * `"undersampling"`: Draws the minimum number of positive/negative sentence pairs until every sentence pair in the minority class has been drawn.
+        * `"unique"`: Draws every sentence pair combination (likely resulting in unbalanced number of positive/negative sentence pairs).
+
+    The default is set to `"oversampling"`, ensuring all sentence pairs are drawn at least once. Alternatively, setting `num_iterations` will override this argument and determine the number of generated sentence pairs.
+    * `report_to`: The list of integrations to report the results and logs to. Supported platforms are `"azure_ml"`, `"comet_ml"`, `"mlflow"`, `"neptune"`, `"tensorboard"`,`"clearml"` and `"wandb"`. Use `"all"` to report to all integrations installed, `"none"` for no integrations.
+    * `run_name`: A descriptor for the run. Typically used for [wandb](https://www.wandb.com/) and [mlflow](https://www.mlflow.org/) logging.
+    * `logging_strategy`: The logging strategy to adopt during training. Possible values are:
+
+        - `"no"`: No logging is done during training.
+        - `"epoch"`: Logging is done at the end of each epoch.
+        - `"steps"`: Logging is done every `logging_steps`.
+
+    * `logging_first_step`: Whether to log and evaluate the first `global_step` or not.
+    * `logging_steps`: Number of update steps between two logs if `logging_strategy="steps"`.
+    * `evaluation_strategy`: The evaluation strategy to adopt during training. Possible values are:
+
+        - `"no"`: No evaluation is done during training.
+        - `"steps"`: Evaluation is done (and logged) every `eval_steps`.
+        - `"epoch"`: Evaluation is done at the end of each epoch.
+
+    * `eval_steps`: Number of update steps between two evaluations if `evaluation_strategy="steps"`. Will default to the same as `logging_steps` if not set.
+    * `eval_delay`: Number of epochs or steps to wait for before the first evaluation can be performed, depending on the `evaluation_strategy`.
+    * `save_strategy`: The checkpoint save strategy to adopt during training. Possible values are:
+
+        - `"no"`: No save is done during training.
+        - `"epoch"`: Save is done at the end of each epoch.
+        - `"steps"`: Save is done every `save_steps`.
+
+    * `save_steps`: Number of updates steps before two checkpoint saves if `save_strategy="steps"`.
+    * `save_total_limit`: If a value is passed, will limit the total amount of checkpoints. Deletes the older checkpoints in `output_dir`. Note, the best model is always preserved if the `evaluation_strategy` is not `"no"`.
+    * `load_best_model_at_end`: Whether or not to load the best model found during training at the end of training.
+
+    <Tip>
+
+    When set to `True`, the parameters `save_strategy` needs to be the same as `evaluation_strategy`, and in
+    the case it is "steps", `save_steps` must be a round multiple of `eval_steps`.
+
+    </Tip>

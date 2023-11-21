@@ -1,0 +1,104 @@
+
+# Callbacks
+SetFit models can be influenced by callbacks, for example for logging or early stopping.
+
+This guide will show you what they are and how they can be used.
+
+## Callbacks in SetFit
+
+Callbacks are objects that customize the behaviour of the training loop in the SetFit [`Trainer`] that can inspect the training loop state (for progress reporting, logging, inspecting embeddings during training) and take decisions (e.g. early stopping).
+
+In particular, the [`Trainer`] uses a [`TrainerControl`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.TrainerControl) that can be influenced by callbacks to stop training, save models, evaluate, or log, and a [`TrainerState`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.TrainerState) which tracks some training loop metrics during training, such as the number of training steps so far.
+
+SetFit relies on the Callbacks implemented in `transformers`, as described in the `transformers` documentation [here](https://huggingface.co/docs/transformers/main_classes/callback).
+
+## Default Callbacks
+
+SetFit uses the `TrainingArguments.report_to` argument to specify which of the built-in callbacks should be enabled. This argument defaults to `"all"`, meaning that all third-party callbacks from `transformers` that are also installed will be enabled. For example the [`TensorBoardCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.integrations.TensorBoardCallback) or the [`WandbCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.integrations.WandbCallback).
+
+Beyond that, the [`PrinterCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.PrinterCallback) or [`ProgressCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.ProgressCallback) is always enabled to show the training progress, and [`DefaultFlowCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.DefaultFlowCallback) is also always enabled to properly update the `TrainerControl`.
+
+## Using Callbacks
+
+As mentioned, you can use `TrainingArguments.report_to` to specify exactly which callbacks you would like to enable. For example:
+
+```py
+from setfit import TrainingArguments
+
+args = TrainingArguments(
+    ...,
+    report_to="wandb",
+    ...,
+)
+# or 
+args = TrainingArguments(
+    ...,
+    report_to=["wandb", "tensorboard"],
+    ...,
+)
+```
+You can also use [`Trainer.add_callback`], [`Trainer.pop_callback`] and [`Trainer.remove_callback`] to influence the trainer callbacks, and you can specify callbacks via the [`Trainer`] init, e.g.:
+
+```py
+from setfit import Trainer
+
+...
+
+trainer = Trainer(
+    model,
+    args=args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+)
+trainer.train()
+```
+
+## Custom Callbacks
+
+SetFit supports custom callbacks in the same way that `transformers` does: by subclassing [`TrainerCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.TrainerCallback). This class implements a lot of `on_...` methods that can be overridden. For example, the following script shows a custom callback that saves plots of the tSNE of the training and evaluation embeddings during training.
+
+```py
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+
+class EmbeddingPlotCallback(TrainerCallback):
+    """Simple embedding plotting callback that plots the tSNE of the training and evaluation datasets throughout training."""
+    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: SetFitModel, **kwargs):
+        train_embeddings = model.encode(train_dataset["text"])
+        eval_embeddings = model.encode(eval_dataset["text"])
+
+        fig, (train_ax, eval_ax) = plt.subplots(ncols=2)
+
+        train_X = TSNE(n_components=2).fit_transform(train_embeddings)
+        train_ax.scatter(*train_X.T, c=train_dataset["label"], label=train_dataset["label"])
+        train_ax.set_title("Training embeddings")
+
+        eval_X = TSNE(n_components=2).fit_transform(eval_embeddings)
+        eval_ax.scatter(*eval_X.T, c=eval_dataset["label"], label=eval_dataset["label"])
+        eval_ax.set_title("Evaluation embeddings")
+
+        fig.suptitle(f"tSNE of training and evaluation embeddings at step {state.global_step} of {state.max_steps}.")
+        fig.savefig(f"logs/step_{state.global_step}.png")
+```
+
+with
+
+```py
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    callbacks=[EmbeddingPlotCallback()]
+)
+trainer.train()
+```
+
+The `on_evaluate` from `EmbeddingPlotCallback` will be triggered on every single evaluation call. In the case of this example, it resulted in the following figures being plotted:
+
+| Step 20     | Step 40     |
+|-------------|-------------|
+| ![step_20](https://github.com/huggingface/setfit/assets/37621491/7200d00a-fd48-4038-bcbe-f2d5f1280162) | ![step_40](https://github.com/huggingface/setfit/assets/37621491/be12e3c4-867c-452d-89a0-0677f035516d) |
+| **Step 60** | **Step 80** |
+| ![step_60](https://github.com/huggingface/setfit/assets/37621491/3a384aa2-51ce-40d7-b02c-a2c986f3aeb4) | ![step_80](https://github.com/huggingface/setfit/assets/37621491/b5aa9835-40cb-4327-9f31-b3ababeca769) |

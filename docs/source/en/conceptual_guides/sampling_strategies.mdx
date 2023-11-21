@@ -1,0 +1,87 @@
+
+# SetFit Sampling Strategies
+
+SetFit supports various contrastive pair sampling strategies in [`TrainingArguments`]. In this conceptual guide, we will learn about the following four sampling strategies:
+
+1. `"oversampling"` (the default)
+2. `"undersampling"`
+3. `"unique"`
+4. `"num_iterations"`
+
+Consider first reading the [SetFit conceptual guide](../setfit) for a background on contrastive learning and positive & negative pairs.
+
+## Running example
+
+Throughout this conceptual guide, we will use to the following example scenario:
+
+* 3 classes: "happy", "content", and "sad".
+* 20 total samples: 8 "happy", 4 "content", and 8 "sad" samples.
+
+Considering that a sentence pair of `(X, Y)` and `(Y, X)` result in the same embedding distance/loss, we only want to consider one of those two cases. Furthermore, we don't want pairs where both sentences are the same, e.g. no `(X, X)`. 
+
+The resulting positive and negative pairs can be visualized in a table like below. The `+` and `-` represent positive and negative pairs, respectively. Furthermore, `h-n` represents the n-th "happy" sentence, `c-n` the n-th "content" sentence, and `s-n` the n-th "sad" sentence. Note that the area below the diagonal is not used as `(X, Y)` and `(Y, X)` result in the same embedding distances, and that the diagonal is not used as we are not interested in pairs where both sentences are identical.
+
+|   |h-1|h-2|h-3|h-4|h-5|h-6|h-7|h-8|c-1|c-2|c-3|c-4|s-1|s-2|s-3|s-4|s-5|s-6|s-7|s-8|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|h-1|   | + | + | + | + | + | + | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-2|   |   | + | + | + | + | + | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-3|   |   |   | + | + | + | + | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-4|   |   |   |   | + | + | + | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-5|   |   |   |   |   | + | + | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-6|   |   |   |   |   |   | + | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-7|   |   |   |   |   |   |   | + | - | - | - | - | - | - | - | - | - | - | - | - |
+|h-8|   |   |   |   |   |   |   |   | - | - | - | - | - | - | - | - | - | - | - | - |
+|c-1|   |   |   |   |   |   |   |   |   | + | + | + | - | - | - | - | - | - | - | - |
+|c-2|   |   |   |   |   |   |   |   |   |   | + | + | - | - | - | - | - | - | - | - |
+|c-3|   |   |   |   |   |   |   |   |   |   |   | + | - | - | - | - | - | - | - | - |
+|c-4|   |   |   |   |   |   |   |   |   |   |   |   | - | - | - | - | - | - | - | - |
+|s-1|   |   |   |   |   |   |   |   |   |   |   |   |   | + | + | + | + | + | + | + |
+|s-2|   |   |   |   |   |   |   |   |   |   |   |   |   |   | + | + | + | + | + | + |
+|s-3|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | + | + | + | + | + |
+|s-4|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | + | + | + | + |
+|s-5|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | + | + | + |
+|s-6|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | + | + |
+|s-7|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | + |
+|s-8|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+
+As shown in the prior table, we have 28 positive pairs for "happy", 6 positive pairs for "content", and another 28 positive pairs for "sad". In total, this is 62 positive pairs. Also, we have 32 negative pairs between "happy" and "content", 64 negative pairs between "happy" and "sad", and 32 negative pairs between "content" and "sad". In total, this is 128 negative pairs.
+
+## Oversampling
+
+By default, SetFit applies the oversampling strategy for its contrastive pairs. This strategy samples an equal amount of positive and negative training pairs, oversampling the minority pair type to match that of the majority pair type. As the number of negative pairs is generally larger than the number of positive pairs, this usually involves oversampling the positive pairs.
+
+In our running example, this would involve oversampling the 62 positive pairs up to 128, resulting in one epoch of 128 + 128 = 256 pairs. In summary:
+
+* ✅ An equal amount of positive and negative pairs are sampled.
+* ✅ Every possible pair is used.
+* ❌ There is some data duplication.
+
+## Undersampling
+
+Like oversampling, this strategy samples an equal amount of positive and negative training pairs. However, it undersamples the majority pair type to match that of the minority pair type. This usually involves undersampling the negative pairs to match the positive pairs.
+
+In our running example, this would involve undersampling the 128 negative pairs down to 62, resulting in one epoch of 62 + 62 = 124 pairs. In summary:
+
+* ✅ An equal amount of positive and negative pairs are sampled.
+* ❌ **Not** every possible pair is used.
+* ✅ There is **no** data duplication.
+
+## Unique
+
+Thirdly, the unique strategy does not sample an equal amount of positive and negative training pairs. Instead, it simply samples all possible pairs exactly once. No form of oversampling or undersampling is used here.
+
+In our running example, this would involve sampling all negative and positive pairs, resulting in one epoch of 62 + 128 = 190 pairs. In summary:
+
+* ❌ **Not** an equal amount of positive and negative pairs are sampled.
+* ✅ Every possible pair is used.
+* ✅ There is **no** data duplication.
+
+## `num_iterations`
+
+Lastly, SetFit can still be used with a deprecated sampling strategy involving the `num_iterations` training argument. Unlike the other sampling strategies, this strategy does not involve the number of possible pairs. Instead, it samples `num_iterations` positive pairs and `num_iterations` negative pairs for each training sample. 
+
+In our running example, if we assume `num_iterations=20`, then we would sample 20 positive pairs and 20 negative pairs per training sample. Because there's 20 samples, this involves (20 + 20) * 20 = 800 pairs. Because there are only 190 unique pairs, this certainly involves some data duplication. However, it does not guarantee that every possible pair is used. In summary:
+
+* ✅ **Not** an equal amount of positive and negative pairs are sampled.
+* ❌ Not necessarily every possible pair is used.
+* ❌ There is some data duplication.
