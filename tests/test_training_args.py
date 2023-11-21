@@ -19,7 +19,6 @@ class TestTrainingArguments(TestCase):
     def test_batch_sizes(self):
         batch_size_A = 12
         batch_size_B = 4
-        batch_size_C = 6
 
         args = TrainingArguments(batch_size=batch_size_A)
         self.assertEqual(args.batch_size, (batch_size_A, batch_size_A))
@@ -34,7 +33,6 @@ class TestTrainingArguments(TestCase):
     def test_num_epochs(self):
         num_epochs_A = 12
         num_epochs_B = 4
-        num_epochs_C = 6
 
         args = TrainingArguments(num_epochs=num_epochs_A)
         self.assertEqual(args.num_epochs, (num_epochs_A, num_epochs_A))
@@ -49,7 +47,6 @@ class TestTrainingArguments(TestCase):
     def test_learning_rates(self):
         learning_rate_A = 1e-2
         learning_rate_B = 1e-3
-        learning_rate_C = 1e-4
 
         base = TrainingArguments()
 
