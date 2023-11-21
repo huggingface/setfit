@@ -13,6 +13,7 @@ jobs:
     with:
       commit_sha: ${{ github.sha }}
       package: setfit
+      notebook_folder: setfit_doc
       languages: en
     secrets:
       token: ${{ secrets.HUGGINGFACE_PUSH }}
