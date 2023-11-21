@@ -14,3 +14,6 @@ jobs:
       commit_sha: ${{ github.sha }}
       package: setfit
       languages: en
+    secrets:
+      token: ${{ secrets.HUGGINGFACE_PUSH }}
+      hf_token: ${{ secrets.HF_DOC_BUILD_PUSH }}
