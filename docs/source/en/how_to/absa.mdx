@@ -37,11 +37,11 @@ from setfit import AbsaModel
 model = AbsaModel.from_pretrained("BAAI/bge-small-en-v1.5")
 ```
 
-Then we have to prepare a training/testing set. These datasets must have `"text"`, `"span"`, `"polarity"`, and `"ordinal"` columns:
+Then we have to prepare a training/testing set. These datasets must have `"text"`, `"span"`, `"label"`, and `"ordinal"` columns:
 
 * `"text"`: The full sentence or text containing the aspects. For example: `"But the staff was so horrible to us."`.
 * `"span"`: An aspect from the full sentence. Can be multiple words. For example: `"staff"`.
-* `"polarity"`: The (polarity) label corresponding to the aspect span. For example: `"negative"`.
+* `"label"`: The (polarity) label corresponding to the aspect span. For example: `"negative"`.
 * `"ordinal"`: If the aspect span occurs multiple times in the text, then this ordinal represents the index of those occurrences. Often this is just 0. For example: `0`.
 
 Two datasets that already match this format are these datasets of reviews from the SemEval-2014 Task 4:
@@ -50,7 +50,7 @@ Two datasets that already match this format are these datasets of reviews from t
 * [tomaarsen/setfit-absa-semeval-laptops](https://huggingface.co/datasets/tomaarsen/setfit-absa-semeval-laptops)
 
 ```py
-# The training/eval dataset must have `text`, `span`, `polarity`, and `ordinal` columns
+# The training/eval dataset must have `text`, `span`, `label`, and `ordinal` columns
 dataset = load_dataset("tomaarsen/setfit-absa-semeval-laptops", split="train")
 train_dataset = dataset.select(range(128))
 eval_dataset = dataset.select(range(128, 256))
