@@ -9,6 +9,23 @@ SetFitABSA is an efficient framework for few-shot Aspect Based Sentiment Analysi
 
 This guide will show you how to train, predict, save and load these models.
 
+## Getting Started
+
+First of all, SetFitABSA also requires spaCy to be installed, so we must install it:
+
+```
+!pip install "setfit[absa]"
+# or
+# !pip install spacy
+```
+
+Then, we must download the spaCy model that we intend on using. By default, SetFitABSA uses `en_core_web_lg`, but `en_core_web_sm` and `en_core_web_md` are also good options.
+
+```
+!spacy download en_core_web_lg
+!spacy download en_core_web_sm
+```
+
 ## Training SetFitABSA
 
 First of all, we must instantiate a new [`AbsaModel`] via [`AbsaModel.from_pretrained`]. This can be done by providing configuration for each of the three phases for SetFitABSA:
