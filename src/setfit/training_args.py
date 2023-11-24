@@ -305,32 +305,42 @@ class TrainingArguments:
         return self.body_learning_rate[1]
 
     def to_dict(self) -> Dict[str, Any]:
-        # filter out fields that are defined as field(init=False)
+        """Convert this instance to a dictionary.
+
+        Returns:
+            `Dict[str, Any]`: The dictionary variant of this dataclass.
+        """
         return {field.name: getattr(self, field.name) for field in fields(self) if field.init}
 
     @classmethod
     def from_dict(cls, arguments: Dict[str, Any], ignore_extra: bool = False) -> TrainingArguments:
+        """Initialize a TrainingArguments instance from a dictionary.
+
+        Args:
+            arguments (`Dict[str, Any]`): A dictionary of arguments.
+            ignore_extra (`bool`, *optional*): Whether to ignore arguments that do not occur in the
+                TrainingArguments __init__ signature. Defaults to False.
+
+        Returns:
+            `TrainingArguments`: The instantiated TrainingArguments instance.
+        """
         if ignore_extra:
             return cls(**{key: value for key, value in arguments.items() if key in inspect.signature(cls).parameters})
         return cls(**arguments)
 
     def copy(self) -> TrainingArguments:
+        """Create a shallow copy of this TrainingArguments instance."""
         return copy(self)
 
     def update(self, arguments: Dict[str, Any], ignore_extra: bool = False) -> TrainingArguments:
         return TrainingArguments.from_dict({**self.to_dict(), **arguments}, ignore_extra=ignore_extra)
 
     def to_json_string(self):
-        """
-        Serializes this instance to a JSON string.
-        """
-        # TODO: This needs to be improved
+        # Serializes this instance to a JSON string.
         return json.dumps({key: str(value) for key, value in self.to_dict().items()}, indent=2)
 
     def to_sanitized_dict(self) -> Dict[str, Any]:
-        """
-        Sanitized serialization to use with TensorBoard’s hparams
-        """
+        # Sanitized serialization to use with TensorBoard’s hparams
         d = self.to_dict()
         d = {**d, **{"train_batch_size": self.embedding_batch_size, "eval_batch_size": self.embedding_batch_size}}
 
