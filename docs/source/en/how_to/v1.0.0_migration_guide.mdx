@@ -7,6 +7,7 @@ To update your code to work with v1.0.0, the following changes must be made:
 
 1. `keep_body_frozen` from `SetFitModel.unfreeze` has been deprecated, simply either pass `"head"`, `"body"` or no arguments to unfreeze both.
 2. `SupConLoss` has been moved from `setfit.modeling` to `setfit.losses`. If you are importing it using `from setfit.modeling import SupConLoss`, then import it like `from setfit import SupConLoss` now instead.
+3. `use_auth_token` has been renamed to `token` in [`SetFitModel.from_pretrained`]. `use_auth_token` will keep working until the next major version, but with a warning.
 
 ## Training Migration Guide
 
