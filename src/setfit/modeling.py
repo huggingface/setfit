@@ -632,11 +632,12 @@ class SetFitModel(PyTorchModelHubMixin):
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
         normalize_embeddings: bool = False,
+        device: Optional[Union[torch.device, str]] = None,
         **model_kwargs,
     ) -> "SetFitModel":
-        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=token)
-        target_device = model_body._target_device
-        model_body.to(target_device)  # put `model_body` on the target device
+        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=token, device=device)
+        device = model_body._target_device
+        model_body.to(device)  # put `model_body` on the target device
 
         if os.path.isdir(model_id):
             if MODEL_HEAD_NAME in os.listdir(model_id):
@@ -671,7 +672,7 @@ class SetFitModel(PyTorchModelHubMixin):
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
             if isinstance(model_head, torch.nn.Module):
-                model_head.to(target_device)
+                model_head.to(device)
         else:
             head_params = model_kwargs.pop("head_params", {})
             if use_differentiable_head:
@@ -689,7 +690,7 @@ class SetFitModel(PyTorchModelHubMixin):
                 # - follow the `model_body`, put `model_head` on the target device
                 base_head_params = {
                     "in_features": model_body.get_sentence_embedding_dimension(),
-                    "device": target_device,
+                    "device": device,
                     "multitarget": use_multitarget,
                 }
                 model_head = SetFitHead(**{**head_params, **base_head_params})

@@ -246,3 +246,13 @@ def test_to_sentence_transformer_device_reset(use_differentiable_head):
 
     model.model_body.encode("This is a test sample to encode")
     assert model.model_body.device == torch.device("cpu")
+
+
+@torch_cuda_available
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_load_model_on_device(device):
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", device=device)
+    assert model.device.type == device
+    assert model.model_body.device.type == device
+
+    model.model_body.encode("This is a test sample to encode")
