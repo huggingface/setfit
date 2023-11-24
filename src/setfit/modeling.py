@@ -670,7 +670,7 @@ class SetFitModel(PyTorchModelHubMixin):
 
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
-            if isinstance(model_head, torch.Module):
+            if isinstance(model_head, torch.nn.Module):
                 model_head.to(target_device)
         else:
             head_params = model_kwargs.pop("head_params", {})
