@@ -151,8 +151,8 @@ class Trainer(ColumnMappingMixin):
             function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation. If a string is provided, we treat it as the metric
-            name and load it with default settings.
-            If a callable is provided, it must take two arguments (`y_pred`, `y_test`).
+            name and load it with default settings. If a callable is provided, it must take two arguments
+            (`y_pred`, `y_test`) and return a dictionary with metric keys to values.
         metric_kwargs (`Dict[str, Any]`, *optional*):
             Keyword arguments passed to the evaluation function if `metric` is an evaluation string like "f1".
             For example useful for providing an averaging strategy for computing f1 in a multi-label setting.
