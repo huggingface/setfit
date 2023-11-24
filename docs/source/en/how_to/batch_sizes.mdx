@@ -1,0 +1,21 @@
+
+# Batch sizes
+In this how-to guide we will explore the effects of increasing the batch sizes in [`SetFitModel.predict`].
+
+## What are they?
+When processing on GPUs, often times not all data fits on the GPU its VRAM at once. As a result, the data gets split up into **batches** of some often pre-determined batch size. This is done both during training and during inference. In both scenarios, increasing the batch size often has notable consequences to processing efficiency and VRAM memory usage, as transferring data to and from the GPU can be relatively slow.
+
+For inference, it is often recommended to set the batch size high to get notably quicker processing speeds.
+
+## In SetFit
+The batch size for inference in SetFit is set to 32, but it can be affected by passing a `batch_size` argument to [`SetFitModel.predict`]. For example, on a RTX 3090 with a SetFit model based on the [paraphrase-mpnet-base-v2](https://huggingface.co/sentence-transformers/paraphrase-mpnet-base-v2) Sentence Transformer, the following throughputs are reached:
+
+![setfit_speed_per_batch_size](https://github.com/huggingface/setfit/assets/37621491/c01d391b-aeba-4a4b-83f8-b09970a0d6e6)
+
+<Tip>
+
+Each sentence consists of 11 words in this experiment.
+
+</Tip>
+
+The default batch size of 32 does not result in the highest possible throughput on this hardware. Consider experimenting with the batch size to reach your highest possible throughput.

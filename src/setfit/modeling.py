@@ -432,11 +432,15 @@ class SetFitModel(PyTorchModelHubMixin):
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
-    def encode(self, inputs: List[str], show_progress_bar: Optional[bool] = None) -> Union[torch.Tensor, np.ndarray]:
+    def encode(
+        self, inputs: List[str], batch_size: int = 32, show_progress_bar: Optional[bool] = None
+    ) -> Union[torch.Tensor, np.ndarray]:
         """Convert input sentences to embeddings using the `SentenceTransformer` body.
 
         Args:
             inputs (`List[str]`): The input sentences to embed.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
             show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
         Returns:
@@ -445,6 +449,7 @@ class SetFitModel(PyTorchModelHubMixin):
         """
         return self.model_body.encode(
             inputs,
+            batch_size=batch_size,
             normalize_embeddings=self.normalize_embeddings,
             convert_to_tensor=self.has_differentiable_head,
             show_progress_bar=show_progress_bar,
@@ -472,12 +477,14 @@ class SetFitModel(PyTorchModelHubMixin):
         return outputs
 
     def predict(
-        self, inputs: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None
+        self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
     ) -> Union[torch.Tensor, np.ndarray]:
         """Predict the various classes.
 
         Args:
             inputs (`List[str]`): The input sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
             show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
@@ -490,17 +497,19 @@ class SetFitModel(PyTorchModelHubMixin):
             `Union[torch.Tensor, np.ndarray]`: A vector with equal length to the inputs, denoting
             to which class each input is predicted to belong.
         """
-        embeddings = self.encode(inputs, show_progress_bar=show_progress_bar)
+        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
         outputs = self.model_head.predict(embeddings)
         return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
     def predict_proba(
-        self, inputs: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None
+        self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
     ) -> Union[torch.Tensor, np.ndarray]:
         """Predict the probabilities of the various classes.
 
         Args:
             inputs (`List[str]`): The input sentences to predict class probabilities for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
             show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
@@ -515,7 +524,7 @@ class SetFitModel(PyTorchModelHubMixin):
             `Union[torch.Tensor, np.ndarray]`: A matrix with shape [INPUT_LENGTH, NUM_CLASSES] denoting
             probabilities of predicting an input as a class.
         """
-        embeddings = self.encode(inputs, show_progress_bar=show_progress_bar)
+        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
         outputs = self.model_head.predict_proba(embeddings)
         return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
@@ -574,11 +583,17 @@ class SetFitModel(PyTorchModelHubMixin):
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
             f.write(model_card_content)
 
-    def __call__(self, inputs: List[str]) -> torch.Tensor:
+    def __call__(
+        self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
+    ) -> Union[torch.Tensor, np.ndarray]:
         """Predict the various classes.
 
         Args:
             inputs (`List[str]`): The input sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
         Example:
             >>> model = SetFitModel.from_pretrained(...)
@@ -589,7 +604,7 @@ class SetFitModel(PyTorchModelHubMixin):
             `torch.Tensor`: A vector with equal length to the inputs, denoting to which class each
             input is predicted to belong.
         """
-        return self.predict(inputs)
+        return self.predict(inputs, batch_size=batch_size, as_numpy=as_numpy, show_progress_bar=show_progress_bar)
 
     def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
         save_directory = str(save_directory)
