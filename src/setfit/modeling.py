@@ -610,7 +610,12 @@ class SetFitModel(PyTorchModelHubMixin):
         save_directory = str(save_directory)
         self.model_body.save(path=save_directory, create_model_card=False)
         self.create_model_card(path=save_directory, model_name=save_directory)
+        # Move the head to the CPU before saving
+        if self.has_differentiable_head:
+            self.model_head.to("cpu")
         joblib.dump(self.model_head, str(Path(save_directory) / MODEL_HEAD_NAME))
+        if self.has_differentiable_head:
+            self.model_head.to(self.device)
 
     @classmethod
     @validate_hf_hub_args
@@ -665,6 +670,8 @@ class SetFitModel(PyTorchModelHubMixin):
 
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
+            if isinstance(model_head, torch.nn.Module):
+                model_head.to(target_device)
         else:
             head_params = model_kwargs.pop("head_params", {})
             if use_differentiable_head:
