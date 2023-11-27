@@ -12,6 +12,8 @@
     title: Overview
   - local: tutorials/zero_shot
     title: Zero-shot Text Classification
+  - local: tutorials/onnx
+    title: Efficiently run SetFit with ONNX
   title: Tutorials
 
 - sections:
