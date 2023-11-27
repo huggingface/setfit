@@ -45,7 +45,7 @@ from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
 
 
-# Google Colab runs on Python 3.7, so we need this to be compatible
+# For Python 3.7 compatibility
 try:
     from typing import Literal
 except ImportError:

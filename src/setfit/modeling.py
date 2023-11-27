@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 
-# Google Colab runs on Python 3.7, so we need this to be compatible
+# For Python 3.7 compatibility
 try:
     from typing import Literal
 except ImportError:
