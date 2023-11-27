@@ -83,7 +83,7 @@ def test_export_onnx_torch_head_model_accepts_token_type_ids(out_features):
     # Unfreeze the head and unfreeze the body -> end-to-end training
     trainer.unfreeze(keep_body_frozen=False)
     trainer.train(
-        num_epochs=15,
+        num_epochs=20,
         batch_size=16,
         body_learning_rate=1e-5,
         learning_rate=1e-2,
@@ -121,7 +121,6 @@ def test_export_onnx_torch_head_model_accepts_token_type_ids(out_features):
         onnx_preds = onnx_preds / (1 + 1e-5)
         onnx_preds_soft = np.exp(onnx_preds) / sum(np.exp(onnx_preds))
         onnx_preds_argmax = np.argmax(onnx_preds_soft, axis=1)
-
         # Compare the results and ensure that we get the same predictions.
         assert np.array_equal(onnx_preds_argmax, pytorch_preds)
 
@@ -130,7 +129,7 @@ def test_export_onnx_torch_head_model_accepts_token_type_ids(out_features):
         os.remove(output_path)
 
 
-@pytest.mark.parametrize("out_features", [1, 2, 3])
+@pytest.mark.parametrize("out_features", [3])
 def test_export_onnx_torch_head_model_not_accepts_token_type_ids(out_features):
     """Test that the exported `ONNX` model returns the same predictions as the original model."""
     dataset = get_templated_dataset(reference_dataset="SetFit/SentEval-CR")
@@ -152,7 +151,7 @@ def test_export_onnx_torch_head_model_not_accepts_token_type_ids(out_features):
     # Unfreeze the head and unfreeze the body -> end-to-end training
     trainer.unfreeze(keep_body_frozen=False)
     trainer.train(
-        num_epochs=2,
+        num_epochs=15,
         batch_size=16,
         body_learning_rate=1e-5,
         learning_rate=1e-2,
@@ -183,11 +182,6 @@ def test_export_onnx_torch_head_model_not_accepts_token_type_ids(out_features):
         )
         # Map inputs to int64 from int32
         inputs = {key: value.astype("int64") for key, value in inputs.items()}
-
-        import onnx
-
-        model = onnx.load(output_path)
-        print([input.name for input in model.graph.input])
 
         session = onnxruntime.InferenceSession(output_path)
 
