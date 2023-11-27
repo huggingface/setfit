@@ -133,6 +133,7 @@ make style && make quality
 
 ## Related work
 
+* [https://github.com/pmbaumgartner/setfit](https://github.com/pmbaumgartner/setfit) - A scikit-learn API version of SetFit.
 * [jxpress/setfit-pytorch-lightning](https://github.com/jxpress/setfit-pytorch-lightning) - A PyTorch Lightning implementation of SetFit.
 * [davidberenstein1957/spacy-setfit](https://github.com/davidberenstein1957/spacy-setfit) - An easy and intuitive approach to use SetFit in combination with spaCy. 
 
