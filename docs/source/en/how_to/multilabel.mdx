@@ -1,0 +1,48 @@
+
+# Multilabel Text Classification
+
+SetFit supports multilabel classification, allowing multiple labels to be assigned to each instance. 
+
+<Tip>
+
+Unless each instance must be assigned multiple outputs, you frequently do not need to specify a multi target strategy.
+
+</Tip>
+
+This guide will show you how to train and use multilabel SetFit models.
+
+## Multilabel strategies
+
+SetFit will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:
+
+* `"one-vs-rest"`: uses a [`OneVsRestClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsRestClassifier.html) head.
+* `"multi-output"`: uses a [`MultiOutputClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.MultiOutputClassifier.html) head.
+* `"classifier-chain"`: uses a [`ClassifierChain`](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.ClassifierChain.html) head.
+
+See the [scikit-learn documentation for multiclass and multioutput classification](https://scikit-learn.org/stable/modules/multiclass.html#multiclass-classification) for more details.
+
+## Initializing SetFit models with multilabel strategies
+
+Using the default LogisticRegression head, we can apply multi target strategies like so:
+
+```py
+from setfit import SetFitModel
+
+model = SetFitModel.from_pretrained(
+    model_id, # e.g. "BAAI/bge-small-en-v1.5"
+    multi_target_strategy="multi-output",
+)
+```
+
+With a differentiable head it looks like so:
+
+```py
+from setfit import SetFitModel
+
+model = SetFitModel.from_pretrained(
+    model_id, # e.g. "BAAI/bge-small-en-v1.5"
+    multi_target_strategy="one-vs-rest"
+    use_differentiable_head=True,
+    head_params={"out_features": num_classes},
+)
+```

@@ -1,14 +1,42 @@
 
 # Installation
 
-Download and install `setfit` by running:
+Before you start, you'll need to setup your environment and install the appropriate packages. 🤗 SetFit is tested on **Python 3.7+**.
+
+## pip
+
+The most straightforward way to install 🤗 Datasets is with pip:
 
 ```bash
-python -m pip install setfit
+pip install setfit
 ```
 
-If you want the bleeding-edge version, install from source by running:
+If you have a CUDA-capable graphics card, then it is recommended to [install `torch` with CUDA support](https://pytorch.org/get-started/locally/) to train and performing inference much more quickly:
 
 ```bash
-python -m pip install git+https://github.com/huggingface/setfit.git
+pip install torch --index-url https://download.pytorch.org/whl/cu118
+```
+
+## Installing from source
+
+Building 🤗 SetFit from source lets you make changes to the code base. To install from the source, clone the repository and install 🤗 SetFit in [editable mode](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) with the following commands:
+
+```bash
+git clone https://github.com/huggingface/setfit.git
+cd setfit
+pip install -e .
+```
+
+If you just want the bleeding-edge version without making any changes of your own, then install from source by running:
+
+```bash
+pip install git+https://github.com/huggingface/setfit.git
+```
+
+## Conda
+
+If conda is your package management system of choice, then you can install 🤗 SetFit like so:
+
+```bash
+conda install -c conda-forge setfit
 ```

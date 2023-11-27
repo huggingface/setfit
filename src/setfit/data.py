@@ -1,4 +1,3 @@
-import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -19,15 +18,6 @@ if TYPE_CHECKING:
 TokenizerOutput = Dict[str, List[int]]
 SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 SAMPLE_SIZES = [2, 4, 8, 16, 32, 64]
-
-
-def get_augmented_samples(*args, **kwargs) -> None:
-    warnings.warn(
-        "`get_augmented_samples` has been deprecated and will be removed in v1.0.0 of SetFit. "
-        "Please use `get_templated_dataset` instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
 
 
 def get_templated_dataset(
@@ -54,9 +44,9 @@ def get_templated_dataset(
     Args:
         dataset (`Dataset`, *optional*): A Dataset to add templated examples to.
         candidate_labels (`List[str]`, *optional*): The list of candidate
-        labels to be fed into the template to construct examples.
+            labels to be fed into the template to construct examples.
         reference_dataset (`str`, *optional*): A dataset to take labels
-        from, if `candidate_labels` is not supplied.
+            from, if `candidate_labels` is not supplied.
         template (`str`, *optional*, defaults to `"This sentence is {}"`): The template
             used to turn each label into a synthetic training example. This template
             must include a {} for the candidate label to be inserted into the template.
@@ -64,16 +54,16 @@ def get_templated_dataset(
             candidate label "sports", this would produce an example
             "This sentence is sports".
         sample_size (`int`, *optional*, defaults to 2): The number of examples to make for
-        each candidate label.
+            each candidate label.
         text_column (`str`, *optional*, defaults to `"text"`): The name of the column
-        containing the text of the examples.
+            containing the text of the examples.
         label_column (`str`, *optional*, defaults to `"label"`): The name of the column
-        in `dataset` containing the labels of the examples.
+            in `dataset` containing the labels of the examples.
         multi_label (`bool`, *optional*, defaults to `False`): Whether or not multiple
-        candidate labels can be true.
+            candidate labels can be true.
         label_names_column (`str`, *optional*, defaults to "label_text"): The name of the
-        label column in the `reference_dataset`, to be used in case there is no ClassLabel
-        feature for the label column.
+            label column in the `reference_dataset`, to be used in case there is no ClassLabel
+            feature for the label column.
 
     Returns:
         `Dataset`: A copy of the input Dataset with templated examples added.
@@ -113,15 +103,6 @@ def get_templated_dataset(
             dataset = dataset.add_item(example)
 
     return dataset
-
-
-def add_templated_examples(*args, **kwargs) -> None:
-    warnings.warn(
-        "`add_templated_examples` has been deprecated and will be removed in v1.0.0 of SetFit. "
-        "Please use `get_templated_dataset` instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
 
 
 def get_candidate_labels(dataset_name: str, label_names_column: str = "label_text") -> List[str]:
@@ -170,7 +151,7 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     df = df.groupby(label_column)
 
     # sample num_samples, or at least as much as possible
-    df = df.apply(lambda x: x.sample(min(num_samples, len(x))))
+    df = df.apply(lambda x: x.sample(min(num_samples, len(x)), random_state=seed))
     df = df.reset_index(drop=True)
 
     all_samples = Dataset.from_pandas(df, features=dataset.features)

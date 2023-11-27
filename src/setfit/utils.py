@@ -7,7 +7,7 @@ from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
 
 from .data import create_fewshot_splits, create_fewshot_splits_multilabel
-from .modeling import SupConLoss
+from .losses import SupConLoss
 
 
 SEC_TO_NS_SCALE = 1000000000
@@ -135,7 +135,7 @@ class Benchmark:
 
 class BestRun(NamedTuple):
     """
-    The best run found by a hyperparameter search (see [`~SetFitTrainer.hyperparameter_search`]).
+    The best run found by a hyperparameter search (see [`~Trainer.hyperparameter_search`]).
 
     Parameters:
         run_id (`str`):
