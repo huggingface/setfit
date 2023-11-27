@@ -242,7 +242,7 @@ class SetFitHead(models.Dense):
 
 @dataclass
 class SetFitModel(PyTorchModelHubMixin):
-    """A SetFit model with integration to the Hugging Face Hub."""
+    """A SetFit model with integration to the [Hugging Face Hub](https://huggingface.co)."""
 
     model_body: Optional[SentenceTransformer] = (None,)
     model_head: Optional[Union[SetFitHead, LogisticRegression]] = None
