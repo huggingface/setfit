@@ -47,7 +47,15 @@ class OnnxSetFitModel(torch.nn.Module):
         self.model_head = model_head
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, token_type_ids: torch.Tensor):
-        hidden_states = self.model_body(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+        # inputs = {
+        #     "input_ids": input_ids,
+        #     "attention_mask": attention_mask,
+        #     "token_type_ids": token_type_ids
+        # }
+
+        hidden_states = self.model_body(
+            input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
+        )
         hidden_states = {"token_embeddings": hidden_states[0], "attention_mask": attention_mask}
 
         embeddings = self.pooler(hidden_states)

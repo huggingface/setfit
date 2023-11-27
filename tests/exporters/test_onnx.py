@@ -43,7 +43,7 @@ def test_export_onnx_sklearn_head(model_path, input_text):
             padding=True,
             truncation=True,
             return_attention_mask=True,
-            return_token_type_ids=True,
+            return_token_type_ids=False,
             return_tensors="np",
         )
         # Map inputs to int64 from int32
@@ -61,7 +61,6 @@ def test_export_onnx_sklearn_head(model_path, input_text):
         os.remove(output_path)
 
 
-@pytest.mark.skip("ONNX exporting of SetFit model with Torch head not yet supported.")
 @pytest.mark.parametrize("out_features", [1, 2, 3])
 def test_export_onnx_torch_head_model_accepts_token_type_ids(out_features):
     """Test that the exported `ONNX` model returns the same predictions as the original model."""
@@ -120,8 +119,8 @@ def test_export_onnx_torch_head_model_accepts_token_type_ids(out_features):
 
         onnx_preds = session.run(None, dict(inputs))[0]
         onnx_preds = onnx_preds / (1 + 1e-5)
-        onnx_preds_soft = np.exp(onnx_preds)/sum(np.exp(onnx_preds))
-        onnx_preds_argmax = np.argmax(onnx_preds_soft, axis=0)
+        onnx_preds_soft = np.exp(onnx_preds) / sum(np.exp(onnx_preds))
+        onnx_preds_argmax = np.argmax(onnx_preds_soft, axis=1)
 
         # Compare the results and ensure that we get the same predictions.
         assert np.array_equal(onnx_preds_argmax, pytorch_preds)
@@ -153,7 +152,7 @@ def test_export_onnx_torch_head_model_not_accepts_token_type_ids(out_features):
     # Unfreeze the head and unfreeze the body -> end-to-end training
     trainer.unfreeze(keep_body_frozen=False)
     trainer.train(
-        num_epochs=15,
+        num_epochs=2,
         batch_size=16,
         body_learning_rate=1e-5,
         learning_rate=1e-2,
@@ -179,18 +178,23 @@ def test_export_onnx_torch_head_model_not_accepts_token_type_ids(out_features):
             padding=True,
             truncation=True,
             return_attention_mask=True,
-            return_token_type_ids=True,
+            return_token_type_ids=False,
             return_tensors="np",
         )
         # Map inputs to int64 from int32
         inputs = {key: value.astype("int64") for key, value in inputs.items()}
 
+        import onnx
+
+        model = onnx.load(output_path)
+        print([input.name for input in model.graph.input])
+
         session = onnxruntime.InferenceSession(output_path)
 
         onnx_preds = session.run(None, dict(inputs))[0]
         onnx_preds = onnx_preds / (1 + 1e-5)
-        onnx_preds_soft = np.exp(onnx_preds)/sum(np.exp(onnx_preds))
-        onnx_preds_argmax = np.argmax(onnx_preds_soft, axis=0)
+        onnx_preds_soft = np.exp(onnx_preds) / sum(np.exp(onnx_preds))
+        onnx_preds_argmax = np.argmax(onnx_preds_soft, axis=1)
 
         # Compare the results and ensure that we get the same predictions.
         assert np.array_equal(onnx_preds_argmax, pytorch_preds)
