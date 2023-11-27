@@ -30,7 +30,7 @@
   - local: how_to/knowledge_distillation
     title: Knowledge Distillation
   - local: how_to/batch_sizes
-    title: Batch Sizes
+    title: Batch Sizes for Inference
   - local: how_to/absa
     title: Aspect Based Sentiment Analysis
   - local: how_to/v1.0.0_migration_guide
