@@ -100,7 +100,7 @@ print(preds)
 
 ## Reproducing the results from the paper
 
-We provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Check out the setup and training instructions in the [`scripts/setfit/`](scripts/setfit) directory.
+We provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Check out the setup and training instructions in the [`scripts/`](scripts/) directory.
 
 ## Developer installation
 
