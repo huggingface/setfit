@@ -640,7 +640,8 @@ class Trainer(ColumnMappingMixin):
             dir_name = Path(self.state.best_model_checkpoint).name
             if dir_name.startswith("step_"):
                 logger.info(f"Loading best SentenceTransformer model from step {dir_name[5:]}.")
-            self.model.model_body = SentenceTransformer(self.state.best_model_checkpoint, device=model_body.device)
+            self.model.model_body = SentenceTransformer(self.state.best_model_checkpoint, device=model_body._target_device)
+            self.model.model_body.to(model_body._target_device)
 
         # Ensure logging the speed metrics
         num_train_samples = self.state.max_steps * args.embedding_batch_size  # * args.gradient_accumulation_steps
