@@ -624,39 +624,14 @@ class Trainer(ColumnMappingMixin):
                 self.state.epoch = epoch + (step + 1) / steps_per_epoch
                 self.control = self.callback_handler.on_step_end(args, self.state, self.control)
 
-                if self.control.should_log:
-                    learning_rate = scheduler_obj.get_last_lr()[0]
-                    metrics = {"embedding_loss": round(loss_value.item(), 4), "learning_rate": learning_rate}
-                    self.control = self.log(args, metrics)
-
-                eval_loss = None
-                if self.control.should_evaluate and eval_dataloader is not None:
-                    eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
-                    learning_rate = scheduler_obj.get_last_lr()[0]
-                    metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
-                    self.control = self.log(args, metrics)
-
-                    self.control = self.callback_handler.on_evaluate(args, self.state, self.control, metrics)
-
-                    loss_func.zero_grad()
-                    loss_func.train()
-
-                if self.control.should_save:
-                    checkpoint_dir = self._checkpoint(
-                        self.args.output_dir, args.save_total_limit, self.state.global_step
-                    )
-                    self.control = self.callback_handler.on_save(self.args, self.state, self.control)
-
-                    if eval_loss is not None and (
-                        self.state.best_metric is None or eval_loss < self.state.best_metric
-                    ):
-                        self.state.best_metric = eval_loss
-                        self.state.best_model_checkpoint = checkpoint_dir
+                self.maybe_log_eval_save(model_body, eval_dataloader, args, scheduler_obj, loss_func, loss_value)
 
                 if self.control.should_epoch_stop or self.control.should_training_stop:
                     break
 
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
+
+            self.maybe_log_eval_save(model_body, eval_dataloader, args, scheduler_obj, loss_func, loss_value)
 
             if self.control.should_training_stop:
                 break
@@ -674,6 +649,40 @@ class Trainer(ColumnMappingMixin):
         self.log(args, metrics)
 
         self.control = self.callback_handler.on_train_end(args, self.state, self.control)
+
+    def maybe_log_eval_save(
+        self,
+        model_body: SentenceTransformer,
+        eval_dataloader: Optional[DataLoader],
+        args: TrainingArguments,
+        scheduler_obj,
+        loss_func,
+        loss_value: torch.Tensor,
+    ) -> None:
+        if self.control.should_log:
+            learning_rate = scheduler_obj.get_last_lr()[0]
+            metrics = {"embedding_loss": round(loss_value.item(), 4), "learning_rate": learning_rate}
+            self.control = self.log(args, metrics)
+
+        eval_loss = None
+        if self.control.should_evaluate and eval_dataloader is not None:
+            eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
+            learning_rate = scheduler_obj.get_last_lr()[0]
+            metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
+            self.control = self.log(args, metrics)
+
+            self.control = self.callback_handler.on_evaluate(args, self.state, self.control, metrics)
+
+            loss_func.zero_grad()
+            loss_func.train()
+
+        if self.control.should_save:
+            checkpoint_dir = self._checkpoint(self.args.output_dir, args.save_total_limit, self.state.global_step)
+            self.control = self.callback_handler.on_save(self.args, self.state, self.control)
+
+            if eval_loss is not None and (self.state.best_metric is None or eval_loss < self.state.best_metric):
+                self.state.best_metric = eval_loss
+                self.state.best_model_checkpoint = checkpoint_dir
 
     def _evaluate_with_loss(
         self,
