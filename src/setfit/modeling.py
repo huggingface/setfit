@@ -842,7 +842,7 @@ if cut_index != -1:
                 Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
             device (`Union[torch.device, str]`, *optional*):
                 The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`.
-    
+
         Example::
 
             >>> from setfit import SetFitModel

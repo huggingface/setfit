@@ -283,7 +283,7 @@ def test_save_load_config(model: SetFitModel) -> None:
         assert config == {"normalize_embeddings": True, "labels": ["negative", "positive"]}
 
         fresh_model = model.from_pretrained(tmp_dir)
-        assert fresh_model.normalize_embeddings == True
+        assert fresh_model.normalize_embeddings is True
         assert fresh_model.labels == ["negative", "positive"]
 
 
