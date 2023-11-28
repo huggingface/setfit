@@ -47,13 +47,20 @@ class OnnxSetFitModel(torch.nn.Module):
         self.model_head = model_head
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, token_type_ids: torch.Tensor):
-        inputs = {"input_ids": input_ids, "attention_mask": attention_mask, "token_type_ids": token_type_ids}
+        inputs = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "token_type_ids": token_type_ids,
+        }
 
         hidden_states = self.model_body(**inputs)
 
         hidden_states = {"token_embeddings": hidden_states[0], "attention_mask": attention_mask}
 
         embeddings = self.pooler(hidden_states)
+
+        # Just to enforce that the token_type_ids will be included in the ONNX graph.
+        embeddings = embeddings + 0 * token_type_ids.sum()
 
         # If the model_head is none we are using a sklearn head and only output
         # the embeddings from the setfit model
@@ -212,8 +219,6 @@ def export_onnx(
 
     # Load the model and get all of the parts.
     model_body_module = model_body._modules["0"]
-    if "token_type_embeddings" not in model_body._modules["0"].auto_model._modules["embeddings"]._modules:
-        print("No token_type_embeddings found in model. The input to the model will not have token_type_ids.")
     model_pooler = model_body._modules["1"]
     tokenizer = model_body_module.tokenizer
     max_length = model_body_module.max_seq_length

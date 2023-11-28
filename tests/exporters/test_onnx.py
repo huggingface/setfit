@@ -177,7 +177,7 @@ def test_export_onnx_torch_head_model_not_accepts_token_type_ids(out_features):
             padding=True,
             truncation=True,
             return_attention_mask=True,
-            return_token_type_ids=False,
+            return_token_type_ids=True,
             return_tensors="np",
         )
         # Map inputs to int64 from int32
