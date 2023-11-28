@@ -1,5 +1,6 @@
 import os
 import tempfile
+import types
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,7 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
+from transformers.utils import copy_func
 
 from . import logging
 from .data import SetFitDataset
@@ -719,3 +721,27 @@ class SetFitModel(PyTorchModelHubMixin):
             normalize_embeddings=normalize_embeddings,
             **model_kwargs,
         )
+
+
+def set_docstring(cls, method, docstring):
+    copied_function = copy_func(method)
+    copied_function.__doc__ = docstring
+    return types.MethodType(copy_func(copied_function), cls)
+
+
+docstring = SetFitModel.from_pretrained.__doc__
+cut_index = docstring.find("model_kwargs")
+if cut_index != -1:
+    docstring = (
+        docstring[:cut_index]
+        + """multi_target_strategy (`str`, *optional*):
+                The strategy to use with multi-label classification. One of "one-vs-rest", "multi-output",
+                    or "classifier-chain".
+            use_differentiable_head (`bool`, *optional*):
+                Whether to load SetFit using a differentiable (i.e., Torch) head instead of Logistic Regression.
+            normalize_embeddings (`bool`, *optional*):
+                Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
+            device (`Union[torch.device, str]`, *optional*):
+                The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`."""
+    )
+    SetFitModel.from_pretrained = set_docstring(SetFitModel, SetFitModel.from_pretrained, docstring)
