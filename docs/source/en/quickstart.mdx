@@ -25,7 +25,6 @@ SetFit is an efficient framework to train low-latency text classification models
 
 In this section, you'll load a [Sentence Transformer model](https://huggingface.co/models?library=sentence-transformers) and further finetune it for classifying movie reviews as positive or negative. To train a model, we will need to prepare the following three: 1) a **model**, 2) a **dataset**, and 3) **training arguments**.
 
-
 **1**. Initialize a SetFit model using a Sentence Transformer model of our choice. Consider using the [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) to guide your decision on which Sentence Transformer model to choose. We will use [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5), a small but performant model.
 
 ```py
@@ -77,6 +76,12 @@ Dataset({
     features: ['text', 'label', 'label_text'],
     num_rows: 1821
 })
+```
+
+**2c**. We can apply the labels from the dataset on the model, so the predictions output readable classes. You can also provide the labels directly to [`SetFitModel.from_pretrained`].
+
+```py
+>>> model.labels = ["negative", "positive"]
 ```
 
 **3**. Prepare the [`TrainingArguments`] for training. Note that training with 🤗 SetFit consists of two phases behind the scenes: **finetuning embeddings** and **training a classification head**. As a result, some of the training arguments can be tuples, where the two values are used for each of the two phases, respectively.
@@ -132,13 +137,13 @@ Feel free to experiment with increasing the number of samples per class to obser
 After training, you can save a 🤗 SetFit model to your local filesystem or to the Hugging Face Hub. Save a model to a local directory using [`SetFitModel.save_pretrained`] by providing a `save_directory`:
 
 ```py
->>> model.save_pretrained("setfit-8-shot-sst2")
+>>> model.save_pretrained("setfit-bge-small-v1.5-sst2-8-shot")
 ```
 
 Alternatively, push a model to the Hugging Face Hub using [`SetFitModel.push_to_hub`] by providing a `repo_id`:
 
 ```py
->>> model.push_to_hub("tomaarsen/setfit-8-shot-sst2")
+>>> model.push_to_hub("tomaarsen/setfit-bge-small-v1.5-sst2-8-shot")
 ```
 
 ### Loading a 🤗 SetFit model
@@ -146,9 +151,9 @@ Alternatively, push a model to the Hugging Face Hub using [`SetFitModel.push_to_
 A 🤗 SetFit model can be loaded using [`SetFitModel.from_pretrained`] by providing 1) a `repo_id` from the Hugging Face Hub or 2) a path to a local directory:
 
 ```py
->>> model = SetFitModel.from_pretrained("tomaarsen/setfit-8-shot-sst2") # Load from the Hugging Face Hub
+>>> model = SetFitModel.from_pretrained("tomaarsen/setfit-bge-small-v1.5-sst2-8-shot") # Load from the Hugging Face Hub
 
->>> model = SetFitModel.from_pretrained("setfit-8-shot-sst2") # Load from a local directory
+>>> model = SetFitModel.from_pretrained("setfit-bge-small-v1.5-sst2-8-shot") # Load from a local directory
 ```
 
 ### Inference
@@ -162,9 +167,9 @@ Once a 🤗 SetFit model has been trained, then it can be used for inference to 
 ...     "A sometimes tedious film.",
 ... ])
 >>> preds
-tensor([1, 0, 0], dtype=torch.int32)
+['positive' 'negative' 'negative']
 ```
-These predictions match the format of the input labels. If we had used string labels, then the outputs would have been `['positive' 'negative' 'negative']`.
+These predictions rely on the `model.labels`. If not set, it will return predictions in the format that was used during training, e.g. `tensor([1, 0, 0])`.
 
 ## What's next?
 
@@ -181,7 +186,7 @@ from setfit import SetFitModel, Trainer, TrainingArguments, sample_dataset
 from datasets import load_dataset
 
 # Initializing a new SetFit model
-model = SetFitModel.from_pretrained("BAAI/bge-small-en-v1.5")
+model = SetFitModel.from_pretrained("BAAI/bge-small-en-v1.5", labels=["negative", "positive"])
 
 # Preparing the dataset
 dataset = load_dataset("SetFit/sst2")
@@ -208,14 +213,14 @@ print(metrics)
 # => {'accuracy': 0.8511806699615596}
 
 # Saving the trained model
-model.save_pretrained("setfit-8-shot-sst2")
+model.save_pretrained("setfit-bge-small-v1.5-sst2-8-shot")
 # or
-model.push_to_hub("tomaarsen/setfit-8-shot-sst2")
+model.push_to_hub("tomaarsen/setfit-bge-small-v1.5-sst2-8-shot")
 
 # Loading a trained model
-model = SetFitModel.from_pretrained("tomaarsen/setfit-8-shot-sst2") # Load from the Hugging Face Hub
+model = SetFitModel.from_pretrained("tomaarsen/setfit-bge-small-v1.5-sst2-8-shot") # Load from the Hugging Face Hub
 # or
-model = SetFitModel.from_pretrained("setfit-8-shot-sst2") # Load from a local directory
+model = SetFitModel.from_pretrained("setfit-bge-small-v1.5-sst2-8-shot") # Load from a local directory
 
 # Performing inference
 preds = model.predict([
@@ -224,5 +229,5 @@ preds = model.predict([
     "A sometimes tedious film.",
 ])
 print(preds)
-# => tensor([1, 0, 0], dtype=torch.int32)
+# => ["positive", "negative", "negative"]
 ```

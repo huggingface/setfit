@@ -1,15 +1,12 @@
-import json
 import os
 import tempfile
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 
-import requests
 import torch
-from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import SoftTemporaryDirectory, validate_hf_hub_args
+from huggingface_hub.utils import SoftTemporaryDirectory
 from jinja2 import Environment, FileSystemLoader
 
 from setfit.utils import set_docstring
@@ -24,12 +21,14 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
-CONFIG_NAME = "config_span_setfit.json"
-
 
 @dataclass
 class SpanSetFitModel(SetFitModel):
     span_context: int = 0
+
+    attributes_to_save: Set[str] = field(
+        init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels", "span_context"}
+    )
 
     def prepend_aspects(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> List[str]:
         for doc, aspects in zip(docs, aspects_list):
@@ -43,68 +42,6 @@ class SpanSetFitModel(SetFitModel):
         preds = self.predict(inputs_list, as_numpy=True)
         iter_preds = iter(preds)
         return [[next(iter_preds) for _ in aspects] for aspects in aspects_list]
-
-    @classmethod
-    @validate_hf_hub_args
-    def _from_pretrained(
-        cls,
-        model_id: str,
-        span_context: Optional[int] = None,
-        revision: Optional[str] = None,
-        cache_dir: Optional[str] = None,
-        force_download: Optional[bool] = None,
-        proxies: Optional[Dict] = None,
-        resume_download: Optional[bool] = None,
-        local_files_only: Optional[bool] = None,
-        token: Optional[Union[bool, str]] = None,
-        **model_kwargs,
-    ) -> "SpanSetFitModel":
-        config_file: Optional[str] = None
-        if os.path.isdir(model_id):
-            if CONFIG_NAME in os.listdir(model_id):
-                config_file = os.path.join(model_id, CONFIG_NAME)
-        else:
-            try:
-                config_file = hf_hub_download(
-                    repo_id=model_id,
-                    filename=CONFIG_NAME,
-                    revision=revision,
-                    cache_dir=cache_dir,
-                    force_download=force_download,
-                    proxies=proxies,
-                    resume_download=resume_download,
-                    token=token,
-                    local_files_only=local_files_only,
-                )
-            except requests.exceptions.RequestException:
-                pass
-
-        if config_file is not None:
-            with open(config_file, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            model_kwargs.update(config)
-
-        if span_context is not None:
-            model_kwargs["span_context"] = span_context
-
-        return super(SpanSetFitModel, cls)._from_pretrained(
-            model_id=model_id,
-            revision=revision,
-            cache_dir=cache_dir,
-            force_download=force_download,
-            proxies=proxies,
-            resume_download=resume_download,
-            local_files_only=local_files_only,
-            token=token,
-            **model_kwargs,
-        )
-
-    def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
-        path = os.path.join(save_directory, CONFIG_NAME)
-        with open(path, "w") as f:
-            json.dump({"span_context": self.span_context}, f, indent=2)
-
-        super()._save_pretrained(save_directory)
 
     def create_model_card(self, path: str, model_name: Optional[str] = None) -> None:
         """Creates and saves a model card for a SetFit model.
@@ -245,7 +182,7 @@ class AbsaModel:
         model_id: str,
         polarity_model_id: Optional[str] = None,
         spacy_model: Optional[str] = "en_core_web_lg",
-        span_contexts: Tuple[Optional[int], Optional[int]] = (None, None),
+        span_contexts: Tuple[Optional[int], Optional[int]] = (0, 3),
         force_download: bool = False,
         resume_download: bool = False,
         proxies: Optional[Dict] = None,
