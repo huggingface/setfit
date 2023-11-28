@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+import types
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -10,6 +11,8 @@ import torch
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import SoftTemporaryDirectory, validate_hf_hub_args
 from jinja2 import Environment, FileSystemLoader
+
+from setfit.utils import set_docstring
 
 from .. import logging
 from ..modeling import SetFitModel
@@ -142,6 +145,21 @@ class SpanSetFitModel(SetFitModel):
             f.write(model_card_content)
 
 
+docstring = SpanSetFitModel.from_pretrained.__doc__
+cut_index = docstring.find("multi_target_strategy")
+if cut_index != -1:
+    docstring = (
+        docstring[:cut_index]
+        + """use_differentiable_head (`bool`, *optional*):
+                Whether to load SetFit using a differentiable (i.e., Torch) head instead of Logistic Regression.
+            normalize_embeddings (`bool`, *optional*):
+                Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
+            device (`Union[torch.device, str]`, *optional*):
+                The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`."""
+    )
+    SpanSetFitModel.from_pretrained = set_docstring(SpanSetFitModel.from_pretrained, docstring, cls=SpanSetFitModel)
+
+
 class AspectModel(SpanSetFitModel):
     # TODO: Assumes binary SetFitModel with 0 == no aspect, 1 == aspect
     def __call__(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> List[bool]:
@@ -152,9 +170,17 @@ class AspectModel(SpanSetFitModel):
         ]
 
 
+# The set_docstring magic has as a consequences that subclasses need to update the cls in the from_pretrained
+# classmethod, otherwise the wrong instance will be instantiated.
+AspectModel.from_pretrained = types.MethodType(AspectModel.from_pretrained.__func__, AspectModel)
+
+
 @dataclass
 class PolarityModel(SpanSetFitModel):
     span_context: int = 3
+
+
+PolarityModel.from_pretrained = types.MethodType(PolarityModel.from_pretrained.__func__, PolarityModel)
 
 
 @dataclass

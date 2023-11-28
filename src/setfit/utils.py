@@ -1,3 +1,4 @@
+import types
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import monotonic_ns
@@ -5,6 +6,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
+from transformers.utils import copy_func
 
 from .data import create_fewshot_splits, create_fewshot_splits_multilabel
 from .losses import SupConLoss
@@ -152,3 +154,9 @@ class BestRun(NamedTuple):
     objective: float
     hyperparameters: Dict[str, Any]
     backend: Any = None
+
+
+def set_docstring(method, docstring, cls=None):
+    copied_function = copy_func(method)
+    copied_function.__doc__ = docstring
+    return types.MethodType(copied_function, cls or method.__self__)

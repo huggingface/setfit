@@ -1,6 +1,5 @@
 import os
 import tempfile
-import types
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,10 +25,10 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
-from transformers.utils import copy_func
 
 from . import logging
 from .data import SetFitDataset
+from .utils import set_docstring
 
 
 logging.set_verbosity_info()
@@ -723,12 +722,6 @@ class SetFitModel(PyTorchModelHubMixin):
         )
 
 
-def set_docstring(cls, method, docstring):
-    copied_function = copy_func(method)
-    copied_function.__doc__ = docstring
-    return types.MethodType(copy_func(copied_function), cls)
-
-
 docstring = SetFitModel.from_pretrained.__doc__
 cut_index = docstring.find("model_kwargs")
 if cut_index != -1:
@@ -744,4 +737,4 @@ if cut_index != -1:
             device (`Union[torch.device, str]`, *optional*):
                 The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`."""
     )
-    SetFitModel.from_pretrained = set_docstring(SetFitModel, SetFitModel.from_pretrained, docstring)
+    SetFitModel.from_pretrained = set_docstring(SetFitModel.from_pretrained, docstring)
