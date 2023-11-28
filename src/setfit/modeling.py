@@ -25,6 +25,7 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
+from transformers.utils import copy_func
 
 from . import logging
 from .data import SetFitDataset
@@ -489,7 +490,8 @@ class SetFitModel(PyTorchModelHubMixin):
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
             show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
-        Example:
+        Example::
+
             >>> model = SetFitModel.from_pretrained(...)
             >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
             tensor([0, 1, 1], dtype=torch.int32)
@@ -514,7 +516,8 @@ class SetFitModel(PyTorchModelHubMixin):
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
             show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
-        Example:
+        Example::
+
             >>> model = SetFitModel.from_pretrained(...)
             >>> model.predict_proba(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
             tensor([[0.9367, 0.0633],
@@ -544,7 +547,7 @@ class SetFitModel(PyTorchModelHubMixin):
         Args:
             device (Union[str, torch.device]): The identifier of the device to move the model to.
 
-        Example:
+        Example::
 
             >>> model = SetFitModel.from_pretrained(...)
             >>> model.to("cpu")
@@ -596,7 +599,8 @@ class SetFitModel(PyTorchModelHubMixin):
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
             show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
 
-        Example:
+        Example::
+
             >>> model = SetFitModel.from_pretrained(...)
             >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
             tensor([0, 1, 1], dtype=torch.int32)
@@ -738,3 +742,8 @@ if cut_index != -1:
                 The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`."""
     )
     SetFitModel.from_pretrained = set_docstring(SetFitModel.from_pretrained, docstring)
+
+SetFitModel.save_pretrained = copy_func(SetFitModel.save_pretrained)
+SetFitModel.save_pretrained.__doc__ = SetFitModel.save_pretrained.__doc__.replace(
+    "~ModelHubMixin._from_pretrained", "SetFitModel.push_to_hub"
+)

@@ -40,10 +40,10 @@ class AbsaTrainer(ColumnMappingMixin):
         metric_kwargs (`Dict[str, Any]`, *optional*):
             Keyword arguments passed to the evaluation function if `metric` is an evaluation string like "f1".
             For example useful for providing an averaging strategy for computing f1 in a multi-label setting.
-        callbacks: (`List[~transformers.TrainerCallback]`, *optional*):
+        callbacks (`List[`[`~transformers.TrainerCallback`]`]`, *optional*):
             A list of callbacks to customize the training loop. Will add those to the list of default callbacks
             detailed in [here](https://huggingface.co/docs/transformers/main/en/main_classes/callback).
-            If you want to remove one of the default callbacks used, use the `Trainer.remove_callback()` method.
+            If you want to remove one of the default callbacks used, use the [`Trainer.remove_callback`] method.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model.
             The expected format is a dictionary with the following format:
@@ -224,42 +224,43 @@ class AbsaTrainer(ColumnMappingMixin):
         """
         self.polarity_trainer.train(args=args, trial=trial, **kwargs)
 
-    def add_callback(self, callback):
+    def add_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
-        Add a callback to the current list of [`~transformer.TrainerCallback`].
+        Add a callback to the current list of [`~transformers.TrainerCallback`].
 
         Args:
-           callback (`type` or [`~transformer.TrainerCallback`]):
-               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
-               first case, will instantiate a member of that class.
+            callback (`type` or [`~transformers.TrainerCallback`]):
+                A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
+                first case, will instantiate a member of that class.
         """
         self.aspect_trainer.add_callback(callback)
         self.polarity_trainer.add_callback(callback)
 
-    def pop_callback(self, callback):
+    def pop_callback(self, callback: Union[type, TrainerCallback]) -> Tuple[TrainerCallback, TrainerCallback]:
         """
-        Remove a callback from the current list of [`~transformer.TrainerCallback`] and returns it.
+        Remove a callback from the current list of [`~transformers.TrainerCallback`] and returns it.
 
         If the callback is not found, returns `None` (and no error is raised).
 
         Args:
-           callback (`type` or [`~transformer.TrainerCallback`]):
-               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
-               first case, will pop the first member of that class found in the list of callbacks.
+            callback (`type` or [`~transformers.TrainerCallback`]):
+                A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
+                first case, will pop the first member of that class found in the list of callbacks.
 
         Returns:
-            [`Tuple[~transformer.TrainerCallback]`]: The callbacks removed from the aspect and polarity trainers, if found.
+            `Tuple[`[`~transformers.TrainerCallback`], [`~transformers.TrainerCallback`]`]`: The callbacks removed from the
+                aspect and polarity trainers, if found.
         """
         return self.aspect_trainer.pop_callback(callback), self.polarity_trainer.pop_callback(callback)
 
-    def remove_callback(self, callback):
+    def remove_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
-        Remove a callback from the current list of [`~transformer.TrainerCallback`].
+        Remove a callback from the current list of [`~transformers.TrainerCallback`].
 
         Args:
-           callback (`type` or [`~transformer.TrainerCallback`]):
-               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
-               first case, will remove the first member of that class found in the list of callbacks.
+            callback (`type` or [`~transformers.TrainerCallback`]):
+                A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
+                first case, will remove the first member of that class found in the list of callbacks.
         """
         self.aspect_trainer.remove_callback(callback)
         self.polarity_trainer.remove_callback(callback)

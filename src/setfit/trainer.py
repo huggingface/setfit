@@ -147,7 +147,7 @@ class Trainer(ColumnMappingMixin):
             The evaluation dataset.
         model_init (`Callable[[], SetFitModel]`, *optional*):
             A function that instantiates the model to be used. If provided, each call to
-            [`~Trainer.train`] will start from a new instance of the model as given by this
+            [`Trainer.train`] will start from a new instance of the model as given by this
             function when a `trial` is passed.
         metric (`str` or `Callable`, *optional*, defaults to `"accuracy"`):
             The metric to use for evaluation. If a string is provided, we treat it as the metric
@@ -156,10 +156,10 @@ class Trainer(ColumnMappingMixin):
         metric_kwargs (`Dict[str, Any]`, *optional*):
             Keyword arguments passed to the evaluation function if `metric` is an evaluation string like "f1".
             For example useful for providing an averaging strategy for computing f1 in a multi-label setting.
-        callbacks: (`List[~transformers.TrainerCallback]`, *optional*):
+        callbacks (`List[`[`~transformers.TrainerCallback`]`]`, *optional*):
             A list of callbacks to customize the training loop. Will add those to the list of default callbacks
             detailed in [here](https://huggingface.co/docs/transformers/main/en/main_classes/callback).
-            If you want to remove one of the default callbacks used, use the `Trainer.remove_callback()` method.
+            If you want to remove one of the default callbacks used, use the [`Trainer.remove_callback`] method.
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model.
             The expected format is a dictionary with the following format:
@@ -214,40 +214,40 @@ class Trainer(ColumnMappingMixin):
         self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
         self.control = self.callback_handler.on_init_end(args, self.state, self.control)
 
-    def add_callback(self, callback):
+    def add_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
-        Add a callback to the current list of [`~transformer.TrainerCallback`].
+        Add a callback to the current list of [`~transformers.TrainerCallback`].
 
         Args:
-           callback (`type` or [`~transformer.TrainerCallback`]):
-               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+           callback (`type` or [`~transformers.TrainerCallback`]):
+               A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
                first case, will instantiate a member of that class.
         """
         self.callback_handler.add_callback(callback)
 
-    def pop_callback(self, callback):
+    def pop_callback(self, callback: Union[type, TrainerCallback]) -> TrainerCallback:
         """
-        Remove a callback from the current list of [`~transformer.TrainerCallback`] and returns it.
+        Remove a callback from the current list of [`~transformers.TrainerCallback`] and returns it.
 
         If the callback is not found, returns `None` (and no error is raised).
 
         Args:
-           callback (`type` or [`~transformer.TrainerCallback`]):
-               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+           callback (`type` or [`~transformers.TrainerCallback`]):
+               A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
                first case, will pop the first member of that class found in the list of callbacks.
 
         Returns:
-            [`~transformer.TrainerCallback`]: The callback removed, if found.
+            [`~transformers.TrainerCallback`]: The callback removed, if found.
         """
         return self.callback_handler.pop_callback(callback)
 
-    def remove_callback(self, callback):
+    def remove_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
-        Remove a callback from the current list of [`~transformer.TrainerCallback`].
+        Remove a callback from the current list of [`~transformers.TrainerCallback`].
 
         Args:
-           callback (`type` or [`~transformer.TrainerCallback`]):
-               A [`~transformer.TrainerCallback`] class or an instance of a [`~transformer.TrainerCallback`]. In the
+           callback (`type` or [`~transformers.TrainerCallback`]):
+               A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
                first case, will remove the first member of that class found in the list of callbacks.
         """
         self.callback_handler.remove_callback(callback)
@@ -822,16 +822,16 @@ class Trainer(ColumnMappingMixin):
         Args:
             hp_space (`Callable[["optuna.Trial"], Dict[str, float]]`, *optional*):
                 A function that defines the hyperparameter search space. Will default to
-                [`~trainer_utils.default_hp_space_optuna`].
+                [`~transformers.trainer_utils.default_hp_space_optuna`].
             compute_objective (`Callable[[Dict[str, float]], float]`, *optional*):
                 A function computing the objective to minimize or maximize from the metrics returned by the `evaluate`
-                method. Will default to [`~trainer_utils.default_compute_objective`] which uses the sum of metrics.
+                method. Will default to [`~transformers.trainer_utils.default_compute_objective`] which uses the sum of metrics.
             n_trials (`int`, *optional*, defaults to 100):
                 The number of trial runs to test.
             direction (`str`, *optional*, defaults to `"maximize"`):
                 Whether to optimize greater or lower objects. Can be `"minimize"` or `"maximize"`, you should pick
                 `"minimize"` when optimizing the validation loss, `"maximize"` when optimizing one or several metrics.
-            backend (`str` or [`~training_utils.HPSearchBackend`], *optional*):
+            backend (`str` or [`~transformers.training_utils.HPSearchBackend`], *optional*):
                 The backend to use for hyperparameter search. Only optuna is supported for now.
                 TODO: add support for ray and sigopt.
             hp_name (`Callable[["optuna.Trial"], str]]`, *optional*):

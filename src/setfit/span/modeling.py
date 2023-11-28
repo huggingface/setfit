@@ -154,6 +154,9 @@ if cut_index != -1:
                 Whether to load SetFit using a differentiable (i.e., Torch) head instead of Logistic Regression.
             normalize_embeddings (`bool`, *optional*):
                 Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
+            span_context (`int`, defaults to `0`):
+                The number of words before and after the span candidate that should be prepended to the full sentence.
+                By default, 0 for Aspect models and 3 for Polarity models.
             device (`Union[torch.device, str]`, *optional*):
                 The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`."""
     )

@@ -101,7 +101,7 @@ class TrainingArguments:
             Whether to display a progress bar for the training epochs and iterations.
         seed (`int`, defaults to `42`):
             Random seed that will be set at the beginning of training. To ensure reproducibility across
-            runs, use the [`~SetTrainer.model_init`] function to instantiate the model if it has some
+            runs, use the `model_init` argument to [`Trainer`] to instantiate the model if it has some
             randomly initialized parameters.
         report_to (`str` or `List[str]`, *optional*, defaults to `"all"`):
             The list of integrations to report the results and logs to. Supported platforms are `"azure_ml"`,
@@ -113,7 +113,7 @@ class TrainingArguments:
         logging_dir (`str`, *optional*):
             [TensorBoard](https://www.tensorflow.org/tensorboard) log directory. Will default to
             *runs/**CURRENT_DATETIME_HOSTNAME***.
-        logging_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
+        logging_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
             The logging strategy to adopt during training. Possible values are:
 
                 - `"no"`: No logging is done during training.
@@ -124,7 +124,7 @@ class TrainingArguments:
             Whether to log and evaluate the first `global_step` or not.
         logging_steps (`int`, defaults to 50):
             Number of update steps between two logs if `logging_strategy="steps"`.
-        evaluation_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
+        evaluation_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
             The evaluation strategy to adopt during training. Possible values are:
 
                 - `"no"`: No evaluation is done during training.
@@ -138,7 +138,7 @@ class TrainingArguments:
             Number of epochs or steps to wait for before the first evaluation can be performed, depending on the
             evaluation_strategy.
 
-        save_strategy (`str` or [`~trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
+        save_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
             The checkpoint save strategy to adopt during training. Possible values are:
 
                 - `"no"`: No save is done during training.
