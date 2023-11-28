@@ -43,7 +43,7 @@ def test_export_onnx_sklearn_head(model_path, input_text):
             padding=True,
             truncation=True,
             return_attention_mask=True,
-            return_token_type_ids=False,
+            return_token_type_ids=True,
             return_tensors="np",
         )
         # Map inputs to int64 from int32
