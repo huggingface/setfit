@@ -6,7 +6,7 @@
 
 # {{ model_name | default("SetFit for Text Classification", true) }}
 
-This is a [SetFit](https://github.com/huggingface/setfit) model{% if dataset_id %} trained on the [{{ dataset_name if dataset_name else dataset_id }}](https://huggingface.co/datasets/{{ dataset_id }}) dataset{% endif %} that can be used for {{ task_name | default("Text Classification", true) }}.{% if st_id %} This SetFit model uses [{{ st_id }}](https://huggingface.co/{{ st_id }}) as the Sentence Transformer embedding model.{% endif %} For classification, it uses a {{ head_class }} instance.
+This is a [SetFit](https://github.com/huggingface/setfit) model{% if dataset_id %} trained on the [{{ dataset_name if dataset_name else dataset_id }}](https://huggingface.co/datasets/{{ dataset_id }}) dataset{% endif %} that can be used for {{ task_name | default("Text Classification", true) }}.{% if st_id %} This SetFit model uses [{{ st_id }}](https://huggingface.co/{{ st_id }}) as the Sentence Transformer embedding model.{% endif %} A {{ head_class }} instance is used for classification.
 
 The model has been trained using an efficient few-shot learning technique that involves:
 
