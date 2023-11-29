@@ -574,7 +574,7 @@ class SetFitModel(PyTorchModelHubMixin):
         if (
             use_labels
             and self.labels
-            and self.multi_target_strategy is None
+            and outputs.ndim == 1
             and (self.has_differentiable_head or outputs.dtype.char != "U")
         ):
             return [self.labels[output] for output in outputs]
