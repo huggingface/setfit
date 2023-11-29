@@ -65,6 +65,19 @@ class TrainerTest(TestCase):
         metrics = trainer.evaluate()
         self.assertEqual(metrics["accuracy"], 1.0)
 
+    def test_trainer_works_with_partial_column_mapping(self):
+        dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
+        trainer = Trainer(
+            model=self.model,
+            args=self.args,
+            train_dataset=dataset,
+            eval_dataset=dataset,
+            column_mapping={"text_new": "text"},
+        )
+        trainer.train()
+        metrics = trainer.evaluate()
+        self.assertEqual(metrics["accuracy"], 1.0)
+
     def test_trainer_works_with_default_columns(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
         trainer = Trainer(model=self.model, args=self.args, train_dataset=dataset, eval_dataset=dataset)
