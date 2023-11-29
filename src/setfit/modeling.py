@@ -512,12 +512,16 @@ class SetFitModel(PyTorchModelHubMixin):
         return outputs
 
     def predict_proba(
-        self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
+        self,
+        inputs: Union[str, List[str]],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        show_progress_bar: Optional[bool] = None,
     ) -> Union[torch.Tensor, np.ndarray]:
         """Predict the probabilities of the various classes.
 
         Args:
-            inputs (`List[str]`): The input sentences to predict class probabilities for.
+            inputs (`Union[str, List[str]]`): The input sentences to predict class probabilities for.
             batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
                 Higher often means faster processing but higher memory usage.
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
@@ -530,27 +534,34 @@ class SetFitModel(PyTorchModelHubMixin):
             tensor([[0.9367, 0.0633],
                     [0.0627, 0.9373],
                     [0.0890, 0.9110]], dtype=torch.float64)
+            >>> model.predict_proba("That was cool!")
+            tensor([0.8421, 0.1579], dtype=torch.float64)
 
         Returns:
             `Union[torch.Tensor, np.ndarray]`: A matrix with shape [INPUT_LENGTH, NUM_CLASSES] denoting
-            probabilities of predicting an input as a class.
+            probabilities of predicting an input as a class. If the input is a string, then the output
+            is a vector with shape [NUM_CLASSES,].
         """
+        is_singular = isinstance(inputs, str)
+        if is_singular:
+            inputs = [inputs]
         embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
-        outputs = self.model_head.predict_proba(embeddings)
-        return self._output_type_conversion(outputs, as_numpy=as_numpy)
+        probs = self.model_head.predict_proba(embeddings)
+        outputs = self._output_type_conversion(probs, as_numpy=as_numpy)
+        return outputs[0] if is_singular else outputs
 
     def predict(
         self,
-        inputs: List[str],
+        inputs: Union[str, List[str]],
         batch_size: int = 32,
         as_numpy: bool = False,
         use_labels: bool = True,
         show_progress_bar: Optional[bool] = None,
-    ) -> Union[torch.Tensor, np.ndarray, List[str]]:
+    ) -> Union[torch.Tensor, np.ndarray, List[str], int, str]:
         """Predict the various classes.
 
         Args:
-            inputs (`List[str]`): The input sentences to predict classes for.
+            inputs (`Union[str, List[str]]`): The input sentence or sentences to predict classes for.
             batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
                 Higher often means faster processing but higher memory usage.
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
@@ -562,36 +573,44 @@ class SetFitModel(PyTorchModelHubMixin):
             >>> model = SetFitModel.from_pretrained(...)
             >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
             ["negative", "positive", "positive"]
+            >>> model.predict("That was cool!")
+            "positive"
 
         Returns:
-            `Union[torch.Tensor, np.ndarray, List[str]]`: A list of string labels with equal length to the inputs if
-                `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with equal length
-                to the inputs, denoting to which class each input is predicted to belong.
+            `Union[torch.Tensor, np.ndarray, List[str], int, str]`: A list of string labels with equal length to the
+                inputs if `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with
+                equal length to the inputs, denoting to which class each input is predicted to belong. If the inputs
+                is a single string, then the output is a single label as well.
         """
+        is_singular = isinstance(inputs, str)
+        if is_singular:
+            inputs = [inputs]
         embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
-        outputs = self.model_head.predict(embeddings)
+        preds = self.model_head.predict(embeddings)
         # If labels are defined, we don't have multilabels & the output is not already strings, then we convert to string labels
         if (
             use_labels
             and self.labels
-            and outputs.ndim == 1
-            and (self.has_differentiable_head or outputs.dtype.char != "U")
+            and preds.ndim == 1
+            and (self.has_differentiable_head or preds.dtype.char != "U")
         ):
-            return [self.labels[output] for output in outputs]
-        return self._output_type_conversion(outputs, as_numpy=as_numpy)
+            outputs = [self.labels[pred] for pred in preds]
+        else:
+            outputs = self._output_type_conversion(preds, as_numpy=as_numpy)
+        return outputs[0] if is_singular else outputs
 
     def __call__(
         self,
-        inputs: List[str],
+        inputs: Union[str, List[str]],
         batch_size: int = 32,
         as_numpy: bool = False,
         use_labels: bool = True,
         show_progress_bar: Optional[bool] = None,
-    ) -> Union[torch.Tensor, np.ndarray]:
+    ) -> Union[torch.Tensor, np.ndarray, List[str], int, str]:
         """Predict the various classes.
 
         Args:
-            inputs (`List[str]`): The input sentences to predict classes for.
+            inputs (`Union[str, List[str]]`): The input sentence or sentences to predict classes for.
             batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
                 Higher often means faster processing but higher memory usage.
             as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
@@ -603,11 +622,14 @@ class SetFitModel(PyTorchModelHubMixin):
             >>> model = SetFitModel.from_pretrained(...)
             >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
             ["negative", "positive", "positive"]
+            >>> model("That was cool!")
+            "positive"
 
         Returns:
-            `Union[torch.Tensor, np.ndarray, List[str]]`: A list of string labels with equal length to the inputs if
-                `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with equal length
-                to the inputs, denoting to which class each input is predicted to belong.
+            `Union[torch.Tensor, np.ndarray, List[str], int, str]`: A list of string labels with equal length to the
+                inputs if `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with
+                equal length to the inputs, denoting to which class each input is predicted to belong. If the inputs
+                is a single string, then the output is a single label as well.
         """
         return self.predict(
             inputs,
