@@ -314,3 +314,13 @@ def test_inference_with_labels() -> None:
     assert model.predict(["Very good"]) == torch.tensor([1], dtype=torch.int32, device=model.device)
     model.labels = ["negative", "positive"]
     assert model.predict(["Very good"]) == ["positive"]
+
+
+def test_singular_predict() -> None:
+    model = SetFitModel.from_pretrained("SetFit/test-setfit-sst2")
+    assert model.predict("That was cool!") == torch.tensor(1, dtype=torch.int32)
+    probs = model.predict_proba("That was cool!")
+    assert probs.shape == (2,)
+    assert probs.argmax() == 1
+    model.labels = ["negative", "positive"]
+    assert model("That was cool!") == "positive"
