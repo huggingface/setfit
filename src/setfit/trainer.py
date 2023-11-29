@@ -640,7 +640,9 @@ class Trainer(ColumnMappingMixin):
             dir_name = Path(self.state.best_model_checkpoint).name
             if dir_name.startswith("step_"):
                 logger.info(f"Loading best SentenceTransformer model from step {dir_name[5:]}.")
-            self.model.model_body = SentenceTransformer(self.state.best_model_checkpoint, device=model_body._target_device)
+            self.model.model_body = SentenceTransformer(
+                self.state.best_model_checkpoint, device=model_body._target_device
+            )
             self.model.model_body.to(model_body._target_device)
 
         # Ensure logging the speed metrics
@@ -783,7 +785,7 @@ class Trainer(ColumnMappingMixin):
         y_test = eval_dataset["label"]
 
         logger.info("***** Running evaluation *****")
-        y_pred = self.model.predict(x_test)
+        y_pred = self.model.predict(x_test, use_labels=False)
         if isinstance(y_pred, torch.Tensor):
             y_pred = y_pred.cpu()
 

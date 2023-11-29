@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 import numpy as np
@@ -256,3 +259,58 @@ def test_load_model_on_device(device):
     assert model.model_body.device.type == device
 
     model.model_body.encode("This is a test sample to encode")
+
+
+def test_save_load_config(model: SetFitModel) -> None:
+    with TemporaryDirectory() as tmp_dir:
+        tmp_dir = str(Path(tmp_dir) / "model")
+        model.save_pretrained(tmp_dir)
+        config_path = Path(tmp_dir) / "config_setfit.json"
+        assert config_path.exists()
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        assert config == {"normalize_embeddings": False, "labels": None}
+
+    with TemporaryDirectory() as tmp_dir:
+        tmp_dir = str(Path(tmp_dir) / "model")
+        model.normalize_embeddings = True
+        model.labels = ["negative", "positive"]
+        model.save_pretrained(tmp_dir)
+        config_path = Path(tmp_dir) / "config_setfit.json"
+        assert config_path.exists()
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        assert config == {"normalize_embeddings": True, "labels": ["negative", "positive"]}
+
+        fresh_model = model.from_pretrained(tmp_dir)
+        assert fresh_model.normalize_embeddings is True
+        assert fresh_model.labels == ["negative", "positive"]
+
+
+def test_load_model() -> None:
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", labels=["foo", "bar", "baz"]
+    )
+    assert model.labels == ["foo", "bar", "baz"]
+    assert model.label2id == {"foo": 0, "bar": 1, "baz": 2}
+    assert model.id2label == {0: "foo", 1: "bar", 2: "baz"}
+
+
+def test_inference_with_labels() -> None:
+    model = SetFitModel.from_pretrained("SetFit/test-setfit-sst2")
+    assert model.labels is None
+    assert model.predict(["Very good"]) == torch.tensor([1], dtype=torch.int32)
+    model.labels = ["negative", "positive"]
+    assert model.predict(["Very good"]) == ["positive"]
+
+    model = SetFitModel.from_pretrained("SetFit/test-setfit-sst2-string-labels")
+    assert model.labels is None
+    assert model.predict(["Very good"]) == np.array(["positive"], dtype="<U8")
+    model.labels = ["negative", "positive"]
+    assert model.predict(["Very good"]) == ["positive"]
+
+    model = SetFitModel.from_pretrained("SetFit/test-setfit-sst2-diff-head")
+    assert model.labels is None
+    assert model.predict(["Very good"]) == torch.tensor([1], dtype=torch.int32, device=model.device)
+    model.labels = ["negative", "positive"]
+    assert model.predict(["Very good"]) == ["positive"]

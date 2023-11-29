@@ -1,9 +1,10 @@
+import json
 import os
 import tempfile
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 
 # For Python 3.7 compatibility
@@ -88,6 +89,8 @@ preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 
 }}
 ```
 """
+
+CONFIG_NAME = "config_setfit.json"
 
 
 class SetFitHead(models.Dense):
@@ -244,17 +247,48 @@ class SetFitHead(models.Dense):
 
 @dataclass
 class SetFitModel(PyTorchModelHubMixin):
-    """A SetFit model with integration to the [Hugging Face Hub](https://huggingface.co)."""
+    """A SetFit model with integration to the [Hugging Face Hub](https://huggingface.co).
 
-    model_body: Optional[SentenceTransformer] = (None,)
+    Example::
+
+        >>> from setfit import SetFitModel
+        >>> model = SetFitModel.from_pretrained("tomaarsen/setfit-bge-small-v1.5-sst2-8-shot")
+        >>> model.predict([
+        ...     "It's a charming and often affecting journey.",
+        ...     "It's slow -- very, very slow.",
+        ...     "A sometimes tedious film.",
+        ... ])
+        ['positive', 'negative', 'negative']
+    """
+
+    model_body: Optional[SentenceTransformer] = None
     model_head: Optional[Union[SetFitHead, LogisticRegression]] = None
     multi_target_strategy: Optional[str] = None
     normalize_embeddings: bool = False
+    labels: Optional[List[str]] = None
+
+    attributes_to_save: Set[str] = field(
+        init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels"}
+    )
 
     @property
     def has_differentiable_head(self) -> bool:
         # if False, sklearn is assumed to be used instead
         return isinstance(self.model_head, nn.Module)
+
+    @property
+    def id2label(self) -> Dict[int, str]:
+        """Return a mapping from integer IDs to string labels."""
+        if self.labels is None:
+            return None
+        return dict(enumerate(self.labels))
+
+    @property
+    def label2id(self) -> Dict[str, int]:
+        """Return a mapping from string labels to integer IDs."""
+        if self.labels is None:
+            return None
+        return {label: idx for idx, label in enumerate(self.labels)}
 
     def fit(
         self,
@@ -290,7 +324,6 @@ class SetFitModel(PyTorchModelHubMixin):
                 epochs and iterations.
         """
         if self.has_differentiable_head:  # train with pyTorch
-            device = self.model_body.device
             self.model_body.train()
             self.model_head.train()
             if not end_to_end:
@@ -306,8 +339,8 @@ class SetFitModel(PyTorchModelHubMixin):
                     optimizer.zero_grad()
 
                     # to model's device
-                    features = {k: v.to(device) for k, v in features.items()}
-                    labels = labels.to(device)
+                    features = {k: v.to(self.device) for k, v in features.items()}
+                    labels = labels.to(self.device)
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
@@ -478,32 +511,6 @@ class SetFitModel(PyTorchModelHubMixin):
             outputs = torch.from_numpy(outputs)
         return outputs
 
-    def predict(
-        self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
-    ) -> Union[torch.Tensor, np.ndarray]:
-        """Predict the various classes.
-
-        Args:
-            inputs (`List[str]`): The input sentences to predict classes for.
-            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
-                Higher often means faster processing but higher memory usage.
-            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
-            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
-
-        Example::
-
-            >>> model = SetFitModel.from_pretrained(...)
-            >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
-            tensor([0, 1, 1], dtype=torch.int32)
-
-        Returns:
-            `Union[torch.Tensor, np.ndarray]`: A vector with equal length to the inputs, denoting
-            to which class each input is predicted to belong.
-        """
-        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
-        outputs = self.model_head.predict(embeddings)
-        return self._output_type_conversion(outputs, as_numpy=as_numpy)
-
     def predict_proba(
         self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
     ) -> Union[torch.Tensor, np.ndarray]:
@@ -532,6 +539,84 @@ class SetFitModel(PyTorchModelHubMixin):
         outputs = self.model_head.predict_proba(embeddings)
         return self._output_type_conversion(outputs, as_numpy=as_numpy)
 
+    def predict(
+        self,
+        inputs: List[str],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        use_labels: bool = True,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray, List[str]]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            ["negative", "positive", "positive"]
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray, List[str]]`: A list of string labels with equal length to the inputs if
+                `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with equal length
+                to the inputs, denoting to which class each input is predicted to belong.
+        """
+        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
+        outputs = self.model_head.predict(embeddings)
+        # If labels are defined, we don't have multilabels & the output is not already strings, then we convert to string labels
+        if (
+            use_labels
+            and self.labels
+            and outputs.ndim == 1
+            and (self.has_differentiable_head or outputs.dtype.char != "U")
+        ):
+            return [self.labels[output] for output in outputs]
+        return self._output_type_conversion(outputs, as_numpy=as_numpy)
+
+    def __call__(
+        self,
+        inputs: List[str],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        use_labels: bool = True,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            ["negative", "positive", "positive"]
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray, List[str]]`: A list of string labels with equal length to the inputs if
+                `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with equal length
+                to the inputs, denoting to which class each input is predicted to belong.
+        """
+        return self.predict(
+            inputs,
+            batch_size=batch_size,
+            as_numpy=as_numpy,
+            use_labels=use_labels,
+            show_progress_bar=show_progress_bar,
+        )
+
     @property
     def device(self) -> torch.device:
         """Get the Torch device that this model is on.
@@ -539,7 +624,7 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             torch.device: The device that the model is on.
         """
-        return self.model_body.device
+        return self.model_body._target_device
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
         """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
@@ -587,37 +672,28 @@ class SetFitModel(PyTorchModelHubMixin):
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
             f.write(model_card_content)
 
-    def __call__(
-        self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
-    ) -> Union[torch.Tensor, np.ndarray]:
-        """Predict the various classes.
-
-        Args:
-            inputs (`List[str]`): The input sentences to predict classes for.
-            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
-                Higher often means faster processing but higher memory usage.
-            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
-            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
-
-        Example::
-
-            >>> model = SetFitModel.from_pretrained(...)
-            >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
-            tensor([0, 1, 1], dtype=torch.int32)
-
-        Returns:
-            `torch.Tensor`: A vector with equal length to the inputs, denoting to which class each
-            input is predicted to belong.
-        """
-        return self.predict(inputs, batch_size=batch_size, as_numpy=as_numpy, show_progress_bar=show_progress_bar)
-
     def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
         save_directory = str(save_directory)
+        # Save the config
+        config_path = os.path.join(save_directory, CONFIG_NAME)
+        with open(config_path, "w") as f:
+            json.dump(
+                {
+                    attr_name: getattr(self, attr_name)
+                    for attr_name in self.attributes_to_save
+                    if hasattr(self, attr_name)
+                },
+                f,
+                indent=2,
+            )
+        # Save the body
         self.model_body.save(path=save_directory, create_model_card=False)
+        # Save the README
         self.create_model_card(path=save_directory, model_name=save_directory)
         # Move the head to the CPU before saving
         if self.has_differentiable_head:
             self.model_head.to("cpu")
+        # Save the classification head
         joblib.dump(self.model_head, str(Path(save_directory) / MODEL_HEAD_NAME))
         if self.has_differentiable_head:
             self.model_head.to(self.device)
@@ -636,7 +712,6 @@ class SetFitModel(PyTorchModelHubMixin):
         token: Optional[Union[bool, str]] = None,
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
-        normalize_embeddings: bool = False,
         device: Optional[Union[torch.device, str]] = None,
         **model_kwargs,
     ) -> "SetFitModel":
@@ -644,6 +719,33 @@ class SetFitModel(PyTorchModelHubMixin):
         device = model_body._target_device
         model_body.to(device)  # put `model_body` on the target device
 
+        # Try to load a SetFit config file
+        config_file: Optional[str] = None
+        if os.path.isdir(model_id):
+            if CONFIG_NAME in os.listdir(model_id):
+                config_file = os.path.join(model_id, CONFIG_NAME)
+        else:
+            try:
+                config_file = hf_hub_download(
+                    repo_id=model_id,
+                    filename=CONFIG_NAME,
+                    revision=revision,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    resume_download=resume_download,
+                    token=token,
+                    local_files_only=local_files_only,
+                )
+            except requests.exceptions.RequestException:
+                pass
+
+        if config_file is not None:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            model_kwargs.update(config)
+
+        # Try to load a model head file
         if os.path.isdir(model_id):
             if MODEL_HEAD_NAME in os.listdir(model_id):
                 model_head_file = os.path.join(model_id, MODEL_HEAD_NAME)
@@ -721,7 +823,6 @@ class SetFitModel(PyTorchModelHubMixin):
             model_body=model_body,
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,
-            normalize_embeddings=normalize_embeddings,
             **model_kwargs,
         )
 
@@ -731,7 +832,10 @@ cut_index = docstring.find("model_kwargs")
 if cut_index != -1:
     docstring = (
         docstring[:cut_index]
-        + """multi_target_strategy (`str`, *optional*):
+        + """labels (`List[str]`, *optional*):
+                If the labels are integers ranging from `0` to `num_classes-1`, then these labels indicate
+                    the corresponding labels.
+            multi_target_strategy (`str`, *optional*):
                 The strategy to use with multi-label classification. One of "one-vs-rest", "multi-output",
                     or "classifier-chain".
             use_differentiable_head (`bool`, *optional*):
@@ -739,7 +843,16 @@ if cut_index != -1:
             normalize_embeddings (`bool`, *optional*):
                 Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
             device (`Union[torch.device, str]`, *optional*):
-                The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`."""
+                The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`.
+
+        Example::
+
+            >>> from setfit import SetFitModel
+            >>> model = SetFitModel.from_pretrained(
+            ...     "sentence-transformers/paraphrase-mpnet-base-v2",
+            ...     labels=["positive", "negative"],
+            ... )
+        """
     )
     SetFitModel.from_pretrained = set_docstring(SetFitModel.from_pretrained, docstring)
 

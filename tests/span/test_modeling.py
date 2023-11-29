@@ -48,10 +48,10 @@ def test_loading():
     assert polarity_model.span_context == 12
 
     model = AbsaModel.from_pretrained(
-        "sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm", span_contexts=(12, None)
+        "sentence-transformers/paraphrase-albert-small-v2", spacy_model="en_core_web_sm", span_contexts=(12, 4)
     )
     assert model.aspect_model.span_context == 12
-    assert model.polarity_model.span_context == 3  # <- default
+    assert model.polarity_model.span_context == 4
 
 
 def test_save_load(absa_model: AbsaModel) -> None:
@@ -60,8 +60,8 @@ def test_save_load(absa_model: AbsaModel) -> None:
     with TemporaryDirectory() as tmp_dir:
         tmp_dir = str(Path(tmp_dir) / "model")
         absa_model.save_pretrained(tmp_dir)
-        assert (Path(tmp_dir + "-aspect") / "config_span_setfit.json").exists()
-        assert (Path(tmp_dir + "-polarity") / "config_span_setfit.json").exists()
+        assert (Path(tmp_dir + "-aspect") / "config_setfit.json").exists()
+        assert (Path(tmp_dir + "-polarity") / "config_setfit.json").exists()
 
         fresh_model = AbsaModel.from_pretrained(
             tmp_dir + "-aspect", tmp_dir + "-polarity", spacy_model="en_core_web_sm"
@@ -71,8 +71,8 @@ def test_save_load(absa_model: AbsaModel) -> None:
     with TemporaryDirectory() as aspect_tmp_dir:
         with TemporaryDirectory() as polarity_tmp_dir:
             absa_model.save_pretrained(aspect_tmp_dir, polarity_tmp_dir)
-            assert (Path(aspect_tmp_dir) / "config_span_setfit.json").exists()
-            assert (Path(polarity_tmp_dir) / "config_span_setfit.json").exists()
+            assert (Path(aspect_tmp_dir) / "config_setfit.json").exists()
+            assert (Path(polarity_tmp_dir) / "config_setfit.json").exists()
 
             fresh_model = AbsaModel.from_pretrained(aspect_tmp_dir, polarity_tmp_dir, spacy_model="en_core_web_sm")
             assert fresh_model.polarity_model.span_context == 5
