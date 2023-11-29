@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
+from setfit.model_card import SetFitModelCardData, generate_model_card
+
 
 # For Python 3.7 compatibility
 try:
@@ -37,59 +39,6 @@ logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
 MODEL_HEAD_NAME = "model_head.pkl"
-
-MODEL_CARD_TEMPLATE = """---
-license: apache-2.0
-tags:
-- setfit
-- sentence-transformers
-- text-classification
-pipeline_tag: text-classification
----
-
-# {model_name}
-
-This is a [SetFit model](https://github.com/huggingface/setfit) that can be used for text classification. \
-The model has been trained using an efficient few-shot learning technique that involves:
-
-1. Fine-tuning a [Sentence Transformer](https://www.sbert.net) with contrastive learning.
-2. Training a classification head with features from the fine-tuned Sentence Transformer.
-
-## Usage
-
-To use this model for inference, first install the SetFit library:
-
-```bash
-python -m pip install setfit
-```
-
-You can then run inference as follows:
-
-```python
-from setfit import SetFitModel
-
-# Download from Hub and run inference
-model = SetFitModel.from_pretrained("{model_name}")
-# Run inference
-preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
-```
-
-## BibTeX entry and citation info
-
-```bibtex
-@article{{https://doi.org/10.48550/arxiv.2209.11055,
-    doi = {{10.48550/ARXIV.2209.11055}},
-    url = {{https://arxiv.org/abs/2209.11055}},
-    author = {{Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren}},
-    keywords = {{Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences}},
-    title = {{Efficient Few-Shot Learning Without Prompts}},
-    publisher = {{arXiv}},
-    year = {{2022}},
-    copyright = {{Creative Commons Attribution 4.0 International}}
-}}
-```
-"""
-
 CONFIG_NAME = "config_setfit.json"
 
 
@@ -266,10 +215,14 @@ class SetFitModel(PyTorchModelHubMixin):
     multi_target_strategy: Optional[str] = None
     normalize_embeddings: bool = False
     labels: Optional[List[str]] = None
+    model_card_data: Optional[SetFitModelCardData] = field(default_factory=SetFitModelCardData)
 
     attributes_to_save: Set[str] = field(
         init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels"}
     )
+
+    def __post_init__(self):
+        self.model_card_data.register_model(self)
 
     @property
     def has_differentiable_head(self) -> bool:
@@ -690,11 +643,18 @@ class SetFitModel(PyTorchModelHubMixin):
         # directories
         model_path = Path(model_name)
         if model_path.exists() and Path(tempfile.gettempdir()) in model_path.resolve().parents:
-            model_name = "/".join(model_path.parts[-2:])
+            self.model_card_data.model_id = "/".join(model_path.parts[-2:])
 
-        model_card_content = MODEL_CARD_TEMPLATE.format(model_name=model_name)
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
-            f.write(model_card_content)
+            f.write(self.generate_model_card())
+
+    def generate_model_card(self) -> str:
+        """Generate and return a model card string based on the model card data.
+
+        Returns:
+            str: The model card string.
+        """
+        return generate_model_card(self)
 
     def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
         save_directory = str(save_directory)
@@ -800,10 +760,13 @@ class SetFitModel(PyTorchModelHubMixin):
                 )
                 model_head_file = None
 
+        model_card_data: SetFitModelCardData = model_kwargs.pop("model_card_data", SetFitModelCardData())
+
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
             if isinstance(model_head, torch.nn.Module):
                 model_head.to(device)
+            model_card_data.infer_st_id(model_id)
         else:
             head_params = model_kwargs.pop("head_params", {})
             if use_differentiable_head:
@@ -841,12 +804,15 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
+            model_card_data.set_st_id(model_id if "/" in model_id else f"sentence-transformers/{model_id}")
+
         # Remove the `transformers` config
         model_kwargs.pop("config", None)
         return cls(
             model_body=model_body,
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,
+            model_card_data=model_card_data,
             **model_kwargs,
         )
 

@@ -37,6 +37,8 @@ from transformers.trainer_utils import (
 )
 from transformers.utils.import_utils import is_in_notebook
 
+from setfit.model_card import ModelCardCallback
+
 from . import logging
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
@@ -186,12 +188,24 @@ class Trainer(ColumnMappingMixin):
         if args is not None and not isinstance(args, TrainingArguments):
             raise ValueError("`args` must be a `TrainingArguments` instance imported from `setfit`.")
         self.args = args or TrainingArguments()
+        self.column_mapping = column_mapping
+        if train_dataset:
+            self._validate_column_mapping(train_dataset)
+            if self.column_mapping is not None:
+                logger.info(f"Applying column mapping to the training dataset")
+                train_dataset = self._apply_column_mapping(train_dataset, self.column_mapping)
         self.train_dataset = train_dataset
+
+        if eval_dataset:
+            self._validate_column_mapping(eval_dataset)
+            if self.column_mapping is not None:
+                logger.info(f"Applying column mapping to the evaluation dataset")
+                eval_dataset = self._apply_column_mapping(eval_dataset, self.column_mapping)
         self.eval_dataset = eval_dataset
+
         self.model_init = model_init
         self.metric = metric
         self.metric_kwargs = metric_kwargs
-        self.column_mapping = column_mapping
         self.logs_mapper = {}
 
         # Seed must be set before instantiating the model when using model_init.
@@ -217,7 +231,13 @@ class Trainer(ColumnMappingMixin):
         self.state = TrainerState()
         self.control = TrainerControl()
         self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
-        self.control = self.callback_handler.on_init_end(args, self.state, self.control)
+        self.control = self.callback_handler.on_init_end(self.args, self.state, self.control)
+
+        # Add the callback for filling the model card data with hyperparameters
+        # and evaluation results
+        self.add_callback(ModelCardCallback(self))
+
+        self.callback_handler.on_init_end(args, self.state, self.control)
 
     def add_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
@@ -378,21 +398,11 @@ class Trainer(ColumnMappingMixin):
                 f"Training requires a `train_dataset` given to the `{self.__class__.__name__}` initialization."
             )
 
-        parameters = []
-        for dataset, dataset_name in [(self.train_dataset, "training"), (self.eval_dataset, "evaluation")]:
-            if dataset is None:
-                continue
+        train_parameters = self.dataset_to_parameters(self.train_dataset)
+        full_parameters = train_parameters + self.dataset_to_parameters(self.eval_dataset) if self.eval_dataset else train_parameters
 
-            self._validate_column_mapping(dataset)
-            if self.column_mapping is not None:
-                logger.info(f"Applying column mapping to {dataset_name} dataset")
-                dataset = self._apply_column_mapping(dataset, self.column_mapping)
-
-            parameters.extend(self.dataset_to_parameters(dataset))
-
-        self.train_embeddings(*parameters, args=args)
-        training_parameters = parameters[: len(parameters) // 2] if self.eval_dataset else parameters
-        self.train_classifier(*training_parameters, args=args)
+        self.train_embeddings(*full_parameters, args=args)
+        self.train_classifier(*train_parameters, args=args)
 
     def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
         return [dataset["text"], dataset["label"]]
@@ -581,6 +591,8 @@ class Trainer(ColumnMappingMixin):
         self.callback_handler.train_dataloader = train_dataloader
         self.callback_handler.eval_dataloader = eval_dataloader
 
+        self.callback_handler.on_train_begin(args, self.state, self.control)
+
         data_iterator = iter(train_dataloader)
         skip_scheduler = False
         for epoch in range(args.embedding_num_epochs):
@@ -644,7 +656,9 @@ class Trainer(ColumnMappingMixin):
         if self.args.load_best_model_at_end and self.state.best_model_checkpoint:
             dir_name = Path(self.state.best_model_checkpoint).name
             if dir_name.startswith("step_"):
-                logger.info(f"Loading best SentenceTransformer model from step {dir_name[5:]}.")
+                step_to_load = dir_name[5:]
+                logger.info(f"Loading best SentenceTransformer model from step {step_to_load}.")
+                self.model.model_card_data.set_best_model_step(int(step_to_load))
             self.model.model_body = SentenceTransformer(
                 self.state.best_model_checkpoint, device=model_body._target_device
             )
@@ -764,7 +778,7 @@ class Trainer(ColumnMappingMixin):
             end_to_end=args.end_to_end,
         )
 
-    def evaluate(self, dataset: Optional[Dataset] = None) -> Dict[str, float]:
+    def evaluate(self, dataset: Optional[Dataset] = None, metric_key_prefix: str = "test") -> Dict[str, float]:
         """
         Computes the metrics for a given classifier.
 
@@ -777,14 +791,18 @@ class Trainer(ColumnMappingMixin):
             `Dict[str, float]`: The evaluation metrics.
         """
 
-        eval_dataset = dataset or self.eval_dataset
+        if dataset is not None:
+            self._validate_column_mapping(dataset)
+            if self.column_mapping is not None:
+                logger.info("Applying column mapping to the evaluation dataset")
+                eval_dataset = self._apply_column_mapping(dataset, self.column_mapping)
+            else:
+                eval_dataset = dataset
+        else:
+            eval_dataset = self.eval_dataset
+
         if eval_dataset is None:
             raise ValueError("No evaluation dataset provided to `Trainer.evaluate` nor the `Trainer` initialzation.")
-        self._validate_column_mapping(eval_dataset)
-
-        if self.column_mapping is not None:
-            logger.info("Applying column mapping to evaluation dataset")
-            eval_dataset = self._apply_column_mapping(eval_dataset, self.column_mapping)
 
         x_test = eval_dataset["text"]
         y_test = eval_dataset["label"]
@@ -806,13 +824,16 @@ class Trainer(ColumnMappingMixin):
             metric_fn = evaluate.load(self.metric, config_name=metric_config)
             metric_kwargs = self.metric_kwargs or {}
 
-            return metric_fn.compute(predictions=y_pred, references=y_test, **metric_kwargs)
+            results = metric_fn.compute(predictions=y_pred, references=y_test, **metric_kwargs)
 
         elif callable(self.metric):
-            return self.metric(y_pred, y_test)
+            results = self.metric(y_pred, y_test)
 
         else:
             raise ValueError("metric must be a string or a callable")
+
+        self.model.model_card_data.post_training_eval_results({f"{metric_key_prefix}_{key}": value for key, value in results.items()})
+        return results
 
     def hyperparameter_search(
         self,
