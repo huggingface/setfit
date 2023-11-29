@@ -97,10 +97,15 @@ class ColumnMappingMixin:
                     "Either make sure these columns are present, or specify which columns to use with column_mapping in Trainer."
                 )
         if self.column_mapping is not None:
-            missing_columns = self._REQUIRED_COLUMNS.difference(self.column_mapping.values())
+            missing_columns = set(self._REQUIRED_COLUMNS)
+            # Remove columns that will be provided via the column mapping
+            missing_columns -= set(self.column_mapping.values())
+            # Remove columns that will be provided because they are in the dataset & not mapped away
+            missing_columns -= set(dataset.column_names) - set(self.column_mapping.keys())
             if missing_columns:
                 raise ValueError(
-                    f"The following columns are missing from the column mapping: {missing_columns}. Please provide a mapping for all required columns."
+                    f"The following columns are missing from the column mapping: {missing_columns}. "
+                    "Please provide a mapping for all required columns."
                 )
             if not set(self.column_mapping.keys()).issubset(column_names):
                 raise ValueError(
