@@ -244,6 +244,24 @@ class TrainerDifferentiableHeadTest(TestCase):
         )
         self.args = TrainingArguments(num_iterations=1)
 
+    def test_trainer_normalize(self):
+        self.model = SetFitModel.from_pretrained(
+            "sentence-transformers/paraphrase-albert-small-v2",
+            use_differentiable_head=True,
+            head_params={"out_features": 3},
+            normalize_embeddings=True,
+        )
+        trainer = Trainer(
+            model=self.model,
+            args=self.args,
+            train_dataset=self.dataset,
+            eval_dataset=self.dataset,
+            column_mapping={"text_new": "text", "label_new": "label"},
+        )
+        trainer.train()
+        metrics = trainer.evaluate()
+        self.assertEqual(metrics, {"accuracy": 1.0})
+
     def test_trainer_max_length_exceeds_max_acceptable_length(self):
         trainer = Trainer(
             model=self.model,
