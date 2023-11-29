@@ -511,46 +511,6 @@ class SetFitModel(PyTorchModelHubMixin):
             outputs = torch.from_numpy(outputs)
         return outputs
 
-    def predict(
-        self,
-        inputs: List[str],
-        batch_size: int = 32,
-        as_numpy: bool = False,
-        use_labels: bool = True,
-        show_progress_bar: Optional[bool] = None,
-    ) -> Union[torch.Tensor, np.ndarray]:
-        """Predict the various classes.
-
-        Args:
-            inputs (`List[str]`): The input sentences to predict classes for.
-            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
-                Higher often means faster processing but higher memory usage.
-            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
-            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
-            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
-
-        Example::
-
-            >>> model = SetFitModel.from_pretrained(...)
-            >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
-            ["negative", "positive", "positive"]
-
-        Returns:
-            `Union[torch.Tensor, np.ndarray]`: A vector with equal length to the inputs, denoting
-            to which class each input is predicted to belong.
-        """
-        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
-        outputs = self.model_head.predict(embeddings)
-        # If labels are defined, we don't have multilabels & the output is not already strings, then we convert to string labels
-        if (
-            use_labels
-            and self.labels
-            and self.multi_target_strategy is None
-            and (self.has_differentiable_head or outputs.dtype.char != "U")
-        ):
-            return [self.labels[output] for output in outputs]
-        return self._output_type_conversion(outputs, as_numpy=as_numpy)
-
     def predict_proba(
         self, inputs: List[str], batch_size: int = 32, as_numpy: bool = False, show_progress_bar: Optional[bool] = None
     ) -> Union[torch.Tensor, np.ndarray]:
@@ -578,6 +538,84 @@ class SetFitModel(PyTorchModelHubMixin):
         embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
         outputs = self.model_head.predict_proba(embeddings)
         return self._output_type_conversion(outputs, as_numpy=as_numpy)
+
+    def predict(
+        self,
+        inputs: List[str],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        use_labels: bool = True,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray, List[str]]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            ["negative", "positive", "positive"]
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray, List[str]]`: A list of string labels with equal length to the inputs if
+                `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with equal length
+                to the inputs, denoting to which class each input is predicted to belong.
+        """
+        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
+        outputs = self.model_head.predict(embeddings)
+        # If labels are defined, we don't have multilabels & the output is not already strings, then we convert to string labels
+        if (
+            use_labels
+            and self.labels
+            and self.multi_target_strategy is None
+            and (self.has_differentiable_head or outputs.dtype.char != "U")
+        ):
+            return [self.labels[output] for output in outputs]
+        return self._output_type_conversion(outputs, as_numpy=as_numpy)
+
+    def __call__(
+        self,
+        inputs: List[str],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        use_labels: bool = True,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`List[str]`): The input sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            ["negative", "positive", "positive"]
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray, List[str]]`: A list of string labels with equal length to the inputs if
+                `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with equal length
+                to the inputs, denoting to which class each input is predicted to belong.
+        """
+        return self.predict(
+            inputs,
+            batch_size=batch_size,
+            as_numpy=as_numpy,
+            use_labels=use_labels,
+            show_progress_bar=show_progress_bar,
+        )
 
     @property
     def device(self) -> torch.device:
@@ -633,42 +671,6 @@ class SetFitModel(PyTorchModelHubMixin):
         model_card_content = MODEL_CARD_TEMPLATE.format(model_name=model_name)
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
             f.write(model_card_content)
-
-    def __call__(
-        self,
-        inputs: List[str],
-        batch_size: int = 32,
-        as_numpy: bool = False,
-        use_labels: bool = True,
-        show_progress_bar: Optional[bool] = None,
-    ) -> Union[torch.Tensor, np.ndarray]:
-        """Predict the various classes.
-
-        Args:
-            inputs (`List[str]`): The input sentences to predict classes for.
-            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
-                Higher often means faster processing but higher memory usage.
-            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
-            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
-            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
-
-        Example::
-
-            >>> model = SetFitModel.from_pretrained(...)
-            >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
-            ["negative", "positive", "positive"]
-
-        Returns:
-            `torch.Tensor`: A vector with equal length to the inputs, denoting to which class each
-            input is predicted to belong.
-        """
-        return self.predict(
-            inputs,
-            batch_size=batch_size,
-            as_numpy=as_numpy,
-            use_labels=use_labels,
-            show_progress_bar=show_progress_bar,
-        )
 
     def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
         save_directory = str(save_directory)
