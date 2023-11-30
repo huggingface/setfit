@@ -70,9 +70,13 @@ class ModelCardCallback(TrainerCallback):
                 model.model_card_data.set_widget_examples(dataset)
 
         if self.trainer.train_dataset:
-            model.model_card_data.num_classes = len(set(self.trainer.train_dataset["label"]))
             model.model_card_data.set_train_set_metrics(self.trainer.train_dataset)
-            model.model_card_data.set_label_examples(self.trainer.train_dataset)
+            # Does not work for multilabel
+            try:
+                model.model_card_data.num_classes = len(set(self.trainer.train_dataset["label"]))
+                model.model_card_data.set_label_examples(self.trainer.train_dataset)
+            except TypeError:
+                pass
 
     def on_train_begin(
         self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
