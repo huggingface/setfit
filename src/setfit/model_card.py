@@ -1,7 +1,5 @@
 from collections import Counter, defaultdict
 import collections
-import logging
-import os
 import random
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -32,7 +30,9 @@ from transformers.trainer_callback import TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 from transformers import PretrainedConfig
 
-logger = logging.getLogger(__name__)
+from . import logging
+
+logger = logging.get_logger(__name__)
 
 from setfit import __version__ as setfit_version
 from sentence_transformers import __version__ as sentence_transformers_version
@@ -221,6 +221,7 @@ class SetFitModelCardData(CardData):
     code_carbon_callback: Optional[CodeCarbonCallback] = field(default=None, init=False)
     num_classes: Optional[int] = field(default=None, init=False)
     best_model_step: Optional[int] = field(default=None, init=False)
+    metrics: List[str] = field(default_factory=lambda: ["accuracy"], init=False)
     
     # Computed once, always unchanged
     pipeline_tag: str = field(default="text-classification", init=False)
@@ -237,7 +238,6 @@ class SetFitModelCardData(CardData):
         },
         init=False,
     )
-    metrics: List[str] = field(default_factory=lambda: ["precision", "recall", "f1"], init=False)
 
     # Passed via `register_model` only
     model: Optional["SetFitModel"] = field(default=None, init=False, repr=False)
@@ -275,7 +275,7 @@ class SetFitModelCardData(CardData):
         self.best_model_step = step
 
     def set_widget_examples(self, dataset: Dataset) -> None:
-        samples = dataset.select(random.sample(range(len(dataset)), k=5))["text"]
+        samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
         self.widget = [{"text": sample} for sample in samples]
 
         samples.sort(key=len)
@@ -456,6 +456,7 @@ class SetFitModelCardData(CardData):
                 )
                 for metric_key, metric_value in self.eval_results_dict.items()
             ]
+            super_dict["metrics"] = [metric_key.split("_", maxsplit=1)[1] for metric_key in self.eval_results_dict]
             super_dict["model-index"] = eval_results_to_model_index(self.model_name, eval_results)
         eval_lines_list = [{key: f"**{self._maybe_round(value)}**" if line["Step"] == self.best_model_step else value for key, value in line.items()} for line in self.eval_lines_list]
         super_dict["eval_lines"] = make_markdown_table(eval_lines_list)

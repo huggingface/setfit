@@ -10,6 +10,7 @@ from .span import AbsaModel, AbsaTrainer, AspectExtractor, AspectModel, Polarity
 from .trainer import SetFitTrainer, Trainer
 from .trainer_distillation import DistillationSetFitTrainer, DistillationTrainer
 from .training_args import TrainingArguments
+from .model_card import SetFitModelCardData
 
 
 # Ensure that DeprecationWarnings are shown by default, as recommended by
