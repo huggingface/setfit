@@ -14,21 +14,19 @@ from datasets import Dataset
 from huggingface_hub import CardData, DatasetFilter, ModelCard, dataset_info, list_datasets, model_info
 from huggingface_hub.repocard_data import EvalResult, eval_results_to_model_index
 from huggingface_hub.utils import yaml_dump
+from sentence_transformers import __version__ as sentence_transformers_version
 from transformers import PretrainedConfig, TrainerCallback
 from transformers.integrations import CodeCarbonCallback
 from transformers.modelcard import make_markdown_table
 from transformers.trainer_callback import TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
+from setfit import __version__ as setfit_version
+
 from . import logging
 
 
 logger = logging.get_logger(__name__)
-
-from sentence_transformers import __version__ as sentence_transformers_version
-
-from setfit import __version__ as setfit_version
-
 
 if TYPE_CHECKING:
     from setfit.modeling import SetFitModel
@@ -275,7 +273,7 @@ class SetFitModelCardData(CardData):
                     # if languages are not set, try to determine the language from the dataset on the Hub
                     try:
                         info = dataset_info(self.dataset_id)
-                    except:
+                    except Exception:
                         pass
                     else:
                         if info.cardData:
@@ -344,7 +342,7 @@ class SetFitModelCardData(CardData):
                     }
                     for label, count in sorted(counter.items())
                 ]
-        except:
+        except Exception:
             # There are some tricky edge cases possible, e.g. if the user provided integer labels that do not fall
             # between 0 to num_classes-1, so we make sure we never cause errors.
             pass
@@ -546,7 +544,7 @@ def is_on_huggingface(repo_id: str, is_model: bool = True) -> bool:
         else:
             dataset_info(repo_id)
         return True
-    except:
+    except Exception:
         # Fetching models can fail for many reasons: Repository not existing, no internet access, HF down, etc.
         return False
 

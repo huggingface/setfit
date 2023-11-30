@@ -192,14 +192,14 @@ class Trainer(ColumnMappingMixin):
         if train_dataset:
             self._validate_column_mapping(train_dataset)
             if self.column_mapping is not None:
-                logger.info(f"Applying column mapping to the training dataset")
+                logger.info("Applying column mapping to the training dataset")
                 train_dataset = self._apply_column_mapping(train_dataset, self.column_mapping)
         self.train_dataset = train_dataset
 
         if eval_dataset:
             self._validate_column_mapping(eval_dataset)
             if self.column_mapping is not None:
-                logger.info(f"Applying column mapping to the evaluation dataset")
+                logger.info("Applying column mapping to the evaluation dataset")
                 eval_dataset = self._apply_column_mapping(eval_dataset, self.column_mapping)
         self.eval_dataset = eval_dataset
 

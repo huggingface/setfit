@@ -80,4 +80,4 @@ def test_cant_infer_dataset_id():
 
     # This triggers inferring the dataset_id from train_dataset
     Trainer(model=model, train_dataset=train_dataset)
-    assert model.model_card_data.dataset_id == None
+    assert model.model_card_data.dataset_id is None
