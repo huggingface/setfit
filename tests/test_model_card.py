@@ -3,12 +3,7 @@ from pathlib import Path
 import pytest
 from datasets import Dataset, load_dataset
 
-from setfit import (
-    SetFitModel,
-    SetFitModelCardData,
-    Trainer,
-    TrainingArguments,
-)
+from setfit import SetFitModel, SetFitModelCardData, Trainer, TrainingArguments
 from setfit.data import sample_dataset
 from setfit.model_card import generate_model_card, is_on_huggingface
 
@@ -45,7 +40,7 @@ def test_model_card(tmp_path: Path) -> None:
         args=args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        column_mapping={"sentence": "text"}
+        column_mapping={"sentence": "text"},
     )
     trainer.train()
     trainer.evaluate()
@@ -81,9 +76,7 @@ def test_infer_dataset_id(dataset_id: str) -> None:
 
 def test_cant_infer_dataset_id():
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
-    train_dataset = Dataset.from_dict(
-        {"text": ["a", "b", "c", "d"], "label": [0, 1, 1, 0]}
-    )
+    train_dataset = Dataset.from_dict({"text": ["a", "b", "c", "d"], "label": [0, 1, 1, 0]})
 
     # This triggers inferring the dataset_id from train_dataset
     Trainer(model=model, train_dataset=train_dataset)

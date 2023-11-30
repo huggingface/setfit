@@ -1,6 +1,6 @@
-from collections import Counter, defaultdict
 import collections
 import random
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from platform import python_version
@@ -11,31 +11,23 @@ import tokenizers
 import torch
 import transformers
 from datasets import Dataset
-from huggingface_hub import (
-    CardData,
-    DatasetFilter,
-    ModelCard,
-    dataset_info,
-    list_datasets,
-    model_info,
-)
+from huggingface_hub import CardData, DatasetFilter, ModelCard, dataset_info, list_datasets, model_info
 from huggingface_hub.repocard_data import EvalResult, eval_results_to_model_index
 from huggingface_hub.utils import yaml_dump
-from transformers import TrainerCallback
+from transformers import PretrainedConfig, TrainerCallback
 from transformers.integrations import CodeCarbonCallback
-from transformers.modelcard import (
-    make_markdown_table,
-)
+from transformers.modelcard import make_markdown_table
 from transformers.trainer_callback import TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
-from transformers import PretrainedConfig
 
 from . import logging
 
+
 logger = logging.get_logger(__name__)
 
-from setfit import __version__ as setfit_version
 from sentence_transformers import __version__ as sentence_transformers_version
+
+from setfit import __version__ as setfit_version
 
 
 if TYPE_CHECKING:
@@ -49,19 +41,23 @@ class ModelCardCallback(TrainerCallback):
         self.trainer = trainer
 
         callbacks = [
-            callback for callback in self.trainer.callback_handler.callbacks if isinstance(callback, CodeCarbonCallback)
+            callback
+            for callback in self.trainer.callback_handler.callbacks
+            if isinstance(callback, CodeCarbonCallback)
         ]
         if callbacks:
             trainer.model.model_card_data.code_carbon_callback = callbacks[0]
 
-    def on_init_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs):
+    def on_init_end(
+        self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
+    ):
         if not model.model_card_data.dataset_id:
             # Inferring is hacky - it may break in the future, so let's be safe
             try:
                 model.model_card_data.infer_dataset_id(self.trainer.train_dataset)
             except Exception:
                 pass
-        
+
         dataset = self.trainer.eval_dataset or self.trainer.train_dataset
         if dataset is not None:
             if not model.model_card_data.widget:
@@ -80,10 +76,31 @@ class ModelCardCallback(TrainerCallback):
         self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
     ) -> None:
         # model.model_card_data.hyperparameters = extract_hyperparameters_from_trainer(self.trainer)
-        ignore_keys = {"output_dir", "logging_dir", "logging_strategy", "logging_first_step", "logging_steps", "evaluation_strategy", "eval_steps", "eval_delay", "save_strategy", "save_steps", "save_total_limit", "metric_for_best_model", "greater_is_better", "report_to", "samples_per_label", "show_progress_bar"}
+        ignore_keys = {
+            "output_dir",
+            "logging_dir",
+            "logging_strategy",
+            "logging_first_step",
+            "logging_steps",
+            "evaluation_strategy",
+            "eval_steps",
+            "eval_delay",
+            "save_strategy",
+            "save_steps",
+            "save_total_limit",
+            "metric_for_best_model",
+            "greater_is_better",
+            "report_to",
+            "samples_per_label",
+            "show_progress_bar",
+        }
         get_name_keys = {"loss", "distance_metric"}
         args_dict = args.to_dict()
-        model.model_card_data.hyperparameters = {key: value.__name__ if key in get_name_keys else value for key, value in args_dict.items() if key not in ignore_keys and value is not None}
+        model.model_card_data.hyperparameters = {
+            key: value.__name__ if key in get_name_keys else value
+            for key, value in args_dict.items()
+            if key not in ignore_keys and value is not None
+        }
 
     def on_evaluate(
         self,
@@ -95,7 +112,10 @@ class ModelCardCallback(TrainerCallback):
         **kwargs,
     ) -> None:
         # TODO: Highlight the loaded best step
-        if model.model_card_data.eval_lines_list and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step:
+        if (
+            model.model_card_data.eval_lines_list
+            and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
+        ):
             model.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics["eval_embedding_loss"]
         else:
             model.model_card_data.eval_lines_list.append(
@@ -118,7 +138,10 @@ class ModelCardCallback(TrainerCallback):
         **kwargs,
     ):
         if "embedding_loss" in logs:
-            if model.model_card_data.eval_lines_list and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step:
+            if (
+                model.model_card_data.eval_lines_list
+                and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
+            ):
                 model.model_card_data.eval_lines_list[-1]["Training Loss"] = logs["embedding_loss"]
             else:
                 model.model_card_data.eval_lines_list.append(
@@ -222,7 +245,7 @@ class SetFitModelCardData(CardData):
     num_classes: Optional[int] = field(default=None, init=False)
     best_model_step: Optional[int] = field(default=None, init=False)
     metrics: List[str] = field(default_factory=lambda: ["accuracy"], init=False)
-    
+
     # Computed once, always unchanged
     pipeline_tag: str = field(default="text-classification", init=False)
     library_name: str = field(default="setfit", init=False)
@@ -305,14 +328,18 @@ class SetFitModelCardData(CardData):
                 self.train_set_sentences_per_label_list = [
                     {
                         "Label": str_label,
-                        "Training Sample Count": counter[str_label if isinstance(sample_label, str) else self.model.label2id[str_label]],
+                        "Training Sample Count": counter[
+                            str_label if isinstance(sample_label, str) else self.model.label2id[str_label]
+                        ],
                     }
                     for str_label in self.model.labels
                 ]
             else:
                 self.train_set_sentences_per_label_list = [
                     {
-                        "Label": self.model.labels[label] if self.model.labels and isinstance(label, int) else str(label),
+                        "Label": self.model.labels[label]
+                        if self.model.labels and isinstance(label, int)
+                        else str(label),
                         "Training Sample Count": count,
                     }
                     for label, count in sorted(counter.items())
@@ -330,13 +357,17 @@ class SetFitModelCardData(CardData):
             text = sample["text"]
             label = sample["label"]
             if label not in finished_labels:
-                examples[label].append(f'<li>{repr(text)}</li>')
+                examples[label].append(f"<li>{repr(text)}</li>")
                 if len(examples[label]) >= num_examples_per_label:
                     finished_labels.add(label)
             if len(finished_labels) == self.num_classes:
                 break
         self.label_example_list = [
-            {"Label": self.model.labels[label] if self.model.labels and isinstance(label, int) else label, "Examples": "<ul>" + "".join(example_set) + "</ul>"} for label, example_set in examples.items()
+            {
+                "Label": self.model.labels[label] if self.model.labels and isinstance(label, int) else label,
+                "Examples": "<ul>" + "".join(example_set) + "</ul>",
+            }
+            for label, example_set in examples.items()
         ]
 
     def infer_dataset_id(self, dataset: Dataset) -> None:
@@ -402,9 +433,7 @@ class SetFitModelCardData(CardData):
         st_id_path = Path(st_id)
         # Sometimes the name_or_path ends exactly with the model_id, e.g.
         # "C:\\Users\\tom/.cache\\torch\\sentence_transformers\\BAAI_bge-small-en-v1.5\\"
-        candidate_model_ids = [
-            "/".join(st_id_path.parts[-2:])
-        ]
+        candidate_model_ids = ["/".join(st_id_path.parts[-2:])]
         # Sometimes the name_or_path its final part contains the full model_id, with "/" replaced with a "_", e.g.
         # "/root/.cache/torch/sentence_transformers/sentence-transformers_all-mpnet-base-v2/"
         # In that case, we take the last part, split on _, and try all combinations
@@ -418,16 +447,13 @@ class SetFitModelCardData(CardData):
 
     def set_st_id(self, model_id: str) -> None:
         if is_on_huggingface(model_id):
-            self.st_id = model_id 
+            self.st_id = model_id
 
     def post_training_eval_results(self, results: Dict[str, float]) -> None:
         self.eval_results_dict = results
 
         results_without_split = {key.split("_", maxsplit=1)[1].title(): value for key, value in results.items()}
-        self.metric_lines = [{
-            "Label": "**all**",
-            **results_without_split
-        }]
+        self.metric_lines = [{"Label": "**all**", **results_without_split}]
 
     def _maybe_round(self, v, decimals=4):
         if isinstance(v, float) and len(str(v).split(".")) > 1 and len(str(v).split(".")[1]) > decimals:
@@ -458,13 +484,21 @@ class SetFitModelCardData(CardData):
             ]
             super_dict["metrics"] = [metric_key.split("_", maxsplit=1)[1] for metric_key in self.eval_results_dict]
             super_dict["model-index"] = eval_results_to_model_index(self.model_name, eval_results)
-        eval_lines_list = [{key: f"**{self._maybe_round(value)}**" if line["Step"] == self.best_model_step else value for key, value in line.items()} for line in self.eval_lines_list]
+        eval_lines_list = [
+            {
+                key: f"**{self._maybe_round(value)}**" if line["Step"] == self.best_model_step else value
+                for key, value in line.items()
+            }
+            for line in self.eval_lines_list
+        ]
         super_dict["eval_lines"] = make_markdown_table(eval_lines_list)
         super_dict["explain_bold_in_eval"] = "**" in super_dict["eval_lines"]
         # Replace |:---:| with |:---| for left alignment
         super_dict["label_examples"] = make_markdown_table(self.label_example_list).replace("-:|", "--|")
         super_dict["train_set_metrics"] = make_markdown_table(self.train_set_metrics_list).replace("-:|", "--|")
-        super_dict["train_set_sentences_per_label_list"] = make_markdown_table(self.train_set_sentences_per_label_list).replace("-:|", "--|")
+        super_dict["train_set_sentences_per_label_list"] = make_markdown_table(
+            self.train_set_sentences_per_label_list
+        ).replace("-:|", "--|")
         super_dict["metrics_table"] = make_markdown_table(self.metric_lines).replace("-:|", "--|")
         if self.code_carbon_callback and self.code_carbon_callback.tracker:
             emissions_data = self.code_carbon_callback.tracker._prepare_emissions_data()

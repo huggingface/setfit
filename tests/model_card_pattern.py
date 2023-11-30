@@ -1,5 +1,6 @@
 import re
 
+
 MODEL_CARD_PATTERN = re.compile(
     """\
 ---
@@ -217,11 +218,3 @@ Carbon emissions were measured using \[CodeCarbon\]\(https://github.com/mlco2/co
 -->""",
     flags=re.DOTALL,
 )
-
-# with open("readme", "r") as f:
-#     readme = f.read()
-
-# match = MODEL_CARD_PATTERN.match(readme)
-# print(match)
-# print(match.group(0)[-10:])
-# breakpoint()
