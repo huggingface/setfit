@@ -399,7 +399,9 @@ class Trainer(ColumnMappingMixin):
             )
 
         train_parameters = self.dataset_to_parameters(self.train_dataset)
-        full_parameters = train_parameters + self.dataset_to_parameters(self.eval_dataset) if self.eval_dataset else train_parameters
+        full_parameters = (
+            train_parameters + self.dataset_to_parameters(self.eval_dataset) if self.eval_dataset else train_parameters
+        )
 
         self.train_embeddings(*full_parameters, args=args)
         self.train_classifier(*train_parameters, args=args)
@@ -832,7 +834,9 @@ class Trainer(ColumnMappingMixin):
         else:
             raise ValueError("metric must be a string or a callable")
 
-        self.model.model_card_data.post_training_eval_results({f"{metric_key_prefix}_{key}": value for key, value in results.items()})
+        self.model.model_card_data.post_training_eval_results(
+            {f"{metric_key_prefix}_{key}": value for key, value in results.items()}
+        )
         return results
 
     def hyperparameter_search(
