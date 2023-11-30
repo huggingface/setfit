@@ -26,7 +26,6 @@ from huggingface_hub.utils import yaml_dump
 from transformers import TrainerCallback
 from transformers.integrations import CodeCarbonCallback
 from transformers.modelcard import (
-    extract_hyperparameters_from_trainer,
     make_markdown_table,
 )
 from transformers.trainer_callback import TrainerControl, TrainerState
@@ -37,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 from setfit import __version__ as setfit_version
 from sentence_transformers import __version__ as sentence_transformers_version
-from sentence_transformers.models import Transformer
 
 
 if TYPE_CHECKING:
@@ -146,6 +144,7 @@ YAML_FIELDS = [
     "model-index",
     "co2_eq_emissions",
     "base_model",
+    "inference",
 ]
 IGNORED_FIELDS = ["model"]
 
@@ -243,6 +242,7 @@ class SetFitModelCardData(CardData):
     # Passed via `register_model` only
     model: Optional["SetFitModel"] = field(default=None, init=False, repr=False)
     head_class: Optional[str] = field(default=None, init=False, repr=False)
+    inference: Optional[bool] = field(default=True, init=False, repr=False)
 
     def __post_init__(self):
         # We don't want to save "ignore_metadata_errors" in our Model Card
@@ -393,6 +393,8 @@ class SetFitModelCardData(CardData):
                     self.model_name += f" on {self.dataset_name or self.dataset_id}"
             else:
                 self.model_name = "SetFit"
+
+        self.inference = self.model.multi_target_strategy is None
 
     def infer_st_id(self, setfit_model_id: str) -> None:
         config_dict, _ = PretrainedConfig.get_config_dict(setfit_model_id)
