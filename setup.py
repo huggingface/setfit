@@ -11,7 +11,7 @@ MAINTAINER_EMAIL = "lewis@huggingface.co"
 
 INTEGRATIONS_REQUIRE = ["optuna"]
 REQUIRED_PKGS = [
-    "datasets>=2.14.0", # Required for dataset inferring
+    "datasets>=2.3.0",
     "sentence-transformers>=2.2.1",
     "evaluate>=0.3.0",
     "huggingface_hub>=0.13.0",
