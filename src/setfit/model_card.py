@@ -67,7 +67,7 @@ class ModelCardCallback(TrainerCallback):
             try:
                 model.model_card_data.num_classes = len(set(self.trainer.train_dataset["label"]))
                 model.model_card_data.set_label_examples(self.trainer.train_dataset)
-            except TypeError:
+            except:
                 pass
 
     def on_train_begin(
@@ -300,7 +300,8 @@ class SetFitModelCardData(CardData):
         self.widget = [{"text": sample} for sample in samples]
 
         samples.sort(key=len)
-        self.predict_example = samples[0]
+        if samples:
+            self.predict_example = samples[0]
 
     def set_train_set_metrics(self, dataset: Dataset) -> None:
         def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
@@ -316,7 +317,10 @@ class SetFitModelCardData(CardData):
                 "Max": max(dataset["word_count"]),
             },
         ]
-        # If not multi-label:
+        # E.g. if unlabeled via DistillationTrainer
+        if "label" not in dataset.column_names:
+            return
+
         sample_label = dataset[0]["label"]
         if isinstance(sample_label, collections.abc.Sequence) and not isinstance(sample_label, str):
             return
