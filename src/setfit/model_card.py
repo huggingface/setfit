@@ -67,7 +67,7 @@ class ModelCardCallback(TrainerCallback):
             try:
                 model.model_card_data.num_classes = len(set(self.trainer.train_dataset["label"]))
                 model.model_card_data.set_label_examples(self.trainer.train_dataset)
-            except:
+            except Exception:
                 pass
 
     def on_train_begin(
