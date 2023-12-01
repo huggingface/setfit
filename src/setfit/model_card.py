@@ -384,7 +384,8 @@ class SetFitModelCardData(CardData):
                 dataset_id = dataset_id.replace(token, "")
             return dataset_id.lower()
 
-        if (cache_files := dataset.cache_files) and "filename" in cache_files[0]:
+        cache_files = dataset.cache_files
+        if cache_files and "filename" in cache_files[0]:
             cache_path_parts = Path(cache_files[0]["filename"]).parts
             # Check if the cachefile is under "huggingface/datasets"
             subtuple = ("huggingface", "datasets")
