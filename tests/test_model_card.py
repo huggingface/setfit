@@ -66,7 +66,9 @@ def test_is_on_huggingface_edge_case() -> None:
     assert not is_on_huggingface("a/test/value")
 
 
-@pytest.mark.skipif(parse(datasets.__version__) < Version("2.14.0"))
+@pytest.mark.skipif(
+    parse(datasets.__version__) < Version("2.14.0"), reason="Inferring dataset_id only works from datasets >= 2.14.0"
+)
 @pytest.mark.parametrize("dataset_id", ("SetFit/emotion", "SetFit/sst2"))
 def test_infer_dataset_id(dataset_id: str) -> None:
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
