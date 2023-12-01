@@ -834,6 +834,8 @@ class Trainer(ColumnMappingMixin):
         else:
             raise ValueError("metric must be a string or a callable")
 
+        if not isinstance(results, dict):
+            results = {"metric": results}
         self.model.model_card_data.post_training_eval_results(
             {f"{metric_key_prefix}_{key}": value for key, value in results.items()}
         )
