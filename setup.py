@@ -44,8 +44,11 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 # For the combatibility tests we add pandas<2, as pandas 2.0.0 onwards is incompatible with old datasets versions,
 # and we assume few to no users would use old datasets versions with new pandas versions.
 # The only alternative is incrementing the minimum version for datasets, which seems unnecessary.
+# Beyond that, fsspec is set to <2023.12.0 as that version is incompatible with datasets<=2.15.0
 EXTRAS_REQUIRE["compat_tests"] = (
-    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE + ["pandas<2"]
+    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS]
+    + TESTS_REQUIRE
+    + ["pandas<2", "fsspec<2023.12.0"]
 )
 
 setup(
