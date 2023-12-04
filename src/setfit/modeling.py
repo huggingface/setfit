@@ -825,7 +825,7 @@ if cut_index != -1:
                 If the labels are integers ranging from `0` to `num_classes-1`, then these labels indicate
                     the corresponding labels.
             model_card_data (`SetFitModelCardData`, *optional*):
-                A [`SetFitModelCardData`] instance storing data such as model language, license, dataset name,
+                A `SetFitModelCardData` instance storing data such as model language, license, dataset name,
                     etc. to be used in the automatically generated model cards.
             multi_target_strategy (`str`, *optional*):
                 The strategy to use with multi-label classification. One of "one-vs-rest", "multi-output",

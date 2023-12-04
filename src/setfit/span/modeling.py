@@ -98,7 +98,7 @@ if cut_index != -1:
     docstring = (
         docstring[:cut_index]
         + """model_card_data (`SetFitModelCardData`, *optional*):
-                A [`SetFitModelCardData`] instance storing data such as model language, license, dataset name,
+                A `SetFitModelCardData` instance storing data such as model language, license, dataset name,
                     etc. to be used in the automatically generated model cards.
             use_differentiable_head (`bool`, *optional*):
                 Whether to load SetFit using a differentiable (i.e., Torch) head instead of Logistic Regression.
