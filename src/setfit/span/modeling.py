@@ -101,11 +101,10 @@ if cut_index != -1:
 
 
 class AspectModel(SpanSetFitModel):
-    # TODO: Assumes binary SetFitModel with 0 == no aspect, 1 == aspect
     def __call__(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> List[bool]:
         sentence_preds = super().__call__(docs, aspects_list)
         return [
-            [aspect for aspect, pred in zip(aspects, preds) if pred == 1]
+            [aspect for aspect, pred in zip(aspects, preds) if pred == "aspect"]
             for aspects, preds in zip(aspects_list, sentence_preds)
         ]
 
@@ -208,6 +207,7 @@ class AbsaModel:
             local_files_only=local_files_only,
             use_differentiable_head=use_differentiable_head,
             normalize_embeddings=normalize_embeddings,
+            labels = ["no aspect", "aspect"],
             **model_kwargs,
         )
         if polarity_model_id:
