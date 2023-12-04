@@ -155,13 +155,9 @@ class AbsaTrainer(ColumnMappingMixin):
             # the predicted aspects are indeed true/gold aspects.
             aspect_labels.extend([aspect in gold_aspects for aspect in aspects])
 
-            # The Polarity model uses the intersection of pred and gold aspects, with labels for the gold label.
-            intersected_aspects = []
-            for gold_aspect, gold_label in zip(gold_aspects, gold_polarity_labels):
-                if gold_aspect in aspects:
-                    intersected_aspects.append(gold_aspect)
-                    polarity_labels.append(gold_label)
-            intersected_aspect_list.append(intersected_aspects)
+            # The Polarity model uses only the gold aspects and labels
+            polarity_labels.extend(gold_polarity_labels)
+            intersected_aspect_list.append(gold_aspects)
 
         aspect_texts = list(aspect_model.prepend_aspects(docs, aspects_list))
         polarity_texts = list(polarity_model.prepend_aspects(docs, intersected_aspect_list))
