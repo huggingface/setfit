@@ -86,8 +86,8 @@ This model was trained within the context of a larger system for ABSA, which loo
 ### Model Labels
 \| Label\s+\| Examples\s+\|
 \|:-+\|:-+\|
-\| no aspect\s+\| [^\|]+ \|
 \| aspect\s+\| [^\|]+ \|
+\| no aspect\s+\| [^\|]+ \|
 
 ## Evaluation
 
@@ -147,14 +147,14 @@ preds = model\(".+"\)
 ## Training Details
 
 ### Training Set Metrics
-\| Training set \| Min \| Median  \| Max \|
-\|:-------------\|:----\|:--------\|:----\|
-\| Word count   \| 13  \| 29.6875 \| 36  \|
+\| Training set \| Min \| Median \| Max \|
+\|:-------------\|:----\|:-------\|:----\|
+\| Word count   \| 5   \| 14.5   \| 23  \|
 
 \| Label     \| Training Sample Count \|
 \|:----------\|:----------------------\|
-\| no aspect \| 10                    \|
-\| aspect    \| 6                     \|
+\| no aspect \| 1                     \|
+\| aspect    \| 5                     \|
 
 ### Training Hyperparameters
 - batch_size: \(1, 1\)
@@ -228,6 +228,7 @@ Carbon emissions were measured using \[CodeCarbon\]\(https://github.com/mlco2/co
 ## Model Card Contact
 
 \*Provides a way for people who have updates to the Model Card, suggestions, or questions, to contact the Model Card authors\.\*
--->""",
+-->\
+""",
     flags=re.DOTALL,
 )

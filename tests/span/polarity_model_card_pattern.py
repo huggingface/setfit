@@ -72,7 +72,7 @@ This model was trained within the context of a larger system for ABSA, which loo
 - \*\*SetFitABSA Aspect Model:\*\* \[\S+\]\(https:\/\/huggingface\.co/\S+\)
 - \*\*SetFitABSA Polarity Model:\*\* \[\S+\]\(https:\/\/huggingface\.co/\S+\)
 - \*\*Maximum Sequence Length:\*\* 100 tokens
-- \*\*Number of Classes:\*\* 3 classes
+- \*\*Number of Classes:\*\* 2 classes
 <!-- - \*\*Training Dataset:\*\* \[Unknown\]\(https://huggingface.co/datasets/unknown\) -->
 - \*\*Language:\*\* en
 - \*\*License:\*\* apache-2.0
@@ -86,9 +86,8 @@ This model was trained within the context of a larger system for ABSA, which loo
 ### Model Labels
 \| Label\s+\| Examples\s+\|
 \|:-+\|:-+\|
-\| neutral\s+\| [^\|]+ \|
-\| positive\s+\| [^\|]+ \|
 \| negative\s+\| [^\|]+ \|
+\| positive\s+\| [^\|]+ \|
 
 ## Evaluation
 
@@ -148,14 +147,13 @@ preds = model\(".+"\)
 ## Training Details
 
 ### Training Set Metrics
-\| Training set \| Min \| Median  \| Max \|
-\|:-------------\|:----\|:--------\|:----\|
-\| Word count   \| 22  \| 33.3333 \| 42  \|
+\| Training set \| Min \| Median \| Max \|
+\|:-------------\|:----\|:-------\|:----\|
+\| Word count   \| 8   \| 16.8   \| 28  \|
 
 \| Label    \| Training Sample Count \|
 \|:---------\|:----------------------\|
-\| negative \| 1                     \|
-\| neutral  \| 2                     \|
+\| negative \| 2                     \|
 \| positive \| 3                     \|
 
 ### Training Hyperparameters
@@ -230,6 +228,7 @@ Carbon emissions were measured using \[CodeCarbon\]\(https://github.com/mlco2/co
 ## Model Card Contact
 
 \*Provides a way for people who have updates to the Model Card, suggestions, or questions, to contact the Model Card authors\.\*
--->""",
+-->\
+""",
     flags=re.DOTALL,
 )
