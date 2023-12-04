@@ -18,7 +18,7 @@ from torch import nn
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
-from transformers.integrations import get_reporting_integration_callbacks, WandbCallback
+from transformers.integrations import WandbCallback, get_reporting_integration_callbacks
 from transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
