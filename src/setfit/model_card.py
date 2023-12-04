@@ -479,11 +479,11 @@ class SetFitModelCardData(CardData):
                     task_type="text-classification",
                     dataset_type=dataset_id,
                     dataset_name=dataset_name,
+                    dataset_split=dataset_split,
+                    dataset_revision=self.dataset_revision,
                     metric_type=metric_key.split("_", maxsplit=1)[1],
                     metric_value=metric_value,
                     task_name="Text Classification",
-                    dataset_split=dataset_split,
-                    dataset_revision=self.dataset_revision,
                     metric_name=metric_key.split("_", maxsplit=1)[1].title(),
                 )
                 for metric_key, metric_value in self.eval_results_dict.items()
