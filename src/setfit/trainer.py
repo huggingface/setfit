@@ -1,4 +1,5 @@
 import math
+import os
 import shutil
 import time
 import warnings
@@ -17,7 +18,7 @@ from torch import nn
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
-from transformers.integrations import get_reporting_integration_callbacks
+from transformers.integrations import get_reporting_integration_callbacks, WandbCallback
 from transformers.trainer_callback import (
     CallbackHandler,
     DefaultFlowCallback,
@@ -226,6 +227,9 @@ class Trainer(ColumnMappingMixin):
         # Setup the callbacks
         default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(self.args.report_to)
         callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
+        if WandbCallback in callbacks:
+            # Set the W&B project via environment variables if it's not already set
+            os.environ.setdefault("WANDB_PROJECT", "setfit")
         # TODO: Observe optimizer and scheduler by wrapping SentenceTransformer._get_scheduler
         self.callback_handler = CallbackHandler(callbacks, self.model, self.model.model_body.tokenizer, None, None)
         self.state = TrainerState()
