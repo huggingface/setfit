@@ -3,7 +3,7 @@
 import re
 
 
-MODEL_CARD_PATTERN = re.compile(
+POLARITY_MODEL_CARD_PATTERN = re.compile(
     """\
 ---
 language:
@@ -12,17 +12,16 @@ license: apache-2\.0
 library_name: setfit
 tags:
 - setfit
+- absa
 - sentence-transformers
 - text-classification
 - generated_from_setfit_trainer
-datasets:
-- sst2
 metrics:
 - accuracy
 widget:
 - text: .*
 pipeline_tag: text-classification
-inference: true
+inference: false
 co2_eq_emissions:
   emissions: [\d\.\-e]+
   source: codecarbon
@@ -34,14 +33,14 @@ co2_eq_emissions:
 (  hardware_used: .+
 )?base_model: sentence-transformers/paraphrase-albert-small-v2
 model-index:
-- name: SetFit with sentence-transformers\/paraphrase-albert-small-v2 on SST2
+- name: SetFit Polarity Model with sentence-transformers\/paraphrase-albert-small-v2
   results:
   - task:
       type: text-classification
       name: Text Classification
     dataset:
-      name: SST2
-      type: sst2
+      name: Unknown
+      type: unknown
       split: test
     metrics:
     - type: accuracy
@@ -49,14 +48,20 @@ model-index:
       name: Accuracy
 ---
 
-\# SetFit with sentence\-transformers/paraphrase\-albert\-small\-v2 on SST2
+\# SetFit Polarity Model with sentence\-transformers/paraphrase\-albert\-small\-v2
 
-This is a \[SetFit\]\(https://github\.com/huggingface/setfit\) model trained on the \[SST2\]\(https://huggingface\.co/datasets/sst2\) dataset that can be used for Text Classification\. This SetFit model uses \[sentence\-transformers/paraphrase\-albert\-small\-v2\]\(https://huggingface\.co/sentence\-transformers/paraphrase\-albert\-small\-v2\) as the Sentence Transformer embedding model\. A \[LogisticRegression\]\(https://scikit\-learn\.org/stable/modules/generated/sklearn\.linear_model\.LogisticRegression\.html\) instance is used for classification\.
+This is a \[SetFit\]\(https://github\.com/huggingface/setfit\) model that can be used for Aspect Based Sentiment Analysis \(ABSA\)\. This SetFit model uses \[sentence\-transformers/paraphrase\-albert\-small\-v2\]\(https://huggingface\.co/sentence\-transformers/paraphrase\-albert\-small\-v2\) as the Sentence Transformer embedding model\. A \[LogisticRegression\]\(https://scikit\-learn\.org/stable/modules/generated/sklearn\.linear_model\.LogisticRegression\.html\) instance is used for classification\. In particular, this model is in charge of (filtering aspect span candidates|classifying aspect polarities)\.
 
 The model has been trained using an efficient few\-shot learning technique that involves:
 
 1\. Fine\-tuning a \[Sentence Transformer\]\(https://www\.sbert\.net\) with contrastive learning\.
 2\. Training a classification head with features from the fine\-tuned Sentence Transformer\.
+
+This model was trained within the context of a larger system for ABSA, which looks like so\:
+
+1\. Use a spaCy model to select possible aspect span candidates\.
+2\. Use a SetFit model to filter these possible aspect span candidates\.
+3\. \*\*Use this SetFit model to classify the filtered aspect span candidates\.\*\*
 
 ## Model Details
 
@@ -64,9 +69,11 @@ The model has been trained using an efficient few\-shot learning technique that 
 - \*\*Model Type:\*\* SetFit
 - \*\*Sentence Transformer body:\*\* \[sentence-transformers/paraphrase-albert-small-v2\]\(https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2\)
 - \*\*Classification head:\*\* a \[LogisticRegression\]\(https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html\) instance
+- \*\*SetFitABSA Aspect Model:\*\* \[\S+\]\(https:\/\/huggingface\.co/\S+\)
+- \*\*SetFitABSA Polarity Model:\*\* \[\S+\]\(https:\/\/huggingface\.co/\S+\)
 - \*\*Maximum Sequence Length:\*\* 100 tokens
-- \*\*Number of Classes:\*\* 2 classes
-- \*\*Training Dataset:\*\* \[SST2\]\(https://huggingface.co/datasets/sst2\)
+- \*\*Number of Classes:\*\* 3 classes
+<!-- - \*\*Training Dataset:\*\* \[Unknown\]\(https://huggingface.co/datasets/unknown\) -->
 - \*\*Language:\*\* en
 - \*\*License:\*\* apache-2.0
 
@@ -79,8 +86,9 @@ The model has been trained using an efficient few\-shot learning technique that 
 ### Model Labels
 \| Label\s+\| Examples\s+\|
 \|:-+\|:-+\|
-\| negative\s+\| [^\|]+ \|
+\| neutral\s+\| [^\|]+ \|
 \| positive\s+\| [^\|]+ \|
+\| negative\s+\| [^\|]+ \|
 
 ## Evaluation
 
@@ -102,10 +110,13 @@ pip install setfit
 Then you can load this model and run inference.
 
 ```python
-from setfit import SetFitModel
+from setfit import AbsaModel
 
 # Download from the [^H]+ Hub
-model = SetFitModel.from_pretrained\("tomaarsen/setfit-paraphrase-albert-small-v2-sst2"\)
+model = AbsaModel.from_pretrained\(
+    "[^\"]+",
+    "[^\"]+",
+\)
 # Run inference
 preds = model\(".+"\)
 ```
@@ -139,12 +150,13 @@ preds = model\(".+"\)
 ### Training Set Metrics
 \| Training set \| Min \| Median  \| Max \|
 \|:-------------\|:----\|:--------\|:----\|
-\| Word count   \| 2   \| 11.4375 \| 33  \|
+\| Word count   \| 22  \| 33.3333 \| 42  \|
 
 \| Label    \| Training Sample Count \|
 \|:---------\|:----------------------\|
-\| negative \| 8                     \|
-\| positive \| 8                     \|
+\| negative \| 1                     \|
+\| neutral  \| 2                     \|
+\| positive \| 3                     \|
 
 ### Training Hyperparameters
 - batch_size: \(1, 1\)

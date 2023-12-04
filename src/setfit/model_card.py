@@ -135,19 +135,19 @@ class ModelCardCallback(TrainerCallback):
         logs: Dict[str, float],
         **kwargs,
     ):
-        if "embedding_loss" in logs:
+        keys = {"embedding_loss", "polarity_embedding_loss", "aspect_embedding_loss"} & set(logs)
+        if keys:
             if (
                 model.model_card_data.eval_lines_list
                 and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
             ):
-                model.model_card_data.eval_lines_list[-1]["Training Loss"] = logs["embedding_loss"]
+                model.model_card_data.eval_lines_list[-1]["Training Loss"] = logs[keys.pop()]
             else:
                 model.model_card_data.eval_lines_list.append(
                     {
-                        # "Training Loss": self.state.log_history[-1]["loss"] if "loss" in self.state.log_history[-1] else "-",
                         "Epoch": state.epoch,
                         "Step": state.global_step,
-                        "Training Loss": logs["embedding_loss"],
+                        "Training Loss": logs[keys.pop()],
                         "Validation Loss": "-",
                     }
                 )
@@ -225,7 +225,7 @@ class SetFitModelCardData(CardData):
     dataset_name: Optional[str] = None
     dataset_id: Optional[str] = None
     dataset_revision: Optional[str] = None
-    task_name: str = "Text Classification"
+    task_name: Optional[str] = None
     st_id: Optional[str] = None
 
     # Automatically filled by `ModelCardCallback` and the Trainer directly
@@ -259,6 +259,9 @@ class SetFitModelCardData(CardData):
         },
         init=False,
     )
+
+    # ABSA-related arguments
+    absa: Dict[str, Any] = field(default=None, init=False, repr=False)
 
     # Passed via `register_model` only
     model: Optional["SetFitModel"] = field(default=None, init=False, repr=False)
@@ -525,6 +528,8 @@ class SetFitModelCardData(CardData):
         if super_dict["num_classes"] is None:
             if self.model.labels:
                 super_dict["num_classes"] = len(self.model.labels)
+        if super_dict["absa"]:
+            super_dict.update(super_dict.pop("absa"))
 
         for key in IGNORED_FIELDS:
             super_dict.pop(key, None)
