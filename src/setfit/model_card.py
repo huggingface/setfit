@@ -179,12 +179,12 @@ class SetFitModelCardData(CardData):
             e.g. "en" or ["en", "de", "nl"]
         license (`Optional[str]`): The license of the model, e.g. "apache-2.0", "mit",
             or "cc-by-nc-sa-4.0"
-        model_name (`Optional[str]`): The pretty name of the model, e.g. "SetFit with mBERT-base on CoNLL03".
+        model_name (`Optional[str]`): The pretty name of the model, e.g. "SetFit with mBERT-base on SST2".
             If not defined, uses encoder_name/encoder_id and dataset_name/dataset_id to generate a model name.
         model_id (`Optional[str]`): The model ID when pushing the model to the Hub,
             e.g. "tomaarsen/span-marker-mbert-base-multinerd".
-        dataset_name (`Optional[str]`): The pretty name of the dataset, e.g. "CoNLL03".
-        dataset_id (`Optional[str]`): The dataset ID of the dataset, e.g. "tner/bionlp2004".
+        dataset_name (`Optional[str]`): The pretty name of the dataset, e.g. "SST2".
+        dataset_id (`Optional[str]`): The dataset ID of the dataset, e.g. "dair-ai/emotion".
         dataset_revision (`Optional[str]`): The dataset revision/commit that was for training/evaluation.
         st_id (`Optional[str]`): The Sentence Transformers model ID.
 
