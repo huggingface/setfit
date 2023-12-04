@@ -21,6 +21,8 @@
     title: Overview
   - local: how_to/callbacks
     title: Callbacks
+  - local: how_to/model_cards
+    title: Model Cards
   - local: how_to/classification_heads
     title: Classification Heads
   - local: how_to/multilabel
