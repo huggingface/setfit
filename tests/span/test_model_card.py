@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from datasets import load_dataset
+from datasets import Dataset
 
 from setfit import AbsaModel, AbsaTrainer, SetFitModelCardData, TrainingArguments
 
@@ -8,10 +8,7 @@ from .aspect_model_card_pattern import ASPECT_MODEL_CARD_PATTERN
 from .polarity_model_card_pattern import POLARITY_MODEL_CARD_PATTERN
 
 
-def test_model_card(tmp_path: Path) -> None:
-    dataset = load_dataset("tomaarsen/setfit-absa-semeval-laptops", split="train")
-    train_dataset = dataset.select(range(10))
-    eval_dataset = dataset.select(range(10, 20))
+def test_model_card(absa_dataset: Dataset, tmp_path: Path) -> None:
     model = AbsaModel.from_pretrained(
         "sentence-transformers/paraphrase-albert-small-v2",
         model_card_data=SetFitModelCardData(
@@ -33,8 +30,8 @@ def test_model_card(tmp_path: Path) -> None:
     trainer = AbsaTrainer(
         model=model,
         args=args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        train_dataset=absa_dataset,
+        eval_dataset=absa_dataset,
     )
     trainer.train()
     trainer.evaluate()
