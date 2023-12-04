@@ -38,22 +38,15 @@ def test_model_card(tmp_path: Path) -> None:
     )
     trainer.train()
     trainer.evaluate()
-    # for model_type, model in (("aspect", model.aspect_model), ("polarity", model.polarity_model)):
-    #     model.create_model_card(tmp_path / model_type, tmp_path / model_type)
-    #     with open(tmp_path / model_type / "README.md", "r", encoding="utf8") as f:
-    #         model_card = f.read()
-    #     with open(f"{model_type}_model_card.md", "w", encoding="utf8") as f:
-    #         f.write(model_card)
-    #     assert MODEL_CARD_PATTERN.fullmatch(model_card)
 
     path = tmp_path / "aspect"
-    model.aspect_model.create_model_card(path, path)
+    model.aspect_model.create_model_card(path, model_name=str(path))
     with open(path / "README.md", "r", encoding="utf8") as f:
         model_card = f.read()
     assert ASPECT_MODEL_CARD_PATTERN.fullmatch(model_card)
 
     path = tmp_path / "polarity"
-    model.polarity_model.create_model_card(path, path)
+    model.polarity_model.create_model_card(path, model_name=str(path))
     with open(path / "README.md", "r", encoding="utf8") as f:
         model_card = f.read()
     assert POLARITY_MODEL_CARD_PATTERN.fullmatch(model_card)
