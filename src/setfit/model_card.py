@@ -177,21 +177,23 @@ class SetFitModelCardData(CardData):
     Args:
         language (`Optional[Union[str, List[str]]]`): The model language, either a string or a list,
             e.g. "en" or ["en", "de", "nl"]
-        license: (`Optional[str]`): The license of the model, e.g. "apache-2.0", "mit"
+        license (`Optional[str]`): The license of the model, e.g. "apache-2.0", "mit",
             or "cc-by-nc-sa-4.0"
-        model_name: (`Optional[str]`): The pretty name of the model, e.g. "SetFit with mBERT-base on CoNLL03".
+        model_name (`Optional[str]`): The pretty name of the model, e.g. "SetFit with mBERT-base on CoNLL03".
             If not defined, uses encoder_name/encoder_id and dataset_name/dataset_id to generate a model name.
-        model_id: (`Optional[str]`): The model ID when pushing the model to the Hub,
+        model_id (`Optional[str]`): The model ID when pushing the model to the Hub,
             e.g. "tomaarsen/span-marker-mbert-base-multinerd".
-        dataset_name: (`Optional[str]`): The pretty name of the dataset, e.g. "CoNLL03".
-        dataset_id: (`Optional[str]`): The dataset ID of the dataset, e.g. "tner/bionlp2004".
-        dataset_revision: (`Optional[str]`): The dataset revision/commit that was for training/evaluation.
-        st_id: (`Optional[str]`): The Sentence Transformers model ID.
+        dataset_name (`Optional[str]`): The pretty name of the dataset, e.g. "CoNLL03".
+        dataset_id (`Optional[str]`): The dataset ID of the dataset, e.g. "tner/bionlp2004".
+        dataset_revision (`Optional[str]`): The dataset revision/commit that was for training/evaluation.
+        st_id (`Optional[str]`): The Sentence Transformers model ID.
 
-    Note:
+    <Tip>
 
-        Install ``nltk`` to detokenize the examples used in the model card, i.e. attach punctuation and brackets.
-        Additionally, ``codecarbon`` can be installed to automatically track carbon emission usage.
+    Install [``codecarbon``](https://github.com/mlco2/codecarbon) to automatically track carbon emission usage and
+    include it in your model cards.
+
+    </Tip>
 
     Example::
 
