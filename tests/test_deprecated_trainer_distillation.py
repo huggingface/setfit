@@ -73,28 +73,26 @@ class DistillationSetFitTrainerTest(TestCase):
 
     def test_trainer_raises_error_with_missing_text(self):
         dataset = Dataset.from_dict({"label": [0, 1, 2], "extra_column": ["d", "e", "f"]})
-        trainer = DistillationSetFitTrainer(
-            teacher_model=self.teacher_model,
-            train_dataset=dataset,
-            student_model=self.student_model,
-            eval_dataset=dataset,
-            num_iterations=self.num_iterations,
-        )
         with pytest.raises(ValueError):
-            trainer.train()
+            DistillationSetFitTrainer(
+                teacher_model=self.teacher_model,
+                train_dataset=dataset,
+                student_model=self.student_model,
+                eval_dataset=dataset,
+                num_iterations=self.num_iterations,
+            )
 
     def test_column_mapping_with_missing_text(self):
         dataset = Dataset.from_dict({"text": ["a", "b", "c"], "extra_column": ["d", "e", "f"]})
-        trainer = DistillationSetFitTrainer(
-            teacher_model=self.teacher_model,
-            train_dataset=dataset,
-            student_model=self.student_model,
-            eval_dataset=dataset,
-            num_iterations=self.num_iterations,
-            column_mapping={"label_new": "label"},
-        )
         with pytest.raises(ValueError):
-            trainer._validate_column_mapping(trainer.train_dataset)
+            DistillationSetFitTrainer(
+                teacher_model=self.teacher_model,
+                train_dataset=dataset,
+                student_model=self.student_model,
+                eval_dataset=dataset,
+                num_iterations=self.num_iterations,
+                column_mapping={"label_new": "label"},
+            )
 
     def test_column_mapping_multilabel(self):
         dataset = Dataset.from_dict({"text_new": ["a", "b", "c"], "label_new": [[0, 1], [1, 2], [2, 0]]})
@@ -108,8 +106,8 @@ class DistillationSetFitTrainerTest(TestCase):
             column_mapping={"text_new": "text", "label_new": "label"},
         )
 
-        trainer._validate_column_mapping(trainer.train_dataset)
-        formatted_dataset = trainer._apply_column_mapping(trainer.train_dataset, trainer.column_mapping)
+        trainer._validate_column_mapping(dataset)
+        formatted_dataset = trainer._apply_column_mapping(dataset, trainer.column_mapping)
 
         assert formatted_dataset.column_names == ["text", "label"]
         assert formatted_dataset[0]["text"] == "a"

@@ -23,6 +23,7 @@ ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 OPENVINO_REQUIRE = ["hummingbird-ml<0.4.9", "openvino==2022.3.0"]
 TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE + ABSA_REQUIRE
 DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
+CODECARBON_REQUIRE = ["codecarbon"]
 EXTRAS_REQUIRE = {
     "optuna": INTEGRATIONS_REQUIRE,
     "quality": QUALITY_REQUIRE,
@@ -31,6 +32,7 @@ EXTRAS_REQUIRE = {
     "openvino": ONNX_REQUIRE + OPENVINO_REQUIRE,
     "docs": DOCS_REQUIRE,
     "absa": ABSA_REQUIRE,
+    "codecarbon": CODECARBON_REQUIRE,
 }
 
 
@@ -42,8 +44,11 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 # For the combatibility tests we add pandas<2, as pandas 2.0.0 onwards is incompatible with old datasets versions,
 # and we assume few to no users would use old datasets versions with new pandas versions.
 # The only alternative is incrementing the minimum version for datasets, which seems unnecessary.
+# Beyond that, fsspec is set to <2023.12.0 as that version is incompatible with datasets<=2.15.0
 EXTRAS_REQUIRE["compat_tests"] = (
-    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE + ["pandas<2"]
+    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS]
+    + TESTS_REQUIRE
+    + ["pandas<2", "fsspec<2023.12.0"]
 )
 
 setup(
