@@ -4,15 +4,21 @@
 {{ card_data }}
 ---
 
-# {{ model_name | default("SetFit for Text Classification", true) }}
+# {{ model_name if model_name else ( "SetFit Aspect Model for Aspect Based Sentiment Analysis" if is_aspect else ( "SetFit Polarity Model for Aspect Based Sentiment Analysis" if is_aspect is False else "SetFit Model for Text Classification"))}}
 
-This is a [SetFit](https://github.com/huggingface/setfit) model{% if dataset_id %} trained on the [{{ dataset_name if dataset_name else dataset_id }}](https://huggingface.co/datasets/{{ dataset_id }}) dataset{% endif %} that can be used for {{ task_name | default("Text Classification", true) }}.{% if st_id %} This SetFit model uses [{{ st_id }}](https://huggingface.co/{{ st_id }}) as the Sentence Transformer embedding model.{% endif %} A {{ head_class }} instance is used for classification.
+This is a [SetFit](https://github.com/huggingface/setfit) model{% if dataset_id %} trained on the [{{ dataset_name if dataset_name else dataset_id }}](https://huggingface.co/datasets/{{ dataset_id }}) dataset{% endif %} that can be used for {{ task_name | default("Text Classification", true) }}.{% if st_id %} This SetFit model uses [{{ st_id }}](https://huggingface.co/{{ st_id }}) as the Sentence Transformer embedding model.{% endif %} A {{ head_class }} instance is used for classification.{% if is_absa %} In particular, this model is in charge of {{ "filtering aspect span candidates" if is_aspect else "classifying aspect polarities"}}.{% endif %}
 
 The model has been trained using an efficient few-shot learning technique that involves:
 
 1. Fine-tuning a [Sentence Transformer](https://www.sbert.net) with contrastive learning.
 2. Training a classification head with features from the fine-tuned Sentence Transformer.
+{% if is_absa %}
+This model was trained within the context of a larger system for ABSA, which looks like so:
 
+1. Use a spaCy model to select possible aspect span candidates.
+2. {{ "**" if is_aspect else "" }}Use {{ "this" if is_aspect else "a" }} SetFit model to filter these possible aspect span candidates.{{ "**" if is_aspect else "" }}
+3. {{ "**" if not is_aspect else "" }}Use {{ "this" if not is_aspect else "a" }} SetFit model to classify the filtered aspect span candidates.{{ "**" if not is_aspect else "" }}
+{% endif %}
 ## Model Details
 
 ### Model Description
@@ -23,9 +29,15 @@ The model has been trained using an efficient few-shot learning technique that i
     <!-- - **Sentence Transformer:** [Unknown](https://huggingface.co/unknown) -->
 {%- endif %}
 {% if head_class -%}
-    - **Classification head:** a {{ head_class }} instance.
+    - **Classification head:** a {{ head_class }} instance
 {%- else -%}
-    <!-- - **Clasification head:** Unknown -->
+    <!-- - **Classification head:** Unknown -->
+{%- endif %}
+{%- if aspect_model %}
+- **SetFitABSA Aspect Model:** [{{ aspect_model }}](https://huggingface.co/{{ aspect_model }})
+{%- endif %}
+{%- if polarity_model %}
+- **SetFitABSA Polarity Model:** [{{ polarity_model }}](https://huggingface.co/{{ polarity_model }})
 {%- endif %}
 - **Maximum Sequence Length:** {{ model_max_length }} tokens
 {% if num_classes -%}
@@ -78,15 +90,29 @@ pip install setfit
 ```
 
 Then you can load this model and run inference.
+{% if is_absa %}
+```python
+from setfit import AbsaModel
 
+# Download from the {{ hf_emoji }} Hub
+model = AbsaModel.from_pretrained(
+    "{{ aspect_model }}",
+    "{{ polarity_model }}",
+)
+# Run inference
+preds = model("The food was great, but the venue is just way too busy.")
+```
+{%- else %}
 ```python
 from setfit import SetFitModel
 
-# Download from {{ hf_emoji }} Hub
+# Download from the {{ hf_emoji }} Hub
 model = SetFitModel.from_pretrained("{{ model_id | default('setfit_model_id', true) }}")
 # Run inference
 preds = model("{{ predict_example | default("I loved the spiderman movie!", true) | replace('"', '\\"') }}")
 ```
+{%- endif %}
+
 <!--
 ### Downstream Use
 

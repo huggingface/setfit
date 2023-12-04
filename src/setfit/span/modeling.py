@@ -1,3 +1,4 @@
+import copy
 import os
 import tempfile
 import types
@@ -7,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 
 import torch
 from huggingface_hub.utils import SoftTemporaryDirectory
-from jinja2 import Environment, FileSystemLoader
 
 from setfit.utils import set_docstring
 
@@ -60,8 +60,6 @@ class SpanSetFitModel(SetFitModel):
         if model_path.exists() and Path(tempfile.gettempdir()) in model_path.resolve().parents:
             model_name = "/".join(model_path.parts[-2:])
 
-        environment = Environment(loader=FileSystemLoader(Path(__file__).parent))
-        template = environment.get_template("model_card_template.md")
         is_aspect = isinstance(self, AspectModel)
         aspect_model = "setfit-absa-aspect"
         polarity_model = "setfit-absa-polarity"
@@ -75,11 +73,22 @@ class SpanSetFitModel(SetFitModel):
                 if model_name.endswith("-polarity"):
                     aspect_model = model_name[: -len("-polarity")] + "-aspect"
 
-        model_card_content = template.render(
-            model_name=model_name, is_aspect=is_aspect, aspect_model=aspect_model, polarity_model=polarity_model
-        )
+        self.model_card_data.absa = {
+            "is_absa": True,
+            "is_aspect": is_aspect,
+            "aspect_model": aspect_model,
+            "polarity_model": polarity_model,
+        }
+        if self.model_card_data.task_name is None:
+            self.model_card_data.task_name = "Aspect Based Sentiment Analysis (ABSA)"
+        self.model_card_data.tags.insert(1, "absa")
+        if self.model_card_data.model_name:
+            self.model_card_data.model_name = self.model_card_data.model_name.replace(
+                "SetFit", "SetFit Aspect Model" if is_aspect else "SetFit Polarity Model", 1
+            )
+        self.model_card_data.inference = False
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
-            f.write(model_card_content)
+            f.write(self.generate_model_card())
 
 
 docstring = SpanSetFitModel.from_pretrained.__doc__
@@ -207,7 +216,7 @@ class AbsaModel:
             local_files_only=local_files_only,
             use_differentiable_head=use_differentiable_head,
             normalize_embeddings=normalize_embeddings,
-            labels = ["no aspect", "aspect"],
+            labels=["no aspect", "aspect"],
             **model_kwargs,
         )
         if polarity_model_id:
@@ -215,6 +224,11 @@ class AbsaModel:
             revision = None
             if len(model_id.split("@")) == 2:
                 model_id, revision = model_id.split("@")
+        # If model_card_data was provided, "separate" the instance between the Aspect
+        # and Polarity models.
+        model_card_data = model_kwargs.pop("model_card_data", None)
+        if model_card_data:
+            model_kwargs["model_card_data"] = copy.deepcopy(model_card_data)
         polarity_model = PolarityModel.from_pretrained(
             model_id,
             span_context=span_contexts[1],
