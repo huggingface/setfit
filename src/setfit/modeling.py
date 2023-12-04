@@ -6,8 +6,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from setfit.model_card import SetFitModelCardData, generate_model_card
-
 
 # For Python 3.7 compatibility
 try:
@@ -32,6 +30,7 @@ from transformers.utils import copy_func
 
 from . import logging
 from .data import SetFitDataset
+from .model_card import SetFitModelCardData, generate_model_card
 from .utils import set_docstring
 
 
