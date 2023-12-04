@@ -73,6 +73,12 @@ class SpanSetFitModel(SetFitModel):
                 if model_name.endswith("-polarity"):
                     aspect_model = model_name[: -len("-polarity")] + "-aspect"
 
+        # Only once:
+        if self.model_card_data.absa is None and self.model_card_data.model_name:
+            self.model_card_data.model_name = self.model_card_data.model_name.replace(
+                "SetFit", "SetFit Aspect Model" if is_aspect else "SetFit Polarity Model", 1
+            )
+            self.model_card_data.tags.insert(1, "absa")
         self.model_card_data.absa = {
             "is_absa": True,
             "is_aspect": is_aspect,
@@ -81,11 +87,6 @@ class SpanSetFitModel(SetFitModel):
         }
         if self.model_card_data.task_name is None:
             self.model_card_data.task_name = "Aspect Based Sentiment Analysis (ABSA)"
-        self.model_card_data.tags.insert(1, "absa")
-        if self.model_card_data.model_name:
-            self.model_card_data.model_name = self.model_card_data.model_name.replace(
-                "SetFit", "SetFit Aspect Model" if is_aspect else "SetFit Polarity Model", 1
-            )
         self.model_card_data.inference = False
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
             f.write(self.generate_model_card())
