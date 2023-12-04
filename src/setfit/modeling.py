@@ -233,14 +233,14 @@ class SetFitModel(PyTorchModelHubMixin):
     def id2label(self) -> Dict[int, str]:
         """Return a mapping from integer IDs to string labels."""
         if self.labels is None:
-            return None
+            return {}
         return dict(enumerate(self.labels))
 
     @property
     def label2id(self) -> Dict[str, int]:
         """Return a mapping from string labels to integer IDs."""
         if self.labels is None:
-            return None
+            return {}
         return {label: idx for idx, label in enumerate(self.labels)}
 
     def fit(
