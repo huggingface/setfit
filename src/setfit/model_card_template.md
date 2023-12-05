@@ -33,6 +33,9 @@ This model was trained within the context of a larger system for ABSA, which loo
 {%- else -%}
     <!-- - **Classification head:** Unknown -->
 {%- endif %}
+{%- if spacy_model %}
+- **spaCy Model:** {{ spacy_model }}
+{%- endif %}
 {%- if aspect_model %}
 - **SetFitABSA Aspect Model:** [{{ aspect_model }}](https://huggingface.co/{{ aspect_model }})
 {%- endif %}

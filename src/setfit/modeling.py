@@ -723,10 +723,20 @@ class SetFitModel(PyTorchModelHubMixin):
             except requests.exceptions.RequestException:
                 pass
 
+        model_kwargs = {key: value for key, value in model_kwargs.items() if value is not None}
+
         if config_file is not None:
             with open(config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
-            model_kwargs.update(config)
+            # Update model_kwargs + warnings
+            for setting, value in config.items():
+                if setting in model_kwargs:
+                    if model_kwargs[setting] != value:
+                        logger.warning(
+                            f"Overriding {setting} in model configuration from {value} to {model_kwargs[setting]}."
+                        )
+                else:
+                    model_kwargs[setting] = value
 
         # Try to load a model head file
         if os.path.isdir(model_id):

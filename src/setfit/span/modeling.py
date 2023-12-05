@@ -24,10 +24,13 @@ logger = logging.get_logger(__name__)
 
 @dataclass
 class SpanSetFitModel(SetFitModel):
+    spacy_model: str = "en_core_web_lg"
     span_context: int = 0
 
     attributes_to_save: Set[str] = field(
-        init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels", "span_context"}
+        init=False,
+        repr=False,
+        default_factory=lambda: {"normalize_embeddings", "labels", "span_context", "spacy_model"},
     )
 
     def prepend_aspects(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> List[str]:
@@ -85,6 +88,7 @@ class SpanSetFitModel(SetFitModel):
         self.model_card_data.absa = {
             "is_absa": True,
             "is_aspect": is_aspect,
+            "spacy_model": self.spacy_model,
             "aspect_model": aspect_model,
             "polarity_model": polarity_model,
         }
@@ -196,21 +200,23 @@ class AbsaModel:
         cls,
         model_id: str,
         polarity_model_id: Optional[str] = None,
-        spacy_model: Optional[str] = "en_core_web_lg",
-        span_contexts: Tuple[Optional[int], Optional[int]] = (0, 3),
-        force_download: bool = False,
-        resume_download: bool = False,
+        spacy_model: Optional[str] = None,
+        span_contexts: Tuple[Optional[int], Optional[int]] = (None, None),
+        force_download: bool = None,
+        resume_download: bool = None,
         proxies: Optional[Dict] = None,
         token: Optional[Union[str, bool]] = None,
         cache_dir: Optional[str] = None,
-        local_files_only: bool = False,
-        use_differentiable_head: bool = False,
-        normalize_embeddings: bool = False,
+        local_files_only: bool = None,
+        use_differentiable_head: bool = None,
+        normalize_embeddings: bool = None,
         **model_kwargs,
     ) -> "AbsaModel":
         revision = None
         if len(model_id.split("@")) == 2:
             model_id, revision = model_id.split("@")
+        if spacy_model:
+            model_kwargs["spacy_model"] = spacy_model
         aspect_model = AspectModel.from_pretrained(
             model_id,
             span_context=span_contexts[0],
@@ -250,8 +256,15 @@ class AbsaModel:
             normalize_embeddings=normalize_embeddings,
             **model_kwargs,
         )
+        if aspect_model.spacy_model != polarity_model.spacy_model:
+            logger.warning(
+                "The Aspect and Polarity models are configured to use different spaCy models:\n"
+                f"* {repr(aspect_model.spacy_model)} for the aspect model, and\n"
+                f"* {repr(polarity_model.spacy_model)} for the polarity model.\n"
+                f"This model will use {repr(aspect_model.spacy_model)}."
+            )
 
-        aspect_extractor = AspectExtractor(spacy_model=spacy_model)
+        aspect_extractor = AspectExtractor(spacy_model=aspect_model.spacy_model)
 
         return cls(aspect_extractor, aspect_model, polarity_model)
 

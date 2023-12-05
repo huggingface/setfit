@@ -1,10 +1,13 @@
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
 import torch
+from pytest import LogCaptureFixture
 
 from setfit import AbsaModel
+from setfit.logging import get_logger
 from setfit.span.aspect_extractor import AspectExtractor
 from setfit.span.modeling import AspectModel, PolarityModel
 from tests.test_modeling import torch_cuda_available
@@ -54,7 +57,10 @@ def test_loading():
     assert model.polarity_model.span_context == 4
 
 
-def test_save_load(absa_model: AbsaModel) -> None:
+def test_save_load(absa_model: AbsaModel, caplog: LogCaptureFixture) -> None:
+    logger = get_logger("setfit")
+    logger.propagate = True
+
     absa_model.polarity_model.span_context = 5
 
     with TemporaryDirectory() as tmp_dir:
@@ -68,14 +74,58 @@ def test_save_load(absa_model: AbsaModel) -> None:
         )
         assert fresh_model.polarity_model.span_context == 5
 
+        # We expect a warning if we override the configured data:
+        AbsaModel.from_pretrained(tmp_dir + "-aspect", tmp_dir + "-polarity", span_contexts=[4, 4])
+        log_texts = [record[2] for record in caplog.record_tuples]
+        assert "Overriding span_context in model configuration from 0 to 4." in log_texts
+        assert "Overriding span_context in model configuration from 5 to 4." in log_texts
+        assert len(caplog.record_tuples) == 2
+        caplog.clear()
+
+        # Error because en_core_web_bla doesn't exist
+        with pytest.raises(OSError):
+            AbsaModel.from_pretrained(tmp_dir + "-aspect", tmp_dir + "-polarity", spacy_model="en_core_web_bla")
+        log_texts = [record[2] for record in caplog.record_tuples]
+        assert "Overriding spacy_model in model configuration from en_core_web_sm to en_core_web_bla." in log_texts
+        assert "Overriding spacy_model in model configuration from en_core_web_sm to en_core_web_bla." in log_texts
+        assert len(caplog.record_tuples) == 2
+        caplog.clear()
+
     with TemporaryDirectory() as aspect_tmp_dir:
         with TemporaryDirectory() as polarity_tmp_dir:
             absa_model.save_pretrained(aspect_tmp_dir, polarity_tmp_dir)
             assert (Path(aspect_tmp_dir) / "config_setfit.json").exists()
             assert (Path(polarity_tmp_dir) / "config_setfit.json").exists()
 
-            fresh_model = AbsaModel.from_pretrained(aspect_tmp_dir, polarity_tmp_dir, spacy_model="en_core_web_sm")
+            fresh_model = AbsaModel.from_pretrained(aspect_tmp_dir, polarity_tmp_dir)
             assert fresh_model.polarity_model.span_context == 5
+            assert fresh_model.aspect_model.spacy_model == "en_core_web_sm"
+            assert fresh_model.polarity_model.spacy_model == "en_core_web_sm"
+
+            # Loading a model with different spacy_model settings
+            polarity_config_path = str(Path(polarity_tmp_dir) / "config_setfit.json")
+            with open(polarity_config_path, "r") as f:
+                config = json.load(f)
+            assert config == {
+                "span_context": 5,
+                "normalize_embeddings": False,
+                "spacy_model": "en_core_web_sm",
+                "labels": None,
+            }
+            config["spacy_model"] = "en_core_web_bla"
+            with open(polarity_config_path, "w") as f:
+                json.dump(config, f)
+            # Load a model with the updated config, there should be a warning
+            fresh_model = AbsaModel.from_pretrained(aspect_tmp_dir, polarity_tmp_dir)
+            assert len(caplog.record_tuples) == 1
+            assert caplog.record_tuples[0][2] == (
+                "The Aspect and Polarity models are configured to use different spaCy models:\n"
+                "* 'en_core_web_sm' for the aspect model, and\n"
+                "* 'en_core_web_bla' for the polarity model.\n"
+                "This model will use 'en_core_web_sm'."
+            )
+
+    logger.propagate = False
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA must be available to move a model between devices")

@@ -69,6 +69,7 @@ This model was trained within the context of a larger system for ABSA, which loo
 - \*\*Model Type:\*\* SetFit
 - \*\*Sentence Transformer body:\*\* \[sentence-transformers/paraphrase-albert-small-v2\]\(https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2\)
 - \*\*Classification head:\*\* a \[LogisticRegression\]\(https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html\) instance
+- \*\*spaCy Model:\*\* en_core_web_lg
 - \*\*SetFitABSA Aspect Model:\*\* \[\S+\]\(https:\/\/huggingface\.co/\S+\)
 - \*\*SetFitABSA Polarity Model:\*\* \[\S+\]\(https:\/\/huggingface\.co/\S+\)
 - \*\*Maximum Sequence Length:\*\* 100 tokens

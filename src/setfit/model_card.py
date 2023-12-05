@@ -109,7 +109,6 @@ class ModelCardCallback(TrainerCallback):
         metrics: Dict[str, float],
         **kwargs,
     ) -> None:
-        # TODO: Highlight the loaded best step
         if (
             model.model_card_data.eval_lines_list
             and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
