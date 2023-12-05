@@ -75,10 +75,13 @@ class SpanSetFitModel(SetFitModel):
 
         # Only once:
         if self.model_card_data.absa is None and self.model_card_data.model_name:
+            from spacy import __version__ as spacy_version
+
             self.model_card_data.model_name = self.model_card_data.model_name.replace(
                 "SetFit", "SetFit Aspect Model" if is_aspect else "SetFit Polarity Model", 1
             )
             self.model_card_data.tags.insert(1, "absa")
+            self.model_card_data.version["spacy"] = spacy_version
         self.model_card_data.absa = {
             "is_absa": True,
             "is_aspect": is_aspect,

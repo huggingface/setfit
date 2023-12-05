@@ -191,6 +191,7 @@ Carbon emissions were measured using \[CodeCarbon\]\(https://github.com/mlco2/co
 - Python: [^\n]+
 - SetFit: [^\n]+
 - Sentence Transformers: [^\n]+
+- spaCy: [^\n]+
 - Transformers: [^\n]+
 - PyTorch: [^\n]+
 - Datasets: [^\n]+
