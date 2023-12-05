@@ -839,15 +839,15 @@ class Trainer(ColumnMappingMixin):
             y_test = encoder.transform(y_test)
             y_pred = encoder.transform(y_pred)
 
+        metric_kwargs = self.metric_kwargs or {}
         if isinstance(self.metric, str):
             metric_config = "multilabel" if self.model.multi_target_strategy is not None else None
             metric_fn = evaluate.load(self.metric, config_name=metric_config)
-            metric_kwargs = self.metric_kwargs or {}
 
             results = metric_fn.compute(predictions=y_pred, references=y_test, **metric_kwargs)
 
         elif callable(self.metric):
-            results = self.metric(y_pred, y_test)
+            results = self.metric(y_pred, y_test, **metric_kwargs)
 
         else:
             raise ValueError("metric must be a string or a callable")
