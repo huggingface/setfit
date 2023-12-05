@@ -548,7 +548,7 @@ class SetFitModel(PyTorchModelHubMixin):
             and preds.ndim == 1
             and (self.has_differentiable_head or preds.dtype.char != "U")
         ):
-            outputs = [self.labels[pred] for pred in preds]
+            outputs = [self.labels[int(pred)] for pred in preds]
         else:
             outputs = self._output_type_conversion(preds, as_numpy=as_numpy)
         return outputs[0] if is_singular else outputs
