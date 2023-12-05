@@ -47,10 +47,20 @@ class OnnxSetFitModel(torch.nn.Module):
         self.model_head = model_head
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, token_type_ids: torch.Tensor):
-        hidden_states = self.model_body(input_ids, attention_mask, token_type_ids)
+        inputs = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "token_type_ids": token_type_ids,
+        }
+
+        hidden_states = self.model_body(**inputs)
+
         hidden_states = {"token_embeddings": hidden_states[0], "attention_mask": attention_mask}
 
         embeddings = self.pooler(hidden_states)
+
+        # Just to enforce that the token_type_ids will be included in the ONNX graph.
+        embeddings = embeddings + 0 * token_type_ids.sum()
 
         # If the model_head is none we are using a sklearn head and only output
         # the embeddings from the setfit model
@@ -60,6 +70,7 @@ class OnnxSetFitModel(torch.nn.Module):
         # If head is set then we have a fully torch based model and make the final predictions
         # with the head.
         out = self.model_head(embeddings)
+
         return out
 
 
