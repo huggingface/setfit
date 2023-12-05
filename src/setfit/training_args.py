@@ -137,6 +137,9 @@ class TrainingArguments:
         eval_delay (`float`, *optional*):
             Number of epochs or steps to wait for before the first evaluation can be performed, depending on the
             evaluation_strategy.
+        eval_max_steps (`int`, defaults to `-1`):
+            If set to a positive number, the total number of evaluation steps to perform. The evaluation may stop
+            before reaching the set number of steps when all data is exhausted.
 
         save_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
             The checkpoint save strategy to adopt during training. Possible values are:
@@ -208,6 +211,7 @@ class TrainingArguments:
     evaluation_strategy: str = "no"
     eval_steps: Optional[int] = None
     eval_delay: int = 0
+    eval_max_steps: int = -1
 
     save_strategy: str = "steps"
     save_steps: int = 500

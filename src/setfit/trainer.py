@@ -439,9 +439,13 @@ class Trainer(ColumnMappingMixin):
         self.state.global_step = 0
         self.state.total_flos = 0
 
-        train_dataloader, loss_func, batch_size = self.get_dataloader(x_train, y_train, args=args)
+        train_max_pairs = -1 if args.max_steps == -1 else args.max_steps * args.embedding_batch_size
+        train_dataloader, loss_func, batch_size = self.get_dataloader(
+            x_train, y_train, args=args, max_pairs=train_max_pairs
+        )
         if x_eval is not None and args.evaluation_strategy != IntervalStrategy.NO:
-            eval_dataloader, _, _ = self.get_dataloader(x_eval, y_eval, args=args)
+            eval_max_pairs = -1 if args.eval_max_steps == -1 else args.eval_max_steps * args.embedding_batch_size
+            eval_dataloader, _, _ = self.get_dataloader(x_eval, y_eval, args=args, max_pairs=eval_max_pairs)
         else:
             eval_dataloader = None
 
@@ -466,7 +470,7 @@ class Trainer(ColumnMappingMixin):
         )
 
     def get_dataloader(
-        self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments
+        self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments, max_pairs: int = -1
     ) -> Tuple[DataLoader, nn.Module, int]:
         # sentence-transformers adaptation
         input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
@@ -497,7 +501,11 @@ class Trainer(ColumnMappingMixin):
                 )
         else:
             data_sampler = ContrastiveDataset(
-                input_data, self.model.multi_target_strategy, args.num_iterations, args.sampling_strategy
+                input_data,
+                self.model.multi_target_strategy,
+                args.num_iterations,
+                args.sampling_strategy,
+                max_pairs=max_pairs,
             )
             # shuffle_sampler = True can be dropped in for further 'randomising'
             shuffle_sampler = True if args.sampling_strategy == "unique" else False
@@ -721,8 +729,11 @@ class Trainer(ColumnMappingMixin):
     ) -> float:
         model_body.eval()
         losses = []
-        for data in tqdm(
-            iter(eval_dataloader), total=len(eval_dataloader), leave=False, disable=not args.show_progress_bar
+        eval_steps = (
+            min(len(eval_dataloader), args.eval_max_steps) if args.eval_max_steps != -1 else len(eval_dataloader)
+        )
+        for step, data in enumerate(
+            tqdm(iter(eval_dataloader), total=eval_steps, leave=False, disable=not args.show_progress_bar), start=1
         ):
             features, labels = data
             labels = labels.to(model_body._target_device)
@@ -735,6 +746,9 @@ class Trainer(ColumnMappingMixin):
                 losses.append(loss_value.item())
             else:
                 losses.append(loss_func(features, labels).item())
+
+            if step >= eval_steps:
+                break
 
         model_body.train()
         return sum(losses) / len(losses)

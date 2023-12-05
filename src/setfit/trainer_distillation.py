@@ -78,7 +78,11 @@ class DistillationTrainer(Trainer):
         return [dataset["text"]]
 
     def get_dataloader(
-        self, x: List[str], y: Optional[Union[List[int], List[List[int]]]], args: TrainingArguments
+        self,
+        x: List[str],
+        y: Optional[Union[List[int], List[List[int]]]],
+        args: TrainingArguments,
+        max_pairs: int = -1,
     ) -> Tuple[DataLoader, nn.Module, int]:
         x_embd_student = self.teacher_model.model_body.encode(
             x, convert_to_tensor=self.teacher_model.has_differentiable_head
@@ -87,7 +91,7 @@ class DistillationTrainer(Trainer):
 
         input_data = [InputExample(texts=[text]) for text in x]
         data_sampler = ContrastiveDistillationDataset(
-            input_data, cos_sim_matrix, args.num_iterations, args.sampling_strategy
+            input_data, cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
         )
         # shuffle_sampler = True can be dropped in for further 'randomising'
         shuffle_sampler = True if args.sampling_strategy == "unique" else False

@@ -39,6 +39,7 @@ class ContrastiveDataset(IterableDataset):
         multilabel: bool,
         num_iterations: Optional[None] = None,
         sampling_strategy: str = "oversampling",
+        max_pairs: int = -1,
     ) -> None:
         """Generates positive and negative text pairs for contrastive learning.
 
@@ -48,6 +49,8 @@ class ContrastiveDataset(IterableDataset):
             sampling_strategy: "unique", "oversampling", or "undersampling"
             num_iterations: if provided explicitly sets the number of pairs to be generated
                 where n_pairs = n_iterations * n_sentences * 2 (for pos & neg pairs)
+            max_pairs: If not -1, then we only sample pairs until we have certainly reached
+                max_pairs pairs.
         """
         super().__init__()
         self.pos_index = 0
@@ -57,6 +60,7 @@ class ContrastiveDataset(IterableDataset):
         self.sentences = np.array([s.texts[0] for s in examples])
         self.labels = np.array([s.label for s in examples])
         self.sentence_labels = list(zip(self.sentences, self.labels))
+        self.max_pairs = max_pairs
 
         if multilabel:
             self.generate_multilabel_pairs()
@@ -88,6 +92,8 @@ class ContrastiveDataset(IterableDataset):
                 self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0))
             else:
                 self.neg_pairs.append(InputExample(texts=[_text, text], label=0.0))
+            if self.max_pairs != -1 and len(self.pos_pairs) > self.max_pairs and len(self.neg_pairs) > self.max_pairs:
+                break
 
     def generate_multilabel_pairs(self) -> None:
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
@@ -96,6 +102,8 @@ class ContrastiveDataset(IterableDataset):
                 self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0))
             else:
                 self.neg_pairs.append(InputExample(texts=[_text, text], label=0.0))
+            if self.max_pairs != -1 and len(self.pos_pairs) > self.max_pairs and len(self.neg_pairs) > self.max_pairs:
+                break
 
     def get_positive_pairs(self) -> List[InputExample]:
         pairs = []
@@ -133,6 +141,7 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
         cos_sim_matrix: torch.Tensor,
         num_iterations: Optional[None] = None,
         sampling_strategy: str = "oversampling",
+        max_pairs: int = -1,
     ) -> None:
         self.cos_sim_matrix = cos_sim_matrix
         super().__init__(
@@ -140,6 +149,7 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
             multilabel=False,
             num_iterations=num_iterations,
             sampling_strategy=sampling_strategy,
+            max_pairs=max_pairs,
         )
         # Internally we store all pairs in pos_pairs, regardless of sampling strategy.
         # After all, without labels, there isn't much of a strategy.
@@ -154,3 +164,5 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
     def generate_pairs(self) -> None:
         for (text_one, id_one), (text_two, id_two) in shuffle_combinations(self.sentence_labels):
             self.pos_pairs.append(InputExample(texts=[text_one, text_two], label=self.cos_sim_matrix[id_one][id_two]))
+            if self.max_pairs != -1 and len(self.pos_pairs) > self.max_pairs:
+                break
