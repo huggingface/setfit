@@ -1,9 +1,10 @@
 from datasets import Dataset
 from transformers import TrainerCallback
+from pytest import LogCaptureFixture
 
 from setfit import AbsaTrainer
 from setfit.span.modeling import AbsaModel
-
+from setfit.logging import get_logger
 
 def test_trainer(absa_model: AbsaModel, absa_dataset: Dataset) -> None:
     trainer = AbsaTrainer(absa_model, train_dataset=absa_dataset, eval_dataset=absa_dataset)
@@ -52,7 +53,10 @@ def test_trainer_callbacks(absa_model: AbsaModel) -> None:
     assert callback not in trainer.polarity_trainer.callback_handler.callbacks
 
 
-def test_train_ordinal_too_high(absa_model: AbsaModel) -> None:
+def test_train_ordinal_too_high(absa_model: AbsaModel, caplog: LogCaptureFixture) -> None:
+    logger = get_logger("setfit")
+    logger.propagate = True
+
     absa_dataset = Dataset.from_dict(
         {
             "text": [
@@ -64,7 +68,13 @@ def test_train_ordinal_too_high(absa_model: AbsaModel) -> None:
         }
     )
     AbsaTrainer(absa_model, train_dataset=absa_dataset)
-    # TODO: Capture warning and test against it.
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][2] == (
+        "The ordinal of 1 for span 'food' in 'It is about food and ambiance, and imagine how dreadful it will be "
+        "it we only had to listen to an idle engine.' is too high. Skipping this sample."
+    )
+
+    logger.propagate = False
 
 
 def test_train_column_mapping(absa_model: AbsaModel, absa_dataset: Dataset) -> None:
