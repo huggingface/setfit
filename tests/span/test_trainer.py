@@ -1,10 +1,11 @@
 from datasets import Dataset
-from transformers import TrainerCallback
 from pytest import LogCaptureFixture
+from transformers import TrainerCallback
 
 from setfit import AbsaTrainer
-from setfit.span.modeling import AbsaModel
 from setfit.logging import get_logger
+from setfit.span.modeling import AbsaModel
+
 
 def test_trainer(absa_model: AbsaModel, absa_dataset: Dataset) -> None:
     trainer = AbsaTrainer(absa_model, train_dataset=absa_dataset, eval_dataset=absa_dataset)
