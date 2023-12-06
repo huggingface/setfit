@@ -128,11 +128,22 @@ class AbsaTrainer(ColumnMappingMixin):
                 find_from = start_idx + 1
             return start_idx, start_idx + len(target)
 
+        def overlaps(aspect: slice, aspects: List[slice]) -> bool:
+            for test_aspect in aspects:
+                overlapping_indices = set(range(aspect.start, aspect.stop + 1)) & set(
+                    range(test_aspect.start, test_aspect.stop + 1)
+                )
+                if overlapping_indices:
+                    return True
+            return False
+
         docs, aspects_list = self.aspect_extractor(grouped_data.keys())
-        intersected_aspect_list = []
-        polarity_labels = []
+        aspect_aspect_list = []
         aspect_labels = []
+        polarity_aspect_list = []
+        polarity_labels = []
         for doc, aspects, text in zip(docs, aspects_list, grouped_data):
+            # Collect all of the gold aspects
             gold_aspects = []
             gold_polarity_labels = []
             for annotation in grouped_data[text]:
@@ -151,16 +162,21 @@ class AbsaTrainer(ColumnMappingMixin):
                 gold_aspects.append(slice(gold_aspect_span.start, gold_aspect_span.end))
                 gold_polarity_labels.append(annotation["label"])
 
-            # The Aspect model uses all predicted aspects, with labels depending on whether
-            # the predicted aspects are indeed true/gold aspects.
-            aspect_labels.extend([aspect in gold_aspects for aspect in aspects])
+            # The Aspect model uses all gold aspects as "True", and all non-overlapping predicted
+            # aspects as "False"
+            aspect_labels.extend([True] * len(gold_aspects))
+            aspect_aspect_list.append(gold_aspects[:])
+            for aspect in aspects:
+                if not overlaps(aspect, gold_aspects):
+                    aspect_labels.append(False)
+                    aspect_aspect_list[-1].append(aspect)
 
             # The Polarity model uses only the gold aspects and labels
             polarity_labels.extend(gold_polarity_labels)
-            intersected_aspect_list.append(gold_aspects)
+            polarity_aspect_list.append(gold_aspects)
 
-        aspect_texts = list(aspect_model.prepend_aspects(docs, aspects_list))
-        polarity_texts = list(polarity_model.prepend_aspects(docs, intersected_aspect_list))
+        aspect_texts = list(aspect_model.prepend_aspects(docs, aspect_aspect_list))
+        polarity_texts = list(polarity_model.prepend_aspects(docs, polarity_aspect_list))
         return Dataset.from_dict({"text": aspect_texts, "label": aspect_labels}), Dataset.from_dict(
             {"text": polarity_texts, "label": polarity_labels}
         )
