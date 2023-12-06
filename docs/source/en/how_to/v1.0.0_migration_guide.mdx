@@ -12,34 +12,36 @@ To update your code to work with v1.0.0, the following changes must be made:
 ## Training Migration Guide
 
 1. Replace all uses of `SetFitTrainer` with [`Trainer`], and all uses of `DistillationSetFitTrainer` with [`DistillationTrainer`].
-2. Remove `num_iterations`, `num_epochs`, `learning_rate`, `batch_size`, `seed`, `use_amp`, `warmup_proportion`, `distance_metric`, `margin`, `samples_per_label` and `loss_class` from a `Trainer` initialisation, and move them to a `TrainerArguments` initialisation instead. This instance should then be passed to the trainer via the `args` argument.
+2. Remove `num_iterations`, `num_epochs`, `learning_rate`, `batch_size`, `seed`, `use_amp`, `warmup_proportion`, `distance_metric`, `margin`, `samples_per_label` and `loss_class` from a `Trainer` initialization, and move them to a `TrainerArguments` initialization instead. This instance should then be passed to the trainer via the `args` argument.
 
-    * `num_iterations` has been deprecated, the number of training steps should now be controlled exclusively via `num_epochs`, `max_steps` or [`EarlyStoppingCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.EarlyStoppingCallback).
+    * `num_iterations` has been deprecated, the number of training steps should now be controlled via `num_epochs`, `max_steps` or [`EarlyStoppingCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.EarlyStoppingCallback).
     * `learning_rate` has been split up into `body_learning_rate` and `head_learning_rate`.
     * `loss_class` has been renamed to `loss`.
 
-3. Stop providing training arguments like `num_epochs` directly to `Trainer.train`: pass a `TrainingArguments` instance instead.
-4. Refactor multiple `trainer.train()`, `trainer.freeze()` and `trainer.unfreeze()` calls that were previously necessary to train the differentiable head into just one `trainer.train()` call by setting `batch_size` and `num_epochs` on the `TrainingArguments` dataclass with Tuples. The first value is for training the embeddings, and the second is for training the classifier. 
+3. Stop providing training arguments like `num_epochs` directly to `Trainer.train`: pass a `TrainingArguments` instance via the `args` argument instead.
+4. Refactor multiple `trainer.train()`, `trainer.freeze()` and `trainer.unfreeze()` calls that were previously necessary to train the differentiable head into just one `trainer.train()` call by setting `batch_size` and `num_epochs` on the `TrainingArguments` dataclass with tuples. The first value in the tuple is for training the embeddings, and the second is for training the classifier. 
 
 ## Hard deprecations
 
 * `SetFitBaseModel`, `SKLearnWrapper` and `SetFitPipeline` have been removed. These can no longer be used starting from v1.0.0.
 
-## New functionality
+## v1.0.0 Changelog
 
 This list contains new functionality that can be used starting from v1.0.0.
 
 * [`SetFitModel.from_pretrained`] now accepts new arguments:
     * `device`: Specifies the device on which to load the SetFit model.
     * `labels`: Specify labels corresponding to the training labels - useful if the training labels are integers ranging from `0` to `num_classes - 1`. These are automatically applied on calling [`SetFitModel.predict`].
+    * `model_card_data`: Provide a [`SetFitModelCardData`] instance storing data such as model language, license, dataset name, etc. to be used in the automatically generated model cards.
+* Certain SetFit configuration options, such as the new `labels` argument from [`SetFitModel.from_pretrained`], now get saved in `config_setfit.json` files when a model is saved. This allows `labels` to be automatically fetched when a model is loaded.
 * [`SetFitModel.predict`] now accepts new arguments:
     * `batch_size` (defaults to `32`): The batch size to use in encoding the sentences to embeddings. Higher often means faster processing but higher memory usage.
     * `use_labels` (defaults to `True`): Whether to use the `SetFitModel.labels` to convert integer labels to string labels. Not used if the training labels are already strings.
 * [`SetFitModel.encode`] has been introduce to convert input sentences to embeddings using the `SentenceTransformer` body.
 * [`SetFitModel.device`] has been introduced to determine the device of the model.
-* [`AbsaTrainer`] and [`AbsaModel`] have been introduced for applying SetFit for Aspect Based Sentiment Analysis.
+* [`AbsaTrainer`] and [`AbsaModel`] have been introduced for applying [SetFit for Aspect Based Sentiment Analysis](absa).
 * [`Trainer`] now supports a `callbacks` argument for a list of [`transformers` `TrainerCallback` instances](https://huggingface.co/docs/transformers/main/en/main_classes/callback).
-    * By default, all installed callbacks integrated with `transformers` are supported, including [`TensorBoardCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.TensorBoardCallback), [`WandbCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.WandbCallback) to log training logs to TensorBoard and W&B, respectively.
+    * By default, all installed callbacks integrated with `transformers` are supported, including [`TensorBoardCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.TensorBoardCallback), [`WandbCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.WandbCallback) to log training logs to [TensorBoard](https://www.tensorflow.org/tensorboard) and [W&B](https://wandb.ai), respectively.
     * The [`Trainer`] will now print `embedding_loss` in the terminal, as well as `eval_embedding_loss` if `evaluation_strategy` is set to `"epoch"` or `"steps"` in [`TrainingArguments`].
 * [`Trainer.evaluate`] now works with string labels.
 * An updated contrastive pair sampler increases the variety of training pairs.
@@ -71,6 +73,7 @@ This list contains new functionality that can be used starting from v1.0.0.
 
     * `eval_steps`: Number of update steps between two evaluations if `evaluation_strategy="steps"`. Will default to the same as `logging_steps` if not set.
     * `eval_delay`: Number of epochs or steps to wait for before the first evaluation can be performed, depending on the `evaluation_strategy`.
+    * `eval_max_steps`: If set to a positive number, the total number of evaluation steps to perform. The evaluation may stop before reaching the set number of steps when all data is exhausted.
     * `save_strategy`: The checkpoint save strategy to adopt during training. Possible values are:
 
         - `"no"`: No save is done during training.
@@ -87,3 +90,4 @@ This list contains new functionality that can be used starting from v1.0.0.
     the case it is "steps", `save_steps` must be a round multiple of `eval_steps`.
 
     </Tip>
+* Pushing SetFit or SetFitABSA models to the Hub with [`SetFitModel.push_to_hub`] or [`AbsaModel.push_to_hub`] now results in a detailed model card. As an example, see [this SetFitModel](https://huggingface.co/tomaarsen/setfit-paraphrase-mpnet-base-v2-sst2-8-shot) or [this SetFitABSA polarity model](https://huggingface.co/tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-polarity).
