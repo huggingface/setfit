@@ -23,7 +23,7 @@ class AspectExtractor:
                     yield slice(start, idx)
                     start = None
         if start is not None:
-            yield slice(start, idx)
+            yield slice(start, idx + 1)
 
     def __call__(self, texts: List[str]) -> Tuple[List["Doc"], List[slice]]:
         aspects_list = []
