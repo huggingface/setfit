@@ -6,21 +6,53 @@
   - local: installation
     title: Installation
   title: Get started
+
 - sections:
-  - local: tutorials/placeholder
-    title: Placeholder
+  - local: tutorials/overview
+    title: Overview
+  - local: tutorials/zero_shot
+    title: Zero-shot Text Classification
+  - local: tutorials/onnx
+    title: Efficiently run SetFit with ONNX
   title: Tutorials
+
 - sections:
-  - local: how_to/placeholder
-    title: Placeholder
+  - local: how_to/overview
+    title: Overview
+  - local: how_to/callbacks
+    title: Callbacks
+  - local: how_to/model_cards
+    title: Model Cards
+  - local: how_to/classification_heads
+    title: Classification Heads
+  - local: how_to/multilabel
+    title: Multilabel Text Classification
+  - local: how_to/zero_shot
+    title: Zero-shot Text Classification
+  - local: how_to/hyperparameter_optimization
+    title: Hyperparameter Optimization
+  - local: how_to/knowledge_distillation
+    title: Knowledge Distillation
+  - local: how_to/batch_sizes
+    title: Batch Sizes for Inference
+  - local: how_to/absa
+    title: Aspect Based Sentiment Analysis
+  - local: how_to/v1.0.0_migration_guide
+    title: v1.0.0 Migration Guide
   title: How-to Guides
+
 - sections:
-  - local: conceptual_guides/placeholder
-    title: Placeholder
+  - local: conceptual_guides/setfit
+    title: SetFit
+  - local: conceptual_guides/sampling_strategies
+    title: Sampling Strategies
   title: Conceptual Guides
+
 - sections:
-  - local: api/main
+  - local: reference/main
     title: Main classes
-  - local: api/trainer
+  - local: reference/trainer
     title: Trainer classes
-  title: API
+  - local: reference/utility
+    title: Utility
+  title: Reference

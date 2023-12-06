@@ -1,0 +1,100 @@
+
+# Model Cards
+
+SetFit comes with extensive automatically generated model cards/READMEs. In this how-to guide, we will explore how to make the most of this automatic generation.
+
+As an example, the [tomaarsen/setfit-all-MiniLM-L6-v2-sst2-32-shot](https://huggingface.co/tomaarsen/setfit-all-MiniLM-L6-v2-sst2-32-shot) model has followed all steps from this guide to produce the most extensive automatically generated model card.
+
+## Specifying Metadata
+
+Although SetFit can infer a lot of information about your model through its training and configuration, some metadata can often not be (trivially) inferred. For example:
+
+* **language**: The model language, e.g. "en" for English.
+* **license**: The model license, e.g. "mit" or "apache-2.0".
+* **dataset_name**: The pretty name of a dataset, e.g. "Amazon Counterfactual".
+* **dataset_id**: The dataset ID of the dataset, e.g. "dair-ai/emotion".
+
+It is recommended to specify this information to the [`SetFitModel`] upon calling [`SetFitModel.from_pretrained`], to allow this information to be included in the model card and its metadata. This can be done using an [`SetFitModelCardData`] instance and the `model_card_data` key-word argument, e.g. like so:
+
+```py
+from setfit import SetFitModel
+
+model = SetFitModel.from_pretrained(
+    "BAAI/bge-small-en-v1.5",
+    model_card_data=SetFitModelCardData(
+        language="en",
+        license="apache-2.0",
+        dataset_id="sst2",
+        dataset_name="SST2",
+    )
+)
+```
+
+See the [`SetFitModelCardData`] documentation for more information that you can specify to be used in the README.
+
+## Labels
+
+If the labels from your training dataset are all integers, then you are recommended to provide your [`SetFitModel`] with labels. These labels can then 1) be used in inference and 2) be used in your model card. For example, if your training labels are `0` and `1` for negative and positive, respectively, then you can load your model like so:
+
+```py
+model = SetFitModel.from_pretrained(
+    "BAAI/bge-small-en-v1.5",
+    labels=["negative", "positive"],
+    model_card_data=SetFitModelCardData(
+        language="en",
+        license="apache-2.0",
+        dataset_id="sst2",
+        dataset_name="SST2",
+    )
+)
+```
+
+When calling [`SetFitModel.predict`], the trained model will now output strings or lists of strings, rather than your integer labels:
+
+```py
+model.predict([
+    "It's a charming and often affecting journey.",
+    "It's slow -- very, very slow.",
+    "A sometimes tedious film.",
+])
+# => ['positive', 'negative', 'negative']
+```
+
+Additionally, the model card will include the labels, e.g. it will use the following table:
+
+| Label    | Examples                                                                                                                                                                               |
+|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| negative | <ul><li>'a tough pill to swallow and '</li><li>'indignation '</li><li>'that the typical hollywood disregard for historical truth and realism is at work here '</li></ul>               |
+| positive | <ul><li>"a moving experience for people who have n't read the book "</li><li>'in the best possible senses of both those words '</li><li>'to serve the work especially well '</li></ul> |
+
+Rather than this one:
+
+| Label    | Examples                                                                                                                                                                               |
+|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0 | <ul><li>'a tough pill to swallow and '</li><li>'indignation '</li><li>'that the typical hollywood disregard for historical truth and realism is at work here '</li></ul>               |
+| 1 | <ul><li>"a moving experience for people who have n't read the book "</li><li>'in the best possible senses of both those words '</li><li>'to serve the work especially well '</li></ul> |
+
+And the following table:
+
+| Label    | Training Sample Count |
+|:---------|:----------------------|
+| negative | 32                    |
+| positive | 32                    |
+
+Rather than this one:
+
+| Label | Training Sample Count |
+|:------|:----------------------|
+| 0     | 32                    |
+| 1     | 32                    |
+
+## Emissions Tracking
+
+The [``codecarbon``](https://github.com/mlco2/codecarbon) Python package can be installed to automatically track carbon emissions during training. This information will be included in the model card, e.g. in a list [like so](https://huggingface.co/tomaarsen/setfit-all-MiniLM-L6-v2-sst2-32-shot#environmental-impact):
+
+<h4>Environmental Impact</h4>
+
+Carbon emissions were measured using [CodeCarbon](https://github.com/mlco2/codecarbon).
+
+- **Carbon Emitted**: 0.003 kg of CO2
+- **Hours Used**: 0.072 hours

@@ -10,12 +10,20 @@ MAINTAINER = "Lewis Tunstall, Tom Aarsen"
 MAINTAINER_EMAIL = "lewis@huggingface.co"
 
 INTEGRATIONS_REQUIRE = ["optuna"]
-REQUIRED_PKGS = ["datasets>=2.3.0", "sentence-transformers>=2.2.1", "evaluate>=0.3.0"]
+REQUIRED_PKGS = [
+    "datasets>=2.3.0",
+    "sentence-transformers>=2.2.1",
+    "evaluate>=0.3.0",
+    "huggingface_hub>=0.13.0",
+    "scikit-learn",
+]
+ABSA_REQUIRE = ["spacy"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 ONNX_REQUIRE = ["onnxruntime", "onnx", "skl2onnx"]
 OPENVINO_REQUIRE = ["hummingbird-ml<0.4.9", "openvino==2022.3.0"]
-TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE
+TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE + ABSA_REQUIRE
 DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
+CODECARBON_REQUIRE = ["codecarbon"]
 EXTRAS_REQUIRE = {
     "optuna": INTEGRATIONS_REQUIRE,
     "quality": QUALITY_REQUIRE,
@@ -23,6 +31,8 @@ EXTRAS_REQUIRE = {
     "onnx": ONNX_REQUIRE,
     "openvino": ONNX_REQUIRE + OPENVINO_REQUIRE,
     "docs": DOCS_REQUIRE,
+    "absa": ABSA_REQUIRE,
+    "codecarbon": CODECARBON_REQUIRE,
 }
 
 
@@ -34,23 +44,27 @@ EXTRAS_REQUIRE["dev"] = combine_requirements([k for k in EXTRAS_REQUIRE])
 # For the combatibility tests we add pandas<2, as pandas 2.0.0 onwards is incompatible with old datasets versions,
 # and we assume few to no users would use old datasets versions with new pandas versions.
 # The only alternative is incrementing the minimum version for datasets, which seems unnecessary.
+# Beyond that, fsspec is set to <2023.12.0 as that version is incompatible with datasets<=2.15.0
 EXTRAS_REQUIRE["compat_tests"] = (
-    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS] + TESTS_REQUIRE + ["pandas<2"]
+    [requirement.replace(">=", "==") for requirement in REQUIRED_PKGS]
+    + TESTS_REQUIRE
+    + ["pandas<2", "fsspec<2023.12.0"]
 )
 
 setup(
     name="setfit",
-    version="0.8.0.dev0",
+    version="1.0.0.dev0",
     description="Efficient few-shot learning with Sentence Transformers",
     long_description=README_TEXT,
     long_description_content_type="text/markdown",
     maintainer=MAINTAINER,
     maintainer_email=MAINTAINER_EMAIL,
-    url="https://github.com/SetFit/setfit",
-    download_url="https://github.com/SetFit/setfit/tags",
+    url="https://github.com/huggingface/setfit",
+    download_url="https://github.com/huggingface/setfit/tags",
     license="Apache 2.0",
     package_dir={"": "src"},
     packages=find_packages("src"),
+    include_package_data=True,
     install_requires=REQUIRED_PKGS,
     extras_require=EXTRAS_REQUIRE,
     classifiers=[

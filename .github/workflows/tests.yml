@@ -5,9 +5,12 @@ on:
     branches:
       - main
       - v*-release
+      - v*-pre
   pull_request:
     branches:
       - main
+      - v*-pre
+  workflow_dispatch:
 
 jobs:
 
@@ -40,6 +43,9 @@ jobs:
         run: |
           python -m pip install --no-cache-dir --upgrade pip
           python -m pip install --no-cache-dir ${{ matrix.requirements }}
+          python -m pip install '.[codecarbon]'
+          python -m spacy download en_core_web_lg
+          python -m spacy download en_core_web_sm
         if: steps.restore-cache.outputs.cache-hit != 'true'
 
       - name: Install the checked-out setfit

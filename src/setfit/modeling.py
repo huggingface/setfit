@@ -1,11 +1,13 @@
+import json
 import os
 import tempfile
-from dataclasses import dataclass
+import warnings
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 
-# Google Colab runs on Python 3.7, so we need this to be compatible
+# For Python 3.7 compatibility
 try:
     from typing import Literal
 except ImportError:
@@ -15,88 +17,28 @@ import joblib
 import numpy as np
 import requests
 import torch
-import torch.nn as nn
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
-from sentence_transformers import InputExample, SentenceTransformer, models
+from huggingface_hub.utils import validate_hf_hub_args
+from sentence_transformers import SentenceTransformer, models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
+from torch import nn
 from torch.utils.data import DataLoader
-from tqdm.auto import trange
+from tqdm.auto import tqdm, trange
+from transformers.utils import copy_func
 
 from . import logging
 from .data import SetFitDataset
-
-
-if TYPE_CHECKING:
-    from numpy import ndarray
+from .model_card import SetFitModelCardData, generate_model_card
+from .utils import set_docstring
 
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
 MODEL_HEAD_NAME = "model_head.pkl"
-
-MODEL_CARD_TEMPLATE = """---
-license: apache-2.0
-tags:
-- setfit
-- sentence-transformers
-- text-classification
-pipeline_tag: text-classification
----
-
-# {model_name}
-
-This is a [SetFit model](https://github.com/huggingface/setfit) that can be used for text classification. \
-The model has been trained using an efficient few-shot learning technique that involves:
-
-1. Fine-tuning a [Sentence Transformer](https://www.sbert.net) with contrastive learning.
-2. Training a classification head with features from the fine-tuned Sentence Transformer.
-
-## Usage
-
-To use this model for inference, first install the SetFit library:
-
-```bash
-python -m pip install setfit
-```
-
-You can then run inference as follows:
-
-```python
-from setfit import SetFitModel
-
-# Download from Hub and run inference
-model = SetFitModel.from_pretrained("{model_name}")
-# Run inference
-preds = model(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
-```
-
-## BibTeX entry and citation info
-
-```bibtex
-@article{{https://doi.org/10.48550/arxiv.2209.11055,
-doi = {{10.48550/ARXIV.2209.11055}},
-url = {{https://arxiv.org/abs/2209.11055}},
-author = {{Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren}},
-keywords = {{Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences}},
-title = {{Efficient Few-Shot Learning Without Prompts}},
-publisher = {{arXiv}},
-year = {{2022}},
-copyright = {{Creative Commons Attribution 4.0 International}}
-}}
-```
-"""
-
-
-class SetFitBaseModel:
-    def __init__(self, model, max_seq_length: int, add_normalization_layer: bool) -> None:
-        self.model = SentenceTransformer(model)
-        self.model.max_seq_length = max_seq_length
-
-        if add_normalization_layer:
-            self.model._modules["2"] = models.Normalize()
+CONFIG_NAME = "config_setfit.json"
 
 
 class SetFitHead(models.Dense):
@@ -217,7 +159,7 @@ class SetFitHead(models.Dense):
             return torch.where(probs >= 0.5, 1, 0)
         return torch.argmax(probs, dim=-1)
 
-    def get_loss_fn(self):
+    def get_loss_fn(self) -> nn.Module:
         if self.multitarget:  # if sigmoid output
             return torch.nn.BCEWithLogitsLoss()
         return torch.nn.CrossEntropyLoss()
@@ -241,41 +183,64 @@ class SetFitHead(models.Dense):
         }
 
     @staticmethod
-    def _init_weight(module):
+    def _init_weight(module) -> None:
         if isinstance(module, nn.Linear):
-            torch.nn.init.xavier_uniform_(module.weight)
+            nn.init.xavier_uniform_(module.weight)
             if module.bias is not None:
-                torch.nn.init.constant_(module.bias, 1e-2)
+                nn.init.constant_(module.bias, 1e-2)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "SetFitHead({})".format(self.get_config_dict())
 
 
 @dataclass
 class SetFitModel(PyTorchModelHubMixin):
-    """A SetFit model with integration to the Hugging Face Hub."""
+    """A SetFit model with integration to the [Hugging Face Hub](https://huggingface.co).
 
-    def __init__(
-        self,
-        model_body: Optional[SentenceTransformer] = None,
-        model_head: Optional[Union[SetFitHead, LogisticRegression]] = None,
-        multi_target_strategy: Optional[str] = None,
-        l2_weight: float = 1e-2,
-        normalize_embeddings: bool = False,
-    ) -> None:
-        super(SetFitModel, self).__init__()
-        self.model_body = model_body
-        self.model_head = model_head
+    Example::
 
-        self.multi_target_strategy = multi_target_strategy
-        self.l2_weight = l2_weight
+        >>> from setfit import SetFitModel
+        >>> model = SetFitModel.from_pretrained("tomaarsen/setfit-bge-small-v1.5-sst2-8-shot")
+        >>> model.predict([
+        ...     "It's a charming and often affecting journey.",
+        ...     "It's slow -- very, very slow.",
+        ...     "A sometimes tedious film.",
+        ... ])
+        ['positive', 'negative', 'negative']
+    """
 
-        self.normalize_embeddings = normalize_embeddings
+    model_body: Optional[SentenceTransformer] = None
+    model_head: Optional[Union[SetFitHead, LogisticRegression]] = None
+    multi_target_strategy: Optional[str] = None
+    normalize_embeddings: bool = False
+    labels: Optional[List[str]] = None
+    model_card_data: Optional[SetFitModelCardData] = field(default_factory=SetFitModelCardData)
+
+    attributes_to_save: Set[str] = field(
+        init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels"}
+    )
+
+    def __post_init__(self):
+        self.model_card_data.register_model(self)
 
     @property
     def has_differentiable_head(self) -> bool:
         # if False, sklearn is assumed to be used instead
         return isinstance(self.model_head, nn.Module)
+
+    @property
+    def id2label(self) -> Dict[int, str]:
+        """Return a mapping from integer IDs to string labels."""
+        if self.labels is None:
+            return {}
+        return dict(enumerate(self.labels))
+
+    @property
+    def label2id(self) -> Dict[str, int]:
+        """Return a mapping from string labels to integer IDs."""
+        if self.labels is None:
+            return {}
+        return {label: idx for idx, label in enumerate(self.labels)}
 
     def fit(
         self,
@@ -283,41 +248,68 @@ class SetFitModel(PyTorchModelHubMixin):
         y_train: Union[List[int], List[List[int]]],
         num_epochs: int,
         batch_size: Optional[int] = None,
-        learning_rate: Optional[float] = None,
         body_learning_rate: Optional[float] = None,
+        head_learning_rate: Optional[float] = None,
+        end_to_end: bool = False,
         l2_weight: Optional[float] = None,
         max_length: Optional[int] = None,
-        show_progress_bar: Optional[bool] = None,
+        show_progress_bar: bool = True,
     ) -> None:
+        """Train the classifier head, only used if a differentiable PyTorch head is used.
+
+        Args:
+            x_train (`List[str]`): A list of training sentences.
+            y_train (`Union[List[int], List[List[int]]]`): A list of labels corresponding to the training sentences.
+            num_epochs (`int`): The number of epochs to train for.
+            batch_size (`int`, *optional*): The batch size to use.
+            body_learning_rate (`float`, *optional*): The learning rate for the `SentenceTransformer` body
+                in the `AdamW` optimizer. Disregarded if `end_to_end=False`.
+            head_learning_rate (`float`, *optional*): The learning rate for the differentiable torch head
+                in the `AdamW` optimizer.
+            end_to_end (`bool`, defaults to `False`): If True, train the entire model end-to-end.
+                Otherwise, freeze the `SentenceTransformer` body and only train the head.
+            l2_weight (`float`, *optional*): The l2 weight for both the model body and head
+                in the `AdamW` optimizer.
+            max_length (`int`, *optional*): The maximum token length a tokenizer can generate. If not provided,
+                the maximum length for the `SentenceTransformer` body is used.
+            show_progress_bar (`bool`, defaults to `True`): Whether to display a progress bar for the training
+                epochs and iterations.
+        """
         if self.has_differentiable_head:  # train with pyTorch
-            device = self.model_body.device
             self.model_body.train()
             self.model_head.train()
+            if not end_to_end:
+                self.freeze("body")
 
             dataloader = self._prepare_dataloader(x_train, y_train, batch_size, max_length)
             criterion = self.model_head.get_loss_fn()
-            optimizer = self._prepare_optimizer(learning_rate, body_learning_rate, l2_weight)
+            optimizer = self._prepare_optimizer(head_learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
             for epoch_idx in trange(num_epochs, desc="Epoch", disable=not show_progress_bar):
-                for batch in dataloader:
+                for batch in tqdm(dataloader, desc="Iteration", disable=not show_progress_bar, leave=False):
                     features, labels = batch
                     optimizer.zero_grad()
 
                     # to model's device
-                    features = {k: v.to(device) for k, v in features.items()}
-                    labels = labels.to(device)
+                    features = {k: v.to(self.device) for k, v in features.items()}
+                    labels = labels.to(self.device)
 
                     outputs = self.model_body(features)
                     if self.normalize_embeddings:
-                        outputs = torch.nn.functional.normalize(outputs, p=2, dim=1)
+                        outputs["sentence_embedding"] = nn.functional.normalize(
+                            outputs["sentence_embedding"], p=2, dim=1
+                        )
                     outputs = self.model_head(outputs)
                     logits = outputs["logits"]
 
-                    loss = criterion(logits, labels)
+                    loss: torch.Tensor = criterion(logits, labels)
                     loss.backward()
                     optimizer.step()
 
                 scheduler.step()
+
+            if not end_to_end:
+                self.unfreeze("body")
         else:  # train with sklearn
             embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
@@ -364,12 +356,12 @@ class SetFitModel(PyTorchModelHubMixin):
 
     def _prepare_optimizer(
         self,
-        learning_rate: float,
+        head_learning_rate: float,
         body_learning_rate: Optional[float],
         l2_weight: float,
     ) -> torch.optim.Optimizer:
-        body_learning_rate = body_learning_rate or learning_rate
-        l2_weight = l2_weight or self.l2_weight
+        body_learning_rate = body_learning_rate or head_learning_rate
+        l2_weight = l2_weight or 1e-2
         optimizer = torch.optim.AdamW(
             [
                 {
@@ -377,37 +369,84 @@ class SetFitModel(PyTorchModelHubMixin):
                     "lr": body_learning_rate,
                     "weight_decay": l2_weight,
                 },
-                {
-                    "params": self.model_head.parameters(),
-                    "lr": learning_rate,
-                    "weight_decay": l2_weight,
-                },
+                {"params": self.model_head.parameters(), "lr": head_learning_rate, "weight_decay": l2_weight},
             ],
         )
 
         return optimizer
 
     def freeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+        """Freeze the model body and/or the head, preventing further training on that component until unfrozen.
+
+        Args:
+            component (`Literal["body", "head"]`, *optional*): Either "body" or "head" to freeze that component.
+                If no component is provided, freeze both. Defaults to None.
+        """
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=True)
 
-        if component is None or component == "head":
+        if (component is None or component == "head") and self.has_differentiable_head:
             self._freeze_or_not(self.model_head, to_freeze=True)
 
-    def unfreeze(self, component: Optional[Literal["body", "head"]] = None) -> None:
+    def unfreeze(
+        self, component: Optional[Literal["body", "head"]] = None, keep_body_frozen: Optional[bool] = None
+    ) -> None:
+        """Unfreeze the model body and/or the head, allowing further training on that component.
+
+        Args:
+            component (`Literal["body", "head"]`, *optional*): Either "body" or "head" to unfreeze that component.
+                If no component is provided, unfreeze both. Defaults to None.
+            keep_body_frozen (`bool`, *optional*): Deprecated argument, use `component` instead.
+        """
+        if keep_body_frozen is not None:
+            warnings.warn(
+                "`keep_body_frozen` is deprecated and will be removed in v2.0.0 of SetFit. "
+                'Please either pass "head", "body" or no arguments to unfreeze both.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # If the body must stay frozen, only unfreeze the head. Eventually, this entire if-branch
+            # can be removed.
+            if keep_body_frozen and not component:
+                component = "head"
+
         if component is None or component == "body":
             self._freeze_or_not(self.model_body, to_freeze=False)
 
-        if component is None or component == "head":
+        if (component is None or component == "head") and self.has_differentiable_head:
             self._freeze_or_not(self.model_head, to_freeze=False)
 
-    def _freeze_or_not(self, model: torch.nn.Module, to_freeze: bool) -> None:
+    def _freeze_or_not(self, model: nn.Module, to_freeze: bool) -> None:
+        """Set `requires_grad=not to_freeze` for all parameters in `model`"""
         for param in model.parameters():
             param.requires_grad = not to_freeze
 
+    def encode(
+        self, inputs: List[str], batch_size: int = 32, show_progress_bar: Optional[bool] = None
+    ) -> Union[torch.Tensor, np.ndarray]:
+        """Convert input sentences to embeddings using the `SentenceTransformer` body.
+
+        Args:
+            inputs (`List[str]`): The input sentences to embed.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Returns:
+            Union[torch.Tensor, np.ndarray]: A matrix with shape [INPUT_LENGTH, EMBEDDING_SIZE], as a
+            torch Tensor if this model has a differentiable Torch head, or otherwise as a numpy array.
+        """
+        return self.model_body.encode(
+            inputs,
+            batch_size=batch_size,
+            normalize_embeddings=self.normalize_embeddings,
+            convert_to_tensor=self.has_differentiable_head,
+            show_progress_bar=show_progress_bar,
+        )
+
     def _output_type_conversion(
-        self, outputs: Union[torch.Tensor, "ndarray"], as_numpy: bool = False
-    ) -> Union[torch.Tensor, "ndarray"]:
+        self, outputs: Union[torch.Tensor, np.ndarray], as_numpy: bool = False
+    ) -> Union[torch.Tensor, np.ndarray]:
         """Return `outputs` in the desired type:
         * Numpy array if no differentiable head is used.
         * Torch tensor if a differentiable head is used.
@@ -426,37 +465,154 @@ class SetFitModel(PyTorchModelHubMixin):
             outputs = torch.from_numpy(outputs)
         return outputs
 
-    def predict(
-        self, x_test: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None
-    ) -> Union[torch.Tensor, "ndarray"]:
-        embeddings = self.model_body.encode(
-            x_test,
-            normalize_embeddings=self.normalize_embeddings,
-            convert_to_tensor=self.has_differentiable_head,
-            show_progress_bar=show_progress_bar,
-        )
-
-        outputs = self.model_head.predict(embeddings)
-        return self._output_type_conversion(outputs, as_numpy=as_numpy)
-
     def predict_proba(
-        self, x_test: List[str], as_numpy: bool = False, show_progress_bar: Optional[bool] = None
-    ) -> Union[torch.Tensor, "ndarray"]:
-        embeddings = self.model_body.encode(
-            x_test,
-            normalize_embeddings=self.normalize_embeddings,
-            convert_to_tensor=self.has_differentiable_head,
+        self,
+        inputs: Union[str, List[str]],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray]:
+        """Predict the probabilities of the various classes.
+
+        Args:
+            inputs (`Union[str, List[str]]`): The input sentences to predict class probabilities for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.predict_proba(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            tensor([[0.9367, 0.0633],
+                    [0.0627, 0.9373],
+                    [0.0890, 0.9110]], dtype=torch.float64)
+            >>> model.predict_proba("That was cool!")
+            tensor([0.8421, 0.1579], dtype=torch.float64)
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray]`: A matrix with shape [INPUT_LENGTH, NUM_CLASSES] denoting
+            probabilities of predicting an input as a class. If the input is a string, then the output
+            is a vector with shape [NUM_CLASSES,].
+        """
+        is_singular = isinstance(inputs, str)
+        if is_singular:
+            inputs = [inputs]
+        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
+        probs = self.model_head.predict_proba(embeddings)
+        outputs = self._output_type_conversion(probs, as_numpy=as_numpy)
+        return outputs[0] if is_singular else outputs
+
+    def predict(
+        self,
+        inputs: Union[str, List[str]],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        use_labels: bool = True,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray, List[str], int, str]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`Union[str, List[str]]`): The input sentence or sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.predict(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            ["negative", "positive", "positive"]
+            >>> model.predict("That was cool!")
+            "positive"
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray, List[str], int, str]`: A list of string labels with equal length to the
+                inputs if `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with
+                equal length to the inputs, denoting to which class each input is predicted to belong. If the inputs
+                is a single string, then the output is a single label as well.
+        """
+        is_singular = isinstance(inputs, str)
+        if is_singular:
+            inputs = [inputs]
+        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
+        preds = self.model_head.predict(embeddings)
+        # If labels are defined, we don't have multilabels & the output is not already strings, then we convert to string labels
+        if (
+            use_labels
+            and self.labels
+            and preds.ndim == 1
+            and (self.has_differentiable_head or preds.dtype.char != "U")
+        ):
+            outputs = [self.labels[int(pred)] for pred in preds]
+        else:
+            outputs = self._output_type_conversion(preds, as_numpy=as_numpy)
+        return outputs[0] if is_singular else outputs
+
+    def __call__(
+        self,
+        inputs: Union[str, List[str]],
+        batch_size: int = 32,
+        as_numpy: bool = False,
+        use_labels: bool = True,
+        show_progress_bar: Optional[bool] = None,
+    ) -> Union[torch.Tensor, np.ndarray, List[str], int, str]:
+        """Predict the various classes.
+
+        Args:
+            inputs (`Union[str, List[str]]`): The input sentence or sentences to predict classes for.
+            batch_size (`int`, defaults to `32`): The batch size to use in encoding the sentences to embeddings.
+                Higher often means faster processing but higher memory usage.
+            as_numpy (`bool`, defaults to `False`): Whether to output as numpy array instead.
+            use_labels (`bool`, defaults to `True`): Whether to try and return elements of `SetFitModel.labels`.
+            show_progress_bar (`Optional[bool]`, defaults to `None`): Whether to show a progress bar while encoding.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model(["What a boring display", "Exhilarating through and through", "I'm wowed!"])
+            ["negative", "positive", "positive"]
+            >>> model("That was cool!")
+            "positive"
+
+        Returns:
+            `Union[torch.Tensor, np.ndarray, List[str], int, str]`: A list of string labels with equal length to the
+                inputs if `use_labels` is `True` and `SetFitModel.labels` has been defined. Otherwise a vector with
+                equal length to the inputs, denoting to which class each input is predicted to belong. If the inputs
+                is a single string, then the output is a single label as well.
+        """
+        return self.predict(
+            inputs,
+            batch_size=batch_size,
+            as_numpy=as_numpy,
+            use_labels=use_labels,
             show_progress_bar=show_progress_bar,
         )
 
-        outputs = self.model_head.predict_proba(embeddings)
-        return self._output_type_conversion(outputs, as_numpy=as_numpy)
+    @property
+    def device(self) -> torch.device:
+        """Get the Torch device that this model is on.
+
+        Returns:
+            torch.device: The device that the model is on.
+        """
+        return self.model_body._target_device
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
         """Move this SetFitModel to `device`, and then return `self`. This method does not copy.
 
         Args:
             device (Union[str, torch.device]): The identifier of the device to move the model to.
+
+        Example::
+
+            >>> model = SetFitModel.from_pretrained(...)
+            >>> model.to("cpu")
+            >>> model(["cats are cute", "dogs are loyal"])
 
         Returns:
             SetFitModel: Returns the original model, but now on the desired device.
@@ -486,22 +642,47 @@ class SetFitModel(PyTorchModelHubMixin):
         # directories
         model_path = Path(model_name)
         if model_path.exists() and Path(tempfile.gettempdir()) in model_path.resolve().parents:
-            model_name = "/".join(model_path.parts[-2:])
+            self.model_card_data.model_id = "/".join(model_path.parts[-2:])
 
-        model_card_content = MODEL_CARD_TEMPLATE.format(model_name=model_name)
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:
-            f.write(model_card_content)
+            f.write(self.generate_model_card())
 
-    def __call__(self, inputs):
-        return self.predict(inputs)
+    def generate_model_card(self) -> str:
+        """Generate and return a model card string based on the model card data.
+
+        Returns:
+            str: The model card string.
+        """
+        return generate_model_card(self)
 
     def _save_pretrained(self, save_directory: Union[Path, str]) -> None:
         save_directory = str(save_directory)
+        # Save the config
+        config_path = os.path.join(save_directory, CONFIG_NAME)
+        with open(config_path, "w") as f:
+            json.dump(
+                {
+                    attr_name: getattr(self, attr_name)
+                    for attr_name in self.attributes_to_save
+                    if hasattr(self, attr_name)
+                },
+                f,
+                indent=2,
+            )
+        # Save the body
         self.model_body.save(path=save_directory, create_model_card=False)
+        # Save the README
         self.create_model_card(path=save_directory, model_name=save_directory)
+        # Move the head to the CPU before saving
+        if self.has_differentiable_head:
+            self.model_head.to("cpu")
+        # Save the classification head
         joblib.dump(self.model_head, str(Path(save_directory) / MODEL_HEAD_NAME))
+        if self.has_differentiable_head:
+            self.model_head.to(self.device)
 
     @classmethod
+    @validate_hf_hub_args
     def _from_pretrained(
         cls,
         model_id: str,
@@ -511,16 +692,53 @@ class SetFitModel(PyTorchModelHubMixin):
         proxies: Optional[Dict] = None,
         resume_download: Optional[bool] = None,
         local_files_only: Optional[bool] = None,
-        use_auth_token: Optional[Union[bool, str]] = None,
+        token: Optional[Union[bool, str]] = None,
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
-        normalize_embeddings: bool = False,
+        device: Optional[Union[torch.device, str]] = None,
         **model_kwargs,
     ) -> "SetFitModel":
-        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=use_auth_token)
-        target_device = model_body._target_device
-        model_body.to(target_device)  # put `model_body` on the target device
+        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=token, device=device)
+        device = model_body._target_device
+        model_body.to(device)  # put `model_body` on the target device
 
+        # Try to load a SetFit config file
+        config_file: Optional[str] = None
+        if os.path.isdir(model_id):
+            if CONFIG_NAME in os.listdir(model_id):
+                config_file = os.path.join(model_id, CONFIG_NAME)
+        else:
+            try:
+                config_file = hf_hub_download(
+                    repo_id=model_id,
+                    filename=CONFIG_NAME,
+                    revision=revision,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    resume_download=resume_download,
+                    token=token,
+                    local_files_only=local_files_only,
+                )
+            except requests.exceptions.RequestException:
+                pass
+
+        model_kwargs = {key: value for key, value in model_kwargs.items() if value is not None}
+
+        if config_file is not None:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            # Update model_kwargs + warnings
+            for setting, value in config.items():
+                if setting in model_kwargs:
+                    if model_kwargs[setting] != value:
+                        logger.warning(
+                            f"Overriding {setting} in model configuration from {value} to {model_kwargs[setting]}."
+                        )
+                else:
+                    model_kwargs[setting] = value
+
+        # Try to load a model head file
         if os.path.isdir(model_id):
             if MODEL_HEAD_NAME in os.listdir(model_id):
                 model_head_file = os.path.join(model_id, MODEL_HEAD_NAME)
@@ -541,7 +759,7 @@ class SetFitModel(PyTorchModelHubMixin):
                     force_download=force_download,
                     proxies=proxies,
                     resume_download=resume_download,
-                    use_auth_token=use_auth_token,
+                    token=token,
                     local_files_only=local_files_only,
                 )
             except requests.exceptions.RequestException:
@@ -551,10 +769,15 @@ class SetFitModel(PyTorchModelHubMixin):
                 )
                 model_head_file = None
 
+        model_card_data: SetFitModelCardData = model_kwargs.pop("model_card_data", SetFitModelCardData())
+
         if model_head_file is not None:
             model_head = joblib.load(model_head_file)
+            if isinstance(model_head, torch.nn.Module):
+                model_head.to(device)
+            model_card_data.infer_st_id(model_id)
         else:
-            head_params = model_kwargs.get("head_params", {})
+            head_params = model_kwargs.pop("head_params", {})
             if use_differentiable_head:
                 if multi_target_strategy is None:
                     use_multitarget = False
@@ -570,7 +793,7 @@ class SetFitModel(PyTorchModelHubMixin):
                 # - follow the `model_body`, put `model_head` on the target device
                 base_head_params = {
                     "in_features": model_body.get_sentence_embedding_dimension(),
-                    "device": target_device,
+                    "device": device,
                     "multitarget": use_multitarget,
                 }
                 model_head = SetFitHead(**{**head_params, **base_head_params})
@@ -590,207 +813,52 @@ class SetFitModel(PyTorchModelHubMixin):
                 else:
                     model_head = clf
 
+            model_card_data.set_st_id(model_id if "/" in model_id else f"sentence-transformers/{model_id}")
+
+        # Remove the `transformers` config
+        model_kwargs.pop("config", None)
         return cls(
             model_body=model_body,
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,
-            normalize_embeddings=normalize_embeddings,
+            model_card_data=model_card_data,
+            **model_kwargs,
         )
 
 
-class SupConLoss(nn.Module):
-    """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
+docstring = SetFitModel.from_pretrained.__doc__
+cut_index = docstring.find("model_kwargs")
+if cut_index != -1:
+    docstring = (
+        docstring[:cut_index]
+        + """labels (`List[str]`, *optional*):
+                If the labels are integers ranging from `0` to `num_classes-1`, then these labels indicate
+                    the corresponding labels.
+            model_card_data (`SetFitModelCardData`, *optional*):
+                A `SetFitModelCardData` instance storing data such as model language, license, dataset name,
+                    etc. to be used in the automatically generated model cards.
+            multi_target_strategy (`str`, *optional*):
+                The strategy to use with multi-label classification. One of "one-vs-rest", "multi-output",
+                    or "classifier-chain".
+            use_differentiable_head (`bool`, *optional*):
+                Whether to load SetFit using a differentiable (i.e., Torch) head instead of Logistic Regression.
+            normalize_embeddings (`bool`, *optional*):
+                Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
+            device (`Union[torch.device, str]`, *optional*):
+                The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`.
 
-    It also supports the unsupervised contrastive loss in SimCLR.
-    """
+        Example::
 
-    def __init__(self, model, temperature=0.07, contrast_mode="all", base_temperature=0.07):
-        super(SupConLoss, self).__init__()
-        self.model = model
-        self.temperature = temperature
-        self.contrast_mode = contrast_mode
-        self.base_temperature = base_temperature
-
-    def forward(self, sentence_features, labels=None, mask=None):
-        """Computes loss for model.
-
-        If both `labels` and `mask` are None, it degenerates to SimCLR unsupervised loss:
-        https://arxiv.org/pdf/2002.05709.pdf
-
-        Args:
-            features: hidden vector of shape [bsz, n_views, ...].
-            labels: ground truth of shape [bsz].
-            mask: contrastive mask of shape [bsz, bsz], mask_{i,j}=1 if sample j
-                has the same class as sample i. Can be asymmetric.
-
-        Returns:
-            A loss scalar.
+            >>> from setfit import SetFitModel
+            >>> model = SetFitModel.from_pretrained(
+            ...     "sentence-transformers/paraphrase-mpnet-base-v2",
+            ...     labels=["positive", "negative"],
+            ... )
         """
-        features = self.model(sentence_features[0])["sentence_embedding"]
+    )
+    SetFitModel.from_pretrained = set_docstring(SetFitModel.from_pretrained, docstring)
 
-        # Normalize embeddings
-        features = torch.nn.functional.normalize(features, p=2, dim=1)
-
-        # Add n_views dimension
-        features = torch.unsqueeze(features, 1)
-
-        device = features.device
-
-        if len(features.shape) < 3:
-            raise ValueError("`features` needs to be [bsz, n_views, ...]," "at least 3 dimensions are required")
-        if len(features.shape) > 3:
-            features = features.view(features.shape[0], features.shape[1], -1)
-
-        batch_size = features.shape[0]
-        if labels is not None and mask is not None:
-            raise ValueError("Cannot define both `labels` and `mask`")
-        elif labels is None and mask is None:
-            mask = torch.eye(batch_size, dtype=torch.float32).to(device)
-        elif labels is not None:
-            labels = labels.contiguous().view(-1, 1)
-            if labels.shape[0] != batch_size:
-                raise ValueError("Num of labels does not match num of features")
-            mask = torch.eq(labels, labels.T).float().to(device)
-        else:
-            mask = mask.float().to(device)
-
-        contrast_count = features.shape[1]
-        contrast_feature = torch.cat(torch.unbind(features, dim=1), dim=0)
-        if self.contrast_mode == "one":
-            anchor_feature = features[:, 0]
-            anchor_count = 1
-        elif self.contrast_mode == "all":
-            anchor_feature = contrast_feature
-            anchor_count = contrast_count
-        else:
-            raise ValueError("Unknown mode: {}".format(self.contrast_mode))
-
-        # Compute logits
-        anchor_dot_contrast = torch.div(torch.matmul(anchor_feature, contrast_feature.T), self.temperature)
-        # For numerical stability
-        logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
-        logits = anchor_dot_contrast - logits_max.detach()
-
-        # Tile mask
-        mask = mask.repeat(anchor_count, contrast_count)
-        # Mask-out self-contrast cases
-        logits_mask = torch.scatter(
-            torch.ones_like(mask),
-            1,
-            torch.arange(batch_size * anchor_count).view(-1, 1).to(device),
-            0,
-        )
-        mask = mask * logits_mask
-
-        # Compute log_prob
-        exp_logits = torch.exp(logits) * logits_mask
-        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
-
-        # Compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
-
-        # Loss
-        loss = -(self.temperature / self.base_temperature) * mean_log_prob_pos
-        loss = loss.view(anchor_count, batch_size).mean()
-
-        return loss
-
-
-def sentence_pairs_generation(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    num_classes = np.unique(labels)
-    label_to_idx = {x: i for i, x in enumerate(num_classes)}
-    positive_idxs = [np.where(labels == i)[0] for i in num_classes]
-    negative_idxs = [np.where(labels != i)[0] for i in num_classes]
-
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        label = labels[first_idx]
-        second_idx = np.random.choice(positive_idxs[label_to_idx[label]])
-        positive_sentence = sentences[second_idx]
-        # Prepare a positive pair and update the sentences and labels
-        # lists, respectively
-        pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-        third_idx = np.random.choice(negative_idxs[label_to_idx[label]])
-        negative_sentence = sentences[third_idx]
-        # Prepare a negative pair of sentences and update our lists
-        pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
-
-
-def sentence_pairs_generation_multilabel(sentences, labels, pairs):
-    # Initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        sample_labels = np.where(labels[first_idx, :] == 1)[0]
-        if len(np.where(labels.dot(labels[first_idx, :].T) == 0)[0]) == 0:
-            continue
-        else:
-            for _label in sample_labels:
-                second_idx = np.random.choice(np.where(labels[:, _label] == 1)[0])
-                positive_sentence = sentences[second_idx]
-                # Prepare a positive pair and update the sentences and labels
-                # lists, respectively
-                pairs.append(InputExample(texts=[current_sentence, positive_sentence], label=1.0))
-
-            # Search for sample that don't have a label in common with current
-            # sentence
-            negative_idx = np.where(labels.dot(labels[first_idx, :].T) == 0)[0]
-            negative_sentence = sentences[np.random.choice(negative_idx)]
-            # Prepare a negative pair of sentences and update our lists
-            pairs.append(InputExample(texts=[current_sentence, negative_sentence], label=0.0))
-    # Return a 2-tuple of our sentence pairs and labels
-    return pairs
-
-
-def sentence_pairs_generation_cos_sim(sentences, pairs, cos_sim_matrix):
-    # initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
-
-    idx = list(range(len(sentences)))
-
-    for first_idx in range(len(sentences)):
-        current_sentence = sentences[first_idx]
-        second_idx = int(np.random.choice([x for x in idx if x != first_idx]))
-
-        cos_sim = float(cos_sim_matrix[first_idx][second_idx])
-        paired_sentence = sentences[second_idx]
-        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
-
-        third_idx = np.random.choice([x for x in idx if x != first_idx])
-        cos_sim = float(cos_sim_matrix[first_idx][third_idx])
-        paired_sentence = sentences[third_idx]
-        pairs.append(InputExample(texts=[current_sentence, paired_sentence], label=cos_sim))
-
-    return pairs
-
-
-class SKLearnWrapper:
-    def __init__(self, st_model=None, clf=None):
-        self.st_model = st_model
-        self.clf = clf
-
-    def fit(self, x_train, y_train):
-        embeddings = self.st_model.encode(x_train)
-        self.clf.fit(embeddings, y_train)
-
-    def predict(self, x_test):
-        embeddings = self.st_model.encode(x_test)
-        return self.clf.predict(embeddings)
-
-    def predict_proba(self, x_test):
-        embeddings = self.st_model.encode(x_test)
-        return self.clf.predict_proba(embeddings)
-
-    def save(self, path):
-        self.st_model.save(path=path)
-        joblib.dump(self.clf, f"{path}/setfit_head.pkl")
-
-    def load(self, path):
-        self.st_model = SentenceTransformer(model_name_or_path=path)
-        self.clf = joblib.load(f"{path}/setfit_head.pkl")
+SetFitModel.save_pretrained = copy_func(SetFitModel.save_pretrained)
+SetFitModel.save_pretrained.__doc__ = SetFitModel.save_pretrained.__doc__.replace(
+    "~ModelHubMixin._from_pretrained", "SetFitModel.push_to_hub"
+)

@@ -1,0 +1,376 @@
+
+# Hyperparameter Optimization
+
+SetFit models are often very quick to train, making them very suitable for hyperparameter optimization (HPO) to select the best hyperparameters. 
+
+This guide will show you how to apply HPO for SetFit.
+
+## Requirements
+
+To use HPO, first install the `optuna` backend:
+
+```bash
+pip install optuna
+```
+
+To use this method, you need to define two functions:
+
+* `model_init()`: A function that instantiates the model to be used. If provided, each call to `train()` will start from a new instance of the model as given by this function.
+* `hp_space()`: A function that defines the hyperparameter search space.
+
+Here is an example of a `model_init()` function that we'll use to scan over the hyperparameters associated with the classification head in `SetFitModel`:
+
+```python
+from setfit import SetFitModel
+from typing import Dict, Any
+
+def model_init(params: Dict[str, Any]) -> SetFitModel:
+    params = params or {}
+    max_iter = params.get("max_iter", 100)
+    solver = params.get("solver", "liblinear")
+    params = {
+        "head_params": {
+            "max_iter": max_iter,
+            "solver": solver,
+        }
+    }
+    return SetFitModel.from_pretrained("BAAI/bge-small-en-v1.5", **params)
+```
+
+Then, to scan over hyperparameters associated with the SetFit training process, we can define a `hp_space(trial)` function as follows:
+
+```python
+from optuna import Trial
+from typing import Dict, Union
+
+def hp_space(trial: Trial) -> Dict[str, Union[float, int, str]]:
+    return {
+        "body_learning_rate": trial.suggest_float("body_learning_rate", 1e-6, 1e-3, log=True),
+        "num_epochs": trial.suggest_int("num_epochs", 1, 3),
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64]),
+        "seed": trial.suggest_int("seed", 1, 40),
+        "max_iter": trial.suggest_int("max_iter", 50, 300),
+        "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),
+    }
+```
+
+<Tip>
+
+In practice, we found `num_epochs`, `max_steps`, and `body_learning_rate` to be the most important hyperparameters for the contrastive learning process.
+
+</Tip>
+
+The next step is to prepare a dataset. 
+
+```py
+from datasets import load_dataset
+from setfit import Trainer, sample_dataset
+
+dataset = load_dataset("SetFit/emotion")
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
+test_dataset = dataset["test"]
+```
+
+After which we can instantiate a [`Trainer`] and commence HPO via [`Trainer.hyperparameter_search`]. I've split up the logs from each trial into separate codeblocks for readability:
+
+```py
+trainer = Trainer(
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+    model_init=model_init,
+)
+best_run = trainer.hyperparameter_search(direction="maximize", hp_space=hp_space, n_trials=10)
+```
+```
+[I 2023-11-14 20:36:55,736] A new study created in memory with name: no-name-d9c6ec29-c5d8-48a2-8f09-299b1f3740f1
+Trial: {'body_learning_rate': 1.937397586885703e-06, 'num_epochs': 3, 'batch_size': 32, 'seed': 16, 'max_iter': 223, 'solver': 'newton-cg'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 60
+  Num epochs = 3
+  Total optimization steps = 180
+  Total train batch size = 32
+{'embedding_loss': 0.26, 'learning_rate': 1.0763319927142795e-07, 'epoch': 0.02}                                                                                   
+{'embedding_loss': 0.2069, 'learning_rate': 1.5547017672539594e-06, 'epoch': 0.83}                                                                                 
+{'embedding_loss': 0.2145, 'learning_rate': 9.567395490793595e-07, 'epoch': 1.67}                                                                                  
+{'embedding_loss': 0.2236, 'learning_rate': 3.587773309047598e-07, 'epoch': 2.5}                                                                                   
+{'train_runtime': 36.1299, 'train_samples_per_second': 159.425, 'train_steps_per_second': 4.982, 'epoch': 3.0}                                                     
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 180/180 [00:29<00:00,  6.02it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:37:33,895] Trial 0 finished with value: 0.44 and parameters: {'body_learning_rate': 1.937397586885703e-06, 'num_epochs': 3, 'batch_size': 32, 'seed': 16, 'max_iter': 223, 'solver': 'newton-cg'}. Best is trial 0 with value: 0.44.
+```
+```
+Trial: {'body_learning_rate': 0.000946449838705604, 'num_epochs': 2, 'batch_size': 16, 'seed': 8, 'max_iter': 60, 'solver': 'liblinear'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 120
+  Num epochs = 2
+  Total optimization steps = 240
+  Total train batch size = 16
+{'embedding_loss': 0.2354, 'learning_rate': 3.943540994606683e-05, 'epoch': 0.01}                                                                                  
+{'embedding_loss': 0.2419, 'learning_rate': 0.0008325253210836332, 'epoch': 0.42}                                                                                  
+{'embedding_loss': 0.3601, 'learning_rate': 0.0006134397102721508, 'epoch': 0.83}                                                                                  
+{'embedding_loss': 0.2694, 'learning_rate': 0.00039435409946066835, 'epoch': 1.25}                                                                                 
+{'embedding_loss': 0.2496, 'learning_rate': 0.0001752684886491859, 'epoch': 1.67}                                                                                  
+{'train_runtime': 33.5015, 'train_samples_per_second': 114.622, 'train_steps_per_second': 7.164, 'epoch': 2.0}                                                     
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 240/240 [00:33<00:00,  7.16it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:38:09,485] Trial 1 finished with value: 0.207 and parameters: {'body_learning_rate': 0.000946449838705604, 'num_epochs': 2, 'batch_size': 16, 'seed': 8, 'max_iter': 60, 'solver': 'liblinear'}. Best is trial 0 with value: 0.44.
+```
+```
+Trial: {'body_learning_rate': 8.050718146495058e-06, 'num_epochs': 1, 'batch_size': 32, 'seed': 20, 'max_iter': 260, 'solver': 'lbfgs'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 60
+  Num epochs = 1
+  Total optimization steps = 60
+  Total train batch size = 32
+{'embedding_loss': 0.2499, 'learning_rate': 1.3417863577491763e-06, 'epoch': 0.02}                                                                                 
+{'embedding_loss': 0.1714, 'learning_rate': 1.490873730832418e-06, 'epoch': 0.83}                                                                                  
+{'train_runtime': 9.5338, 'train_samples_per_second': 201.388, 'train_steps_per_second': 6.293, 'epoch': 1.0}                                                      
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 60/60 [00:09<00:00,  6.30it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:38:21,069] Trial 2 finished with value: 0.436 and parameters: {'body_learning_rate': 8.050718146495058e-06, 'num_epochs': 1, 'batch_size': 32, 'seed': 20, 'max_iter': 260, 'solver': 'lbfgs'}. Best is trial 0 with value: 0.44.
+```
+```
+Trial: {'body_learning_rate': 0.000995585414046506, 'num_epochs': 1, 'batch_size': 32, 'seed': 29, 'max_iter': 105, 'solver': 'lbfgs'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 60
+  Num epochs = 1
+  Total optimization steps = 60
+  Total train batch size = 32
+{'embedding_loss': 0.2556, 'learning_rate': 0.00016593090234108434, 'epoch': 0.02}                                                                                 
+{'embedding_loss': 0.0625, 'learning_rate': 0.0001843676692678715, 'epoch': 0.83}                                                                                  
+{'train_runtime': 9.5629, 'train_samples_per_second': 200.776, 'train_steps_per_second': 6.274, 'epoch': 1.0}                                                      
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 60/60 [00:09<00:00,  6.28it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:38:32,890] Trial 3 finished with value: 0.283 and parameters: {'body_learning_rate': 0.000995585414046506, 'num_epochs': 1, 'batch_size': 32, 'seed': 29, 'max_iter': 105, 'solver': 'lbfgs'}. Best is trial 0 with value: 0.44.
+```
+```
+Trial: {'body_learning_rate': 8.541092571911196e-06, 'num_epochs': 3, 'batch_size': 32, 'seed': 2, 'max_iter': 223, 'solver': 'newton-cg'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 60
+  Num epochs = 3
+  Total optimization steps = 180
+  Total train batch size = 32
+{'embedding_loss': 0.2578, 'learning_rate': 4.745051428839553e-07, 'epoch': 0.02}                                                                                  
+{'embedding_loss': 0.1725, 'learning_rate': 6.8539631749904665e-06, 'epoch': 0.83}                                                                                 
+{'embedding_loss': 0.1589, 'learning_rate': 4.217823492301825e-06, 'epoch': 1.67}                                                                                  
+{'embedding_loss': 0.1153, 'learning_rate': 1.5816838096131844e-06, 'epoch': 2.5}                                                                                  
+{'train_runtime': 28.3099, 'train_samples_per_second': 203.462, 'train_steps_per_second': 6.358, 'epoch': 3.0}                                                     
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 180/180 [00:28<00:00,  6.36it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:39:03,196] Trial 4 finished with value: 0.4415 and parameters: {'body_learning_rate': 8.541092571911196e-06, 'num_epochs': 3, 'batch_size': 32, 'seed': 2, 'max_iter': 223, 'solver': 'newton-cg'}. Best is trial 4 with value: 0.4415.
+```
+```
+Trial: {'body_learning_rate': 2.3916782417792657e-05, 'num_epochs': 1, 'batch_size': 64, 'seed': 23, 'max_iter': 258, 'solver': 'liblinear'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 30
+  Num epochs = 1
+  Total optimization steps = 30
+  Total train batch size = 64
+{'embedding_loss': 0.2478, 'learning_rate': 7.972260805930886e-06, 'epoch': 0.03}                                                                                  
+{'train_runtime': 6.4905, 'train_samples_per_second': 295.818, 'train_steps_per_second': 4.622, 'epoch': 1.0}                                                      
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 30/30 [00:06<00:00,  4.62it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:39:12,024] Trial 5 finished with value: 0.4345 and parameters: {'body_learning_rate': 2.3916782417792657e-05, 'num_epochs': 1, 'batch_size': 64, 'seed': 23, 'max_iter': 258, 'solver': 'liblinear'}. Best is trial 4 with value: 0.4415.
+```
+```
+Trial: {'body_learning_rate': 0.00012856431493122938, 'num_epochs': 1, 'batch_size': 32, 'seed': 29, 'max_iter': 97, 'solver': 'liblinear'}
+model_head.pkl not found on HuggingFace Hub, initialising classification head with random weights. You should TRAIN this model on a downstream task to use it for predictions and inference.
+***** Running training *****
+  Num examples = 60
+  Num epochs = 1
+  Total optimization steps = 60
+  Total train batch size = 32
+{'embedding_loss': 0.2556, 'learning_rate': 2.1427385821871562e-05, 'epoch': 0.02}
+{'embedding_loss': 0.023, 'learning_rate': 2.380820646874618e-05, 'epoch': 0.83}                                                                                   
+{'train_runtime': 9.2295, 'train_samples_per_second': 208.029, 'train_steps_per_second': 6.501, 'epoch': 1.0}                                                      
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 60/60 [00:09<00:00,  6.50it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:39:23,302] Trial 6 finished with value: 0.4675 and parameters: {'body_learning_rate': 0.00012856431493122938, 'num_epochs': 1, 'batch_size': 32, 'seed': 29, 'max_iter': 97, 'solver': 'liblinear'}. Best is trial 6 with value: 0.4675.
+```
+```
+Trial: {'body_learning_rate': 3.839168294105717e-06, 'num_epochs': 3, 'batch_size': 16, 'seed': 16, 'max_iter': 297, 'solver': 'newton-cg'}
+***** Running training *****
+  Num examples = 120
+  Num epochs = 3
+  Total optimization steps = 360
+  Total train batch size = 16
+{'embedding_loss': 0.2357, 'learning_rate': 1.066435637251588e-07, 'epoch': 0.01}                                                                                  
+{'embedding_loss': 0.2268, 'learning_rate': 3.6732783060888037e-06, 'epoch': 0.42}                                                                                 
+{'embedding_loss': 0.1308, 'learning_rate': 3.0808140631712545e-06, 'epoch': 0.83}                                                                                 
+{'embedding_loss': 0.2032, 'learning_rate': 2.4883498202537057e-06, 'epoch': 1.25}                                                                                 
+{'embedding_loss': 0.1617, 'learning_rate': 1.8958855773361567e-06, 'epoch': 1.67}                                                                                 
+{'embedding_loss': 0.1363, 'learning_rate': 1.3034213344186077e-06, 'epoch': 2.08}                                                                                 
+{'embedding_loss': 0.1559, 'learning_rate': 7.109570915010587e-07, 'epoch': 2.5}                                                                                   
+{'embedding_loss': 0.1761, 'learning_rate': 1.1849284858350979e-07, 'epoch': 2.92}                                                                                 
+{'train_runtime': 49.8712, 'train_samples_per_second': 115.497, 'train_steps_per_second': 7.219, 'epoch': 3.0}                                                     
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 360/360 [00:49<00:00,  7.22it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:40:15,350] Trial 7 finished with value: 0.442 and parameters: {'body_learning_rate': 3.839168294105717e-06, 'num_epochs': 3, 'batch_size': 16, 'seed': 16, 'max_iter': 297, 'solver': 'newton-cg'}. Best is trial 6 with value: 0.4675.
+```
+```
+Trial: {'body_learning_rate': 0.0005575631179396824, 'num_epochs': 1, 'batch_size': 32, 'seed': 31, 'max_iter': 264, 'solver': 'newton-cg'}
+***** Running training *****
+  Num examples = 60
+  Num epochs = 1
+  Total optimization steps = 60
+  Total train batch size = 32
+{'embedding_loss': 0.2588, 'learning_rate': 9.29271863232804e-05, 'epoch': 0.02}
+{'embedding_loss': 0.0025, 'learning_rate': 0.00010325242924808932, 'epoch': 0.83}                                                                                 
+{'train_runtime': 9.4608, 'train_samples_per_second': 202.942, 'train_steps_per_second': 6.342, 'epoch': 1.0}                                                      
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 60/60 [00:09<00:00,  6.34it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:40:26,886] Trial 8 finished with value: 0.4785 and parameters: {'body_learning_rate': 0.0005575631179396824, 'num_epochs': 1, 'batch_size': 32, 'seed': 31, 'max_iter': 264, 'solver': 'newton-cg'}. Best is trial 8 with value: 0.4785.
+```
+```
+Trial: {'body_learning_rate': 0.00021830594983845785, 'num_epochs': 2, 'batch_size': 16, 'seed': 38, 'max_iter': 267, 'solver': 'lbfgs'}
+***** Running training *****
+  Num examples = 120
+  Num epochs = 2
+  Total optimization steps = 240
+  Total train batch size = 16
+{'embedding_loss': 0.2356, 'learning_rate': 9.096081243269076e-06, 'epoch': 0.01}                                                                                  
+{'embedding_loss': 0.071, 'learning_rate': 0.00019202838180234718, 'epoch': 0.42}                                                                                  
+{'embedding_loss': 0.0021, 'learning_rate': 0.000141494597117519, 'epoch': 0.83}                                                                                   
+{'embedding_loss': 0.0018, 'learning_rate': 9.096081243269078e-05, 'epoch': 1.25}                                                                                  
+{'embedding_loss': 0.0012, 'learning_rate': 4.0427027747862565e-05, 'epoch': 1.67}                                                                                 
+{'train_runtime': 32.7462, 'train_samples_per_second': 117.265, 'train_steps_per_second': 7.329, 'epoch': 2.0}                                                     
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 240/240 [00:32<00:00,  7.33it/s] 
+***** Running evaluation *****
+[I 2023-11-14 20:41:01,722] Trial 9 finished with value: 0.4615 and parameters: {'body_learning_rate': 0.00021830594983845785, 'num_epochs': 2, 'batch_size': 16, 'seed': 38, 'max_iter': 267, 'solver': 'lbfgs'}. Best is trial 8 with value: 0.4785.
+```
+Let's observe the best found hyperparameters:
+
+```py
+print(best_run)
+```
+```
+BestRun(run_id='8', objective=0.4785, hyperparameters={'body_learning_rate': 0.0005575631179396824, 'num_epochs': 1, 'batch_size': 32, 'seed': 31, 'max_iter': 264, 'solver': 'newton-cg'}, backend=<optuna.study.study.Study object at 0x000001E088B8C310>)
+```
+
+Finally, you can apply the hyperparameters you found to the trainer, and lock in the optimal model, before training for
+a final time.
+
+```py
+trainer.apply_hyperparameters(best_run.hyperparameters, final_model=True)
+trainer.train()
+```
+```
+***** Running training *****
+  Num examples = 60
+  Num epochs = 1
+  Total optimization steps = 60
+  Total train batch size = 32
+{'embedding_loss': 0.2588, 'learning_rate': 9.29271863232804e-05, 'epoch': 0.02}                                                                                   
+{'embedding_loss': 0.0025, 'learning_rate': 0.00010325242924808932, 'epoch': 0.83}                                                                                 
+{'train_runtime': 9.4331, 'train_samples_per_second': 203.54, 'train_steps_per_second': 6.361, 'epoch': 1.0}                                                       
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 60/60 [00:09<00:00,  6.36it/s] 
+```
+For peace of mind, we can evaluate this model once more:
+
+```py
+metrics = trainer.evaluate()
+print(metrics)
+```
+```
+***** Running evaluation *****
+{'accuracy': 0.4785}
+```
+As expected, the accuracy matches that of the best run.
+
+## Baseline
+
+As a comparison, let's observe the same metrics for the same setup but with the default training arguments:
+
+```py
+from datasets import load_dataset
+from setfit import SetFitModel, Trainer, sample_dataset
+
+model = SetFitModel.from_pretrained("BAAI/bge-small-en-v1.5")
+
+dataset = load_dataset("SetFit/emotion")
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
+test_dataset = dataset["test"]
+
+trainer = Trainer(
+    model=model,
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+)
+trainer.train()
+
+metrics = trainer.evaluate()
+print(metrics)
+```
+```
+***** Running training *****
+  Num examples = 120
+  Num epochs = 1
+  Total optimization steps = 120
+  Total train batch size = 16
+{'embedding_loss': 0.246, 'learning_rate': 1.6666666666666667e-06, 'epoch': 0.01}                                                                                  
+{'embedding_loss': 0.1734, 'learning_rate': 1.2962962962962964e-05, 'epoch': 0.42}                                                                                 
+{'embedding_loss': 0.0411, 'learning_rate': 3.7037037037037037e-06, 'epoch': 0.83}                                                                                 
+{'train_runtime': 23.8184, 'train_samples_per_second': 80.61, 'train_steps_per_second': 5.038, 'epoch': 1.0}                                                       
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 120/120 [00:17<00:00,  6.83it/s] 
+***** Running evaluation *****
+{'accuracy': 0.4235}
+```
+42.35% versus 47.85%! Quite a big difference for just a few minutes of hyperparameter searching.
+
+## End-to-end
+
+This snippet shows the entire hyperparameter optimization strategy in an end-to-end example:
+
+```py
+from datasets import load_dataset
+from setfit import SetFitModel, Trainer, sample_dataset
+from optuna import Trial
+from typing import Dict, Union, Any
+
+def model_init(params: Dict[str, Any]) -> SetFitModel:
+    params = params or {}
+    max_iter = params.get("max_iter", 100)
+    solver = params.get("solver", "liblinear")
+    params = {
+        "head_params": {
+            "max_iter": max_iter,
+            "solver": solver,
+        }
+    }
+    return SetFitModel.from_pretrained("BAAI/bge-small-en-v1.5", **params)
+
+def hp_space(trial: Trial) -> Dict[str, Union[float, int, str]]:
+    return {
+        "body_learning_rate": trial.suggest_float("body_learning_rate", 1e-6, 1e-3, log=True),
+        "num_epochs": trial.suggest_int("num_epochs", 1, 3),
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64]),
+        "seed": trial.suggest_int("seed", 1, 40),
+        "max_iter": trial.suggest_int("max_iter", 50, 300),
+        "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),
+    }
+
+dataset = load_dataset("SetFit/emotion")
+train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
+test_dataset = dataset["test"]
+
+trainer = Trainer(
+    train_dataset=train_dataset,
+    eval_dataset=test_dataset,
+    model_init=model_init,
+)
+best_run = trainer.hyperparameter_search(direction="maximize", hp_space=hp_space, n_trials=10)
+print(best_run)
+
+trainer.apply_hyperparameters(best_run.hyperparameters, final_model=True)
+trainer.train()
+
+metrics = trainer.evaluate()
+print(metrics)
+# => {'accuracy': 0.4785}
+```
