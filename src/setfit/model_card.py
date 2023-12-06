@@ -202,7 +202,7 @@ class SetFitModelCardData(CardData):
         ...     # Model card variables
         ...     model_card_data=SetFitModelCardData(
         ...         model_id="tomaarsen/setfit-paraphrase-mpnet-base-v2-sst2",
-        ...         dataset_name="SST2,
+        ...         dataset_name="SST2",
         ...         dataset_id="sst2",
         ...         license="apache-2.0",
         ...         language="en",
