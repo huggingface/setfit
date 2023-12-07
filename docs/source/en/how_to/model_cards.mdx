@@ -98,3 +98,59 @@ Carbon emissions were measured using [CodeCarbon](https://github.com/mlco2/codec
 
 - **Carbon Emitted**: 0.003 kg of CO2
 - **Hours Used**: 0.072 hours
+
+## Custom Metrics
+
+If you use custom metrics, then these will be included in your model card as well! For example, if you use the following `metric` function:
+
+```py
+from setfit import SetFitModel, Trainer, TrainingArguments
+
+...
+
+def compute_metrics(y_pred, y_test):
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    return { 'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1': f1}
+
+...
+
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    metric=compute_metrics,
+)
+trainer.train()
+
+model.save_pretrained("setfit-bge-small-v1.5-sst2-8-shot")
+```
+
+Then the final model card will contain your special metrics! For example, the metadata will include e.g.:
+
+```yaml
+    metrics:
+    - type: accuracy
+      value: 0.8061504667764964
+      name: Accuracy
+    - type: precision
+      value: 0.7293729372937293
+      name: Precision
+    - type: recall
+      value: 0.9724972497249725
+      name: Recall
+    - type: f1
+      value: 0.8335690711928335
+      name: F1
+```
+
+Additionally, the Evaluation section will display your metrics:
+
+<h4>Metrics</h4>
+
+| Label   | Accuracy | Precision | Recall | F1     |
+|:--------|:---------|:----------|:-------|:-------|
+| **all** | 0.8062   | 0.7294    | 0.9725 | 0.8336 |
