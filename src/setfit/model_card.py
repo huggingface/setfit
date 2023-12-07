@@ -457,9 +457,20 @@ class SetFitModelCardData(CardData):
             self.st_id = model_id
 
     def post_training_eval_results(self, results: Dict[str, float]) -> None:
-        self.eval_results_dict = results
+        def try_to_pure_python(value: Any) -> Any:
+            """Try to convert a value from a Numpy or Torch scalar to pure Python, if not already pure Python"""
+            try:
+                if hasattr(value, "dtype"):
+                    return value.item()
+            except Exception:
+                pass
+            return value
 
-        results_without_split = {key.split("_", maxsplit=1)[1].title(): value for key, value in results.items()}
+        pure_python_results = {key: try_to_pure_python(value) for key, value in results.items()}
+        results_without_split = {
+            key.split("_", maxsplit=1)[1].title(): value for key, value in pure_python_results.items()
+        }
+        self.eval_results_dict = pure_python_results
         self.metric_lines = [{"Label": "**all**", **results_without_split}]
 
     def _maybe_round(self, v, decimals=4):
