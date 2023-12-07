@@ -462,12 +462,14 @@ class SetFitModelCardData(CardData):
             try:
                 if hasattr(value, "dtype"):
                     return value.item()
-            except:
-                pass    
+            except Exception:
+                pass
             return value
 
         pure_python_results = {key: try_to_pure_python(value) for key, value in results.items()}
-        results_without_split = {key.split("_", maxsplit=1)[1].title(): value for key, value in pure_python_results.items()}
+        results_without_split = {
+            key.split("_", maxsplit=1)[1].title(): value for key, value in pure_python_results.items()
+        }
         self.eval_results_dict = pure_python_results
         self.metric_lines = [{"Label": "**all**", **results_without_split}]
 
