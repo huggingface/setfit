@@ -61,7 +61,10 @@ eval_dataset = dataset["validation"].select(range(100))
 test_dataset = dataset["validation"].select(range(100, len(dataset["validation"])))
 
 # Load a SetFit model from Hub
-model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
+model = SetFitModel.from_pretrained(
+    "sentence-transformers/paraphrase-mpnet-base-v2",
+    labels=["negative", "positive"],
+)
 
 args = TrainingArguments(
     batch_size=16,
@@ -94,7 +97,7 @@ model = SetFitModel.from_pretrained("tomaarsen/setfit-paraphrase-mpnet-base-v2-s
 # Run inference
 preds = model.predict(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
 print(preds)
-# tensor([1, 0], dtype=torch.int32)
+# ["positive", "negative"]
 ```
 
 
