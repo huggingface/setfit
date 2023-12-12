@@ -19,7 +19,10 @@ import requests
 import torch
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from huggingface_hub.utils import validate_hf_hub_args
-from sentence_transformers import SentenceTransformer, models
+from packaging.version import Version, parse
+from sentence_transformers import SentenceTransformer
+from sentence_transformers import __version__ as sentence_transformers_version
+from sentence_transformers import models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
@@ -600,6 +603,9 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             torch.device: The device that the model is on.
         """
+        # SentenceTransformers.device is reliable from 2.3.0 onwards
+        if parse(sentence_transformers_version) >= Version("2.3.0"):
+            return self.model_body.device
         return self.model_body._target_device
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
@@ -617,9 +623,10 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             SetFitModel: Returns the original model, but now on the desired device.
         """
-        # Note that we must also set _target_device, or any SentenceTransformer.fit() call will reset
-        # the body location
-        self.model_body._target_device = device if isinstance(device, torch.device) else torch.device(device)
+        # Note that we must also set _target_device with sentence-transformers <2.3.0,
+        # or any SentenceTransformer.fit() call will reset the body location
+        if parse(sentence_transformers_version) < Version("2.3.0"):
+            self.model_body._target_device = device if isinstance(device, torch.device) else torch.device(device)
         self.model_body = self.model_body.to(device)
 
         if self.has_differentiable_head:
@@ -699,7 +706,10 @@ class SetFitModel(PyTorchModelHubMixin):
         **model_kwargs,
     ) -> "SetFitModel":
         model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=token, device=device)
-        device = model_body._target_device
+        if parse(sentence_transformers_version) >= Version("2.3.0"):
+            device = model_body.device
+        else:
+            device = model_body._target_device
         model_body.to(device)  # put `model_body` on the target device
 
         # Try to load a SetFit config file
