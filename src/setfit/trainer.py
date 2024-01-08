@@ -673,7 +673,11 @@ class Trainer(ColumnMappingMixin):
                 step_to_load = dir_name[5:]
                 logger.info(f"Loading best SentenceTransformer model from step {step_to_load}.")
                 self.model.model_card_data.set_best_model_step(int(step_to_load))
-            self.model.model_body = SentenceTransformer(self.state.best_model_checkpoint, device=self.model.device)
+            sentence_transformer_kwargs = self.model.sentence_transformers_kwargs
+            sentence_transformer_kwargs["device"] = self.model.device
+            self.model.model_body = SentenceTransformer(
+                self.state.best_model_checkpoint, **sentence_transformer_kwargs
+            )
             self.model.model_body.to(self.model.device)
 
         # Ensure logging the speed metrics
