@@ -6,13 +6,13 @@ from unittest import TestCase
 import numpy as np
 import pytest
 import torch
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
-from setfit import SetFitHead, SetFitModel
+from setfit import SetFitHead, SetFitModel, Trainer
 from setfit.modeling import MODEL_HEAD_NAME
 
 
@@ -324,3 +324,31 @@ def test_singular_predict() -> None:
     assert probs.argmax() == 1
     model.labels = ["negative", "positive"]
     assert model("That was cool!") == "positive"
+
+
+# A differentiable head may still cause unexpected performance
+@pytest.mark.parametrize("use_differentiable_head", [False])
+def test_predict_proba_multi_output(use_differentiable_head: bool) -> None:
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2",
+        multi_target_strategy="multi-output",
+        use_differentiable_head=use_differentiable_head,
+    )
+    train_dataset = Dataset.from_dict({"text": ["Hello", "World"], "label": [[1, 0], [0, 1]]})
+
+    trainer = Trainer(model=model, train_dataset=train_dataset)
+    trainer.train()
+
+    outputs = model.predict_proba("That was cool!")
+    assert isinstance(outputs, torch.Tensor)
+    assert outputs.shape == (2, 2)
+    outputs = model.predict_proba("That was cool!", as_numpy=True)
+    assert isinstance(outputs, np.ndarray)
+    assert outputs.shape == (2, 2)
+
+    outputs = model.predict_proba(["That was cool!"] * 3)
+    assert isinstance(outputs, torch.Tensor)
+    assert outputs.shape == (3, 2, 2)
+    outputs = model.predict_proba(["That was cool!"] * 3, as_numpy=True)
+    assert isinstance(outputs, np.ndarray)
+    assert outputs.shape == (3, 2, 2)
