@@ -501,6 +501,11 @@ class SetFitModel(PyTorchModelHubMixin):
             inputs = [inputs]
         embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
         probs = self.model_head.predict_proba(embeddings)
+        if isinstance(probs, list):
+            if self.has_differentiable_head:
+                probs = torch.stack(probs, axis=1)
+            else:
+                probs = np.stack(probs, axis=1)
         outputs = self._output_type_conversion(probs, as_numpy=as_numpy)
         return outputs[0] if is_singular else outputs
 
