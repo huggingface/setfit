@@ -1,9 +1,11 @@
 import json
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
 import torch
+from datasets import Dataset
 from pytest import LogCaptureFixture
 
 from setfit import AbsaModel
@@ -144,3 +146,82 @@ def test_load_model_on_device(device):
     assert model.device.type == device
     assert model.polarity_model.device.type == device
     assert model.aspect_model.device.type == device
+
+
+def test_predict_dataset(trained_absa_model: AbsaModel):
+    inputs = Dataset.from_dict(
+        {
+            "text": [
+                "But the staff was so horrible to us.",
+                "To be completely fair, the only redeeming factor was the food, which was above average, but couldn't make up for all the other deficiencies of Teodora.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+            ],
+            "span": ["staff", "food", "food", "kitchen", "menu"],
+            "label": ["negative", "positive", "positive", "positive", "neutral"],
+            "ordinal": [0, 0, 0, 0, 0],
+        }
+    )
+    outputs = trained_absa_model.predict(inputs)
+    assert isinstance(outputs, Dataset)
+    assert set(outputs.column_names) == {"pred_polarity", "text", "span", "label", "ordinal"}
+
+    inputs = Dataset.from_dict(
+        {
+            "text": [
+                "But the staff was so horrible to us.",
+                "To be completely fair, the only redeeming factor was the food, which was above average, but couldn't make up for all the other deficiencies of Teodora.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+            ],
+            "span": ["staff", "food", "food", "kitchen", "menu"],
+        }
+    )
+    outputs = trained_absa_model.predict(inputs)
+    assert isinstance(outputs, Dataset)
+    assert "pred_polarity" in outputs.column_names
+
+
+def test_predict_dataset_errors(trained_absa_model: AbsaModel):
+    inputs = Dataset.from_dict(
+        {
+            "text": [
+                "But the staff was so horrible to us.",
+                "To be completely fair, the only redeeming factor was the food, which was above average, but couldn't make up for all the other deficiencies of Teodora.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+            ],
+        }
+    )
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "`inputs` must be either a `str`, a `List[str]`, or a `datasets.Dataset` with columns `text` and `span` and optionally `ordinal`. "
+            "Found a dataset with these columns: ['text']."
+        ),
+    ):
+        trained_absa_model.predict(inputs)
+
+    inputs = Dataset.from_dict(
+        {
+            "text": [
+                "But the staff was so horrible to us.",
+                "To be completely fair, the only redeeming factor was the food, which was above average, but couldn't make up for all the other deficiencies of Teodora.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+                "The food is uniformly exceptional, with a very capable kitchen which will proudly whip up whatever you feel like eating, whether it's on the menu or not.",
+            ],
+            "span": ["staff", "food", "food", "kitchen", "menu"],
+            "pred_polarity": ["negative", "positive", "positive", "positive", "neutral"],
+        }
+    )
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "`predict_dataset` wants to add a `pred_polarity` column, but the input dataset already contains that column."
+        ),
+    ):
+        trained_absa_model.predict(inputs)
