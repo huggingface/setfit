@@ -93,10 +93,8 @@ class DistillationTrainer(Trainer):
         data_sampler = ContrastiveDistillationDataset(
             input_data, cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
         )
-        # shuffle_sampler = True can be dropped in for further 'randomising'
-        shuffle_sampler = True if args.sampling_strategy == "unique" else False
         batch_size = min(args.embedding_batch_size, len(data_sampler))
-        dataloader = DataLoader(data_sampler, batch_size=batch_size, shuffle=shuffle_sampler, drop_last=False)
+        dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False)
         loss = args.loss(self.model.model_body)
         return dataloader, loss, batch_size
 
