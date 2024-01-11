@@ -15,6 +15,14 @@ def absa_model() -> AbsaModel:
 
 
 @pytest.fixture()
+def trained_absa_model() -> AbsaModel:
+    return AbsaModel.from_pretrained(
+        "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-aspect",
+        "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-polarity",
+    )
+
+
+@pytest.fixture()
 def absa_dataset() -> Dataset:
     texts = [
         "It is about food and ambiance, and imagine how dreadful it will be it we only had to listen to an idle engine.",

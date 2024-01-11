@@ -16,6 +16,7 @@ REQUIRED_PKGS = [
     "evaluate>=0.3.0",
     "huggingface_hub>=0.13.0",
     "scikit-learn",
+    "packaging",
 ]
 ABSA_REQUIRE = ["spacy"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
@@ -53,7 +54,7 @@ EXTRAS_REQUIRE["compat_tests"] = (
 
 setup(
     name="setfit",
-    version="1.0.1",
+    version="1.0.2",
     description="Efficient few-shot learning with Sentence Transformers",
     long_description=README_TEXT,
     long_description_content_type="text/markdown",

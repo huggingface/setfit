@@ -1,12 +1,15 @@
 import copy
 import os
+import re
 import tempfile
 import types
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
 
 import torch
+from datasets import Dataset
 from huggingface_hub.utils import SoftTemporaryDirectory
 
 from setfit.utils import set_docstring
@@ -148,7 +151,99 @@ class AbsaModel:
     aspect_model: AspectModel
     polarity_model: PolarityModel
 
-    def predict(self, inputs: Union[str, List[str]]) -> List[Dict[str, Any]]:
+    def gold_aspect_spans_to_aspects_list(self, inputs: Dataset) -> List[List[slice]]:
+        # First group inputs by text
+        grouped_data = defaultdict(list)
+        for sample in inputs:
+            text = sample.pop("text")
+            grouped_data[text].append(sample)
+
+        # Get the spaCy docs
+        docs, _ = self.aspect_extractor(grouped_data.keys())
+
+        # Get the aspect spans for each doc by matching gold spans to the spaCy tokens
+        aspects_list = []
+        index = -1
+        skipped_indices = []
+        for doc, samples in zip(docs, grouped_data.values()):
+            aspects_list.append([])
+            for sample in samples:
+                index += 1
+                match_objects = re.finditer(re.escape(sample["span"]), doc.text)
+                for i, match in enumerate(match_objects):
+                    if i == sample["ordinal"]:
+                        char_idx_start = match.start()
+                        char_idx_end = match.end()
+                        span = doc.char_span(char_idx_start, char_idx_end)
+                        if span is None:
+                            logger.warning(
+                                f"Aspect term {sample['span']!r} with ordinal {sample['ordinal']}, isn't a token in {doc.text!r} according to spaCy. "
+                                "Skipping this sample."
+                            )
+                            skipped_indices.append(index)
+                            continue
+                        aspects_list[-1].append(slice(span.start, span.end))
+        return docs, aspects_list, skipped_indices
+
+    def predict_dataset(self, inputs: Dataset) -> Dataset:
+        if set(inputs.column_names) >= {"text", "span", "ordinal"}:
+            pass
+        elif set(inputs.column_names) >= {"text", "span"}:
+            inputs = inputs.add_column("ordinal", [0] * len(inputs))
+        else:
+            raise ValueError(
+                "`inputs` must be either a `str`, a `List[str]`, or a `datasets.Dataset` with columns `text` and `span` and optionally `ordinal`. "
+                f"Found a dataset with these columns: {inputs.column_names}."
+            )
+        if "pred_polarity" in inputs.column_names:
+            raise ValueError(
+                "`predict_dataset` wants to add a `pred_polarity` column, but the input dataset already contains that column."
+            )
+        docs, aspects_list, skipped_indices = self.gold_aspect_spans_to_aspects_list(inputs)
+        polarity_list = sum(self.polarity_model(docs, aspects_list), [])
+        for index in skipped_indices:
+            polarity_list.insert(index, None)
+        return inputs.add_column("pred_polarity", polarity_list)
+
+    def predict(self, inputs: Union[str, List[str], Dataset]) -> Union[List[Dict[str, Any]], Dataset]:
+        """Predicts aspects & their polarities of the given inputs.
+
+        Example::
+
+            >>> from setfit import AbsaModel
+            >>> model = AbsaModel.from_pretrained(
+            ...     "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-aspect",
+            ...     "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-polarity",
+            ... )
+            >>> model.predict("The food and wine are just exquisite.")
+            [{'span': 'food', 'polarity': 'positive'}, {'span': 'wine', 'polarity': 'positive'}]
+
+            >>> from setfit import AbsaModel
+            >>> from datasets import load_dataset
+            >>> model = AbsaModel.from_pretrained(
+            ...     "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-aspect",
+            ...     "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-polarity",
+            ... )
+            >>> dataset = load_dataset("tomaarsen/setfit-absa-semeval-restaurants", split="train")
+            >>> model.predict(dataset)
+            Dataset({
+                features: ['text', 'span', 'label', 'ordinal', 'pred_polarity'],
+                num_rows: 3693
+            })
+
+        Args:
+            inputs (Union[str, List[str], Dataset]): Either a sentence, a list of sentences,
+                or a dataset with columns `text` and `span` and optionally `ordinal`. This dataset
+                contains gold aspects, and we only predict the polarities for them.
+
+        Returns:
+            Union[List[Dict[str, Any]], Dataset]: Either a list of dictionaries with keys `span`
+                and `polarity` if the input was a sentence or a list of sentences, or a dataset with
+                columns `text`, `span`, `ordinal`, and `pred_polarity`.
+        """
+        if isinstance(inputs, Dataset):
+            return self.predict_dataset(inputs)
+
         is_str = isinstance(inputs, str)
         inputs_list = [inputs] if is_str else inputs
         docs, aspects_list = self.aspect_extractor(inputs_list)

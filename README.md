@@ -1,7 +1,7 @@
 <img src="https://raw.githubusercontent.com/huggingface/setfit/main/assets/setfit.png">
 
 <p align="center">
-    🤗 <a href="https://huggingface.co/setfit" target="_blank">Models & Datasets</a> | 📕 <a href="https://huggingface.co/docs/setfit" target="_blank">Documentation</a> | 📖 <a href="https://huggingface.co/blog/setfit" target="_blank">Blog</a> | 📃 <a href="https://arxiv.org/abs/2209.11055" target="_blank">Paper</a>
+    🤗 <a href="https://huggingface.co/models?library=setfit" target="_blank">Models</a> | 📊 <a href="https://huggingface.co/setfit" target="_blank">Datasets</a> | 📕 <a href="https://huggingface.co/docs/setfit" target="_blank">Documentation</a> | 📖 <a href="https://huggingface.co/blog/setfit" target="_blank">Blog</a> | 📃 <a href="https://arxiv.org/abs/2209.11055" target="_blank">Paper</a>
 </p>
 
 # SetFit - Efficient Few-shot Learning with Sentence Transformers
@@ -61,7 +61,10 @@ eval_dataset = dataset["validation"].select(range(100))
 test_dataset = dataset["validation"].select(range(100, len(dataset["validation"])))
 
 # Load a SetFit model from Hub
-model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-mpnet-base-v2")
+model = SetFitModel.from_pretrained(
+    "sentence-transformers/paraphrase-mpnet-base-v2",
+    labels=["negative", "positive"],
+)
 
 args = TrainingArguments(
     batch_size=16,
@@ -94,7 +97,7 @@ model = SetFitModel.from_pretrained("tomaarsen/setfit-paraphrase-mpnet-base-v2-s
 # Run inference
 preds = model.predict(["i loved the spiderman movie!", "pineapple on pizza is the worst 🤮"])
 print(preds)
-# tensor([1, 0], dtype=torch.int32)
+# ["positive", "negative"]
 ```
 
 

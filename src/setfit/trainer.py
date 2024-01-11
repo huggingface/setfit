@@ -507,10 +507,8 @@ class Trainer(ColumnMappingMixin):
                 args.sampling_strategy,
                 max_pairs=max_pairs,
             )
-            # shuffle_sampler = True can be dropped in for further 'randomising'
-            shuffle_sampler = True if args.sampling_strategy == "unique" else False
             batch_size = min(args.embedding_batch_size, len(data_sampler))
-            dataloader = DataLoader(data_sampler, batch_size=batch_size, shuffle=shuffle_sampler, drop_last=False)
+            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False)
             loss = args.loss(self.model.model_body)
 
         return dataloader, loss, batch_size
@@ -576,8 +574,8 @@ class Trainer(ColumnMappingMixin):
         if args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
 
-        model_body.to(model_body._target_device)
-        loss_func.to(model_body._target_device)
+        model_body.to(self.model.device)
+        loss_func.to(self.model.device)
 
         # Use smart batching
         train_dataloader.collate_fn = model_body.smart_batching_collate
@@ -625,8 +623,8 @@ class Trainer(ColumnMappingMixin):
                     data = next(data_iterator)
 
                 features, labels = data
-                labels = labels.to(model_body._target_device)
-                features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
+                labels = labels.to(self.model.device)
+                features = list(map(lambda batch: batch_to_device(batch, self.model.device), features))
 
                 if args.use_amp:
                     with autocast():
@@ -673,10 +671,12 @@ class Trainer(ColumnMappingMixin):
                 step_to_load = dir_name[5:]
                 logger.info(f"Loading best SentenceTransformer model from step {step_to_load}.")
                 self.model.model_card_data.set_best_model_step(int(step_to_load))
+            sentence_transformer_kwargs = self.model.sentence_transformers_kwargs
+            sentence_transformer_kwargs["device"] = self.model.device
             self.model.model_body = SentenceTransformer(
-                self.state.best_model_checkpoint, device=model_body._target_device
+                self.state.best_model_checkpoint, **sentence_transformer_kwargs
             )
-            self.model.model_body.to(model_body._target_device)
+            self.model.model_body.to(self.model.device)
 
         # Ensure logging the speed metrics
         num_train_samples = self.state.max_steps * args.embedding_batch_size  # * args.gradient_accumulation_steps
@@ -736,8 +736,8 @@ class Trainer(ColumnMappingMixin):
             tqdm(iter(eval_dataloader), total=eval_steps, leave=False, disable=not args.show_progress_bar), start=1
         ):
             features, labels = data
-            labels = labels.to(model_body._target_device)
-            features = list(map(lambda batch: batch_to_device(batch, model_body._target_device), features))
+            labels = labels.to(self.model.device)
+            features = list(map(lambda batch: batch_to_device(batch, self.model.device), features))
 
             if args.use_amp:
                 with autocast():
