@@ -208,7 +208,7 @@ class AbsaModel:
     def predict(self, inputs: Union[str, List[str], Dataset]) -> Union[List[Dict[str, Any]], Dataset]:
         """Predicts aspects & their polarities of the given inputs.
 
-        Example:
+        Example::
 
             >>> from setfit import AbsaModel
             >>> model = AbsaModel.from_pretrained(
