@@ -16,6 +16,7 @@ REQUIRED_PKGS = [
     "evaluate>=0.3.0",
     "huggingface_hub>=0.13.0",
     "scikit-learn",
+    "packaging",
 ]
 ABSA_REQUIRE = ["spacy"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]

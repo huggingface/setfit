@@ -19,7 +19,10 @@ import requests
 import torch
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from huggingface_hub.utils import validate_hf_hub_args
-from sentence_transformers import SentenceTransformer, models
+from packaging.version import Version, parse
+from sentence_transformers import SentenceTransformer
+from sentence_transformers import __version__ as sentence_transformers_version
+from sentence_transformers import models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
@@ -215,6 +218,7 @@ class SetFitModel(PyTorchModelHubMixin):
     normalize_embeddings: bool = False
     labels: Optional[List[str]] = None
     model_card_data: Optional[SetFitModelCardData] = field(default_factory=SetFitModelCardData)
+    sentence_transformers_kwargs: Dict = field(default_factory=dict, repr=False)
 
     attributes_to_save: Set[str] = field(
         init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels"}
@@ -605,6 +609,9 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             torch.device: The device that the model is on.
         """
+        # SentenceTransformers.device is reliable from 2.3.0 onwards
+        if parse(sentence_transformers_version) >= Version("2.3.0"):
+            return self.model_body.device
         return self.model_body._target_device
 
     def to(self, device: Union[str, torch.device]) -> "SetFitModel":
@@ -622,9 +629,10 @@ class SetFitModel(PyTorchModelHubMixin):
         Returns:
             SetFitModel: Returns the original model, but now on the desired device.
         """
-        # Note that we must also set _target_device, or any SentenceTransformer.fit() call will reset
-        # the body location
-        self.model_body._target_device = device if isinstance(device, torch.device) else torch.device(device)
+        # Note that we must also set _target_device with sentence-transformers <2.3.0,
+        # or any SentenceTransformer.fit() call will reset the body location
+        if parse(sentence_transformers_version) < Version("2.3.0"):
+            self.model_body._target_device = device if isinstance(device, torch.device) else torch.device(device)
         self.model_body = self.model_body.to(device)
 
         if self.has_differentiable_head:
@@ -701,10 +709,37 @@ class SetFitModel(PyTorchModelHubMixin):
         multi_target_strategy: Optional[str] = None,
         use_differentiable_head: bool = False,
         device: Optional[Union[torch.device, str]] = None,
+        trust_remote_code: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
-        model_body = SentenceTransformer(model_id, cache_folder=cache_dir, use_auth_token=token, device=device)
-        device = model_body._target_device
+        sentence_transformers_kwargs = {
+            "cache_folder": cache_dir,
+            "use_auth_token": token,
+            "device": device,
+            "trust_remote_code": trust_remote_code,
+        }
+        if parse(sentence_transformers_version) >= Version("2.3.0"):
+            sentence_transformers_kwargs = {
+                "cache_folder": cache_dir,
+                "token": token,
+                "device": device,
+                "trust_remote_code": trust_remote_code,
+            }
+        else:
+            if trust_remote_code:
+                raise ValueError(
+                    "The `trust_remote_code` argument is only supported for `sentence-transformers` >= 2.3.0."
+                )
+            sentence_transformers_kwargs = {
+                "cache_folder": cache_dir,
+                "use_auth_token": token,
+                "device": device,
+            }
+        model_body = SentenceTransformer(model_id, **sentence_transformers_kwargs)
+        if parse(sentence_transformers_version) >= Version("2.3.0"):
+            device = model_body.device
+        else:
+            device = model_body._target_device
         model_body.to(device)  # put `model_body` on the target device
 
         # Try to load a SetFit config file
@@ -827,6 +862,7 @@ class SetFitModel(PyTorchModelHubMixin):
             model_head=model_head,
             multi_target_strategy=multi_target_strategy,
             model_card_data=model_card_data,
+            sentence_transformers_kwargs=sentence_transformers_kwargs,
             **model_kwargs,
         )
 
@@ -851,6 +887,10 @@ if cut_index != -1:
                 Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
             device (`Union[torch.device, str]`, *optional*):
                 The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`.
+            trust_remote_code (`bool`, defaults to `False`): Whether or not to allow for custom Sentence Transformers
+                models defined on the Hub in their own modeling files. This option should only be set to True for
+                repositories you trust and in which you have read the code, as it will execute code present on
+                the Hub on your local machine. Defaults to False.
 
         Example::
 
