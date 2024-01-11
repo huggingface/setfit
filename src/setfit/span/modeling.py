@@ -219,6 +219,7 @@ class AbsaModel:
             [{'span': 'food', 'polarity': 'positive'}, {'span': 'wine', 'polarity': 'positive'}]
 
             >>> from setfit import AbsaModel
+            >>> from datasets import load_dataset
             >>> model = AbsaModel.from_pretrained(
             ...     "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-aspect",
             ...     "tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-polarity",
