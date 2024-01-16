@@ -317,7 +317,7 @@ class SetFitModel(PyTorchModelHubMixin):
         else:  # train with sklearn
             embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
-            if self.labels is None:
+            if self.labels is None and self.multi_target_strategy is None:
                 # Try to set the labels based on the head classes, if they exist
                 # This can fail in various ways, so we catch all exceptions
                 try:
