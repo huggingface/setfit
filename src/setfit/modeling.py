@@ -317,6 +317,15 @@ class SetFitModel(PyTorchModelHubMixin):
         else:  # train with sklearn
             embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
             self.model_head.fit(embeddings, y_train)
+            if self.labels is None:
+                # Try to set the labels based on the head classes, if they exist
+                # This can fail in various ways, so we catch all exceptions
+                try:
+                    classes = self.model_head.classes_
+                    if classes.dtype.char == "U":
+                        self.labels = classes.tolist()
+                except Exception:
+                    pass
 
     def _prepare_dataloader(
         self,
