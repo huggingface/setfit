@@ -83,7 +83,7 @@ class DistillationTrainer(Trainer):
         y: Optional[Union[List[int], List[List[int]]]],
         args: TrainingArguments,
         max_pairs: int = -1,
-    ) -> Tuple[DataLoader, nn.Module, int]:
+    ) -> Tuple[DataLoader, nn.Module, int, int]:
         x_embd_student = self.teacher_model.model_body.encode(
             x, convert_to_tensor=self.teacher_model.has_differentiable_head
         )
@@ -96,7 +96,7 @@ class DistillationTrainer(Trainer):
         batch_size = min(args.embedding_batch_size, len(data_sampler))
         dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False)
         loss = args.loss(self.model.model_body)
-        return dataloader, loss, batch_size
+        return dataloader, loss, batch_size, len(data_sampler)
 
     def train_classifier(self, x_train: List[str], args: Optional[TrainingArguments] = None) -> None:
         """
