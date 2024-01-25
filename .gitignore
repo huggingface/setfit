@@ -154,3 +154,4 @@ scripts/tfew/run_tmux.sh
 wandb
 runs/
 notebooks/perf_metrics.json
+notebooks/nc_workspace/
