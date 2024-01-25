@@ -153,3 +153,4 @@ scripts/tfew/run_tmux.sh
 # Common SetFit Trainer logging folders
 wandb
 runs/
+notebooks/perf_metrics.json
