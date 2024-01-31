@@ -343,9 +343,9 @@ class SetFitModelCardData(CardData):
             else:
                 self.train_set_sentences_per_label_list = [
                     {
-                        "Label": self.model.labels[label]
-                        if self.model.labels and isinstance(label, int)
-                        else str(label),
+                        "Label": (
+                            self.model.labels[label] if self.model.labels and isinstance(label, int) else str(label)
+                        ),
                         "Training Sample Count": count,
                     }
                     for label, count in sorted(counter.items())
