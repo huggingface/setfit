@@ -251,6 +251,8 @@ class SetFitModel(PyTorchModelHubMixin):
         x_train: List[str],
         y_train: Union[List[int], List[List[int]]],
         num_epochs: int,
+        x_eval: Optional[List[str]]= None, 
+        y_eval: Optional[Union[List[int], List[List[int]]]]= None, 
         batch_size: Optional[int] = None,
         body_learning_rate: Optional[float] = None,
         head_learning_rate: Optional[float] = None,
@@ -311,6 +313,20 @@ class SetFitModel(PyTorchModelHubMixin):
                     optimizer.step()
 
                 scheduler.step()
+
+                eval_loss=None
+                if x_eval is not None and y_eval is not None:
+                    eval_outputs= self.model_head(self.model_body.encode(x_eval, normalize_embeddings=self.normalize_embeddings))
+
+                    eval_loss= criterion(eval_outputs["logits"], torch.tensor(y_eval).to(self.device))
+
+                train_outputs= self.model_head(self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings))
+
+                train_loss= criterion(train_outputs["logits"], torch.tensor(y_train).to(self.device))
+
+                print(f"Epoch {epoch_idx+1}/{num_epochs} - Train Loss: {train_loss.item()} - Eval Loss: {eval_loss.item()}")
+
+
 
             if not end_to_end:
                 self.unfreeze("body")

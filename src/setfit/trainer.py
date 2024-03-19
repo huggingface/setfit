@@ -408,7 +408,7 @@ class Trainer(ColumnMappingMixin):
         )
 
         self.train_embeddings(*full_parameters, args=args)
-        self.train_classifier(*train_parameters, args=args)
+        self.train_classifier(*full_parameters, args=args)
 
     def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
         return [dataset["text"], dataset["label"]]
@@ -771,7 +771,12 @@ class Trainer(ColumnMappingMixin):
         return checkpoint_file_path
 
     def train_classifier(
-        self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
+        self,
+        x_train: List[str], 
+        y_train: Union[List[int], List[List[int]]],
+        x_eval: Optional[List[str]]= None, 
+        y_eval: Optional[Union[List[int], List[List[int]]]]= None, 
+        args: Optional[TrainingArguments] = None
     ) -> None:
         """
         Method to perform the classifier phase: fitting a classifier head.
@@ -788,6 +793,8 @@ class Trainer(ColumnMappingMixin):
             x_train,
             y_train,
             num_epochs=args.classifier_num_epochs,
+            x_eval=x_eval,
+            y_eval=y_eval,
             batch_size=args.classifier_batch_size,
             body_learning_rate=args.body_classifier_learning_rate,
             head_learning_rate=args.head_learning_rate,
