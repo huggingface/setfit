@@ -4,14 +4,7 @@ import tempfile
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
-
-
-# For Python 3.7 compatibility
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
+from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
 import joblib
 import numpy as np
@@ -20,9 +13,8 @@ import torch
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from huggingface_hub.utils import validate_hf_hub_args
 from packaging.version import Version, parse
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
 from sentence_transformers import __version__ as sentence_transformers_version
-from sentence_transformers import models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
@@ -35,7 +27,6 @@ from . import logging
 from .data import SetFitDataset
 from .model_card import SetFitModelCardData, generate_model_card
 from .utils import set_docstring
-
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

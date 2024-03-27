@@ -3,7 +3,6 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-
 README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
 MAINTAINER = "Lewis Tunstall, Tom Aarsen"
@@ -14,7 +13,7 @@ REQUIRED_PKGS = [
     "datasets>=2.3.0",
     "sentence-transformers>=2.2.1",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.13.0",
+    "huggingface_hub>=0.22.1",
     "scikit-learn",
     "packaging",
 ]
@@ -78,6 +77,8 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     keywords="nlp, machine learning, fewshot learning, transformers",
