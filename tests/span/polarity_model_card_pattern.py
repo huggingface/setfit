@@ -16,6 +16,7 @@ tags:
 - sentence-transformers
 - text-classification
 - generated_from_setfit_trainer
+base_model: sentence-transformers/paraphrase-albert-small-v2
 metrics:
 - accuracy
 widget:
@@ -31,8 +32,7 @@ co2_eq_emissions:
   ram_total_size: [\d\.]+
   hours_used: [\d\.]+
 (  hardware_used: .+
-)?base_model: sentence-transformers/paraphrase-albert-small-v2
-model-index:
+)?model-index:
 - name: SetFit Polarity Model with sentence-transformers\/paraphrase-albert-small-v2
   results:
   - task:
