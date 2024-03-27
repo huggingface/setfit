@@ -31,9 +31,9 @@ class SpanSetFitModel(SetFitModel):
         span_context: int = 0,
         **kwargs,
     ):
+        super().__init__(**kwargs)
         self.spacy_model = spacy_model
         self.span_context = span_context
-        super().__init__(**kwargs)
         self.attributes_to_save = {"normalize_embeddings", "labels", "span_context", "spacy_model"}
 
     def prepend_aspects(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> Iterable[str]:
@@ -139,8 +139,8 @@ AspectModel.from_pretrained = types.MethodType(AspectModel.from_pretrained.__fun
 
 class PolarityModel(SpanSetFitModel):
     def __init__(self, span_context: int = 3, **kwargs):
-        self.span_context = span_context
         super().__init__(**kwargs)
+        self.span_context = span_context
 
 
 PolarityModel.from_pretrained = types.MethodType(PolarityModel.from_pretrained.__func__, PolarityModel)
