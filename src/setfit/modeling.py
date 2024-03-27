@@ -2,7 +2,6 @@ import json
 import os
 import tempfile
 import warnings
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
@@ -208,19 +207,26 @@ class SetFitModel(ModelHubMixin):
         ['positive', 'negative', 'negative']
     """
 
-    model_body: Optional[SentenceTransformer] = None
-    model_head: Optional[Union[SetFitHead, LogisticRegression]] = None
-    multi_target_strategy: Optional[str] = None
-    normalize_embeddings: bool = False
-    labels: Optional[List[str]] = None
-    model_card_data: Optional[SetFitModelCardData] = field(default_factory=SetFitModelCardData)
-    sentence_transformers_kwargs: Dict = field(default_factory=dict, repr=False)
+    def __init__(
+        self,
+        model_body: Optional[SentenceTransformer] = None,
+        model_head: Optional[Union[SetFitHead, LogisticRegression]] = None,
+        multi_target_strategy: Optional[str] = None,
+        normalize_embeddings: bool = False,
+        labels: Optional[List[str]] = None,
+        model_card_data: Optional[SetFitModelCardData] = None,
+        sentence_transformers_kwargs: Optional[Dict] = None,
+        **kwargs,
+    ) -> None:
+        self.model_body = model_body
+        self.model_head = model_head
+        self.multi_target_strategy = multi_target_strategy
+        self.normalize_embeddings = normalize_embeddings
+        self.labels = labels
+        self.model_card_data = model_card_data or SetFitModelCardData()
+        self.sentence_transformers_kwargs = sentence_transformers_kwargs or {}
 
-    attributes_to_save: Set[str] = field(
-        init=False, repr=False, default_factory=lambda: {"normalize_embeddings", "labels"}
-    )
-
-    def __post_init__(self):
+        self.attributes_to_save: Set[str] = {"normalize_embeddings", "labels"}
         self.model_card_data.register_model(self)
 
     @property

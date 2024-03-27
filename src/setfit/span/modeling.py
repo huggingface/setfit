@@ -4,9 +4,9 @@ import re
 import tempfile
 import types
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from datasets import Dataset
@@ -18,25 +18,25 @@ from .. import logging
 from ..modeling import SetFitModel
 from .aspect_extractor import AspectExtractor
 
-
 if TYPE_CHECKING:
     from spacy.tokens import Doc
 
 logger = logging.get_logger(__name__)
 
 
-@dataclass
 class SpanSetFitModel(SetFitModel):
-    spacy_model: str = "en_core_web_lg"
-    span_context: int = 0
+    def __init__(
+        self,
+        spacy_model: str = "en_core_web_lg",
+        span_context: int = 0,
+        **kwargs,
+    ):
+        self.spacy_model = spacy_model
+        self.span_context = span_context
+        super().__init__(**kwargs)
+        self.attributes_to_save = {"normalize_embeddings", "labels", "span_context", "spacy_model"}
 
-    attributes_to_save: Set[str] = field(
-        init=False,
-        repr=False,
-        default_factory=lambda: {"normalize_embeddings", "labels", "span_context", "spacy_model"},
-    )
-
-    def prepend_aspects(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> List[str]:
+    def prepend_aspects(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> Iterable[str]:
         for doc, aspects in zip(docs, aspects_list):
             for aspect_slice in aspects:
                 aspect = doc[max(aspect_slice.start - self.span_context, 0) : aspect_slice.stop + self.span_context]
@@ -137,9 +137,10 @@ class AspectModel(SpanSetFitModel):
 AspectModel.from_pretrained = types.MethodType(AspectModel.from_pretrained.__func__, AspectModel)
 
 
-@dataclass
 class PolarityModel(SpanSetFitModel):
-    span_context: int = 3
+    def __init__(self, span_context: int = 3, **kwargs):
+        self.span_context = span_context
+        super().__init__(**kwargs)
 
 
 PolarityModel.from_pretrained = types.MethodType(PolarityModel.from_pretrained.__func__, PolarityModel)
