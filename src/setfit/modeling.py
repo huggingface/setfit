@@ -218,6 +218,7 @@ class SetFitModel(ModelHubMixin):
         sentence_transformers_kwargs: Optional[Dict] = None,
         **kwargs,
     ) -> None:
+        super(SetFitModel, self).__init__()
         self.model_body = model_body
         self.model_head = model_head
         self.multi_target_strategy = multi_target_strategy
