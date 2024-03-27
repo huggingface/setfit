@@ -7,7 +7,7 @@ These scripts run the baselines based on the `T-Few` paper: [_Few-Shot Parameter
 To run the scripts, first create a Python virtual environment, e.g. with `conda`:
 
 ```
-conda create -n baselines-tfew python=3.7 && conda activate baselines-tfew
+conda create -n baselines-tfew python=3.10 && conda activate baselines-tfew
 ```
 
 Next, clone our `T-Few` fork, and install the required dependencies:

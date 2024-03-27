@@ -7,7 +7,7 @@ Follow the steps below to run the baselines based on the `PERFECT` paper: [_PERF
 To get started, first create a Python virtual environment, e.g. with `conda`:
 
 ```
-conda create -n baselines-perfect python=3.7 && conda activate baselines-perfect
+conda create -n baselines-perfect python=3.10 && conda activate baselines-perfect
 ```
 
 Next, clone [our fork](https://github.com/SetFit/perfect) of the [`PERFECT` codebase](https://github.com/facebookresearch/perfect), and install the required dependencies:
