@@ -4,27 +4,14 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import evaluate
 import torch
 from datasets import Dataset, DatasetDict
 from sentence_transformers import InputExample, SentenceTransformer, losses
 from sentence_transformers.datasets import SentenceLabelDataset
-from sentence_transformers.losses.BatchHardTripletLoss import (
-    BatchHardTripletLossDistanceFunction,
-)
+from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sentence_transformers.util import batch_to_device
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
@@ -54,15 +41,12 @@ from transformers.utils.import_utils import is_in_notebook
 from setfit.model_card import ModelCardCallback
 
 from . import logging
-from .integrations import (
-    default_hp_search_backend,
-    is_optuna_available,
-    run_hp_search_optuna,
-)
+from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
 from .sampler import ContrastiveDataset
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
+
 
 if TYPE_CHECKING:
     import optuna

@@ -13,8 +13,9 @@ import torch
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 from huggingface_hub.utils import validate_hf_hub_args
 from packaging.version import Version, parse
-from sentence_transformers import SentenceTransformer, models
+from sentence_transformers import SentenceTransformer
 from sentence_transformers import __version__ as sentence_transformers_version
+from sentence_transformers import models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
@@ -27,6 +28,7 @@ from . import logging
 from .data import SetFitDataset
 from .model_card import SetFitModelCardData, generate_model_card
 from .utils import set_docstring
+
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)

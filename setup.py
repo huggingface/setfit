@@ -3,6 +3,7 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
+
 README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
 MAINTAINER = "Lewis Tunstall, Tom Aarsen"
