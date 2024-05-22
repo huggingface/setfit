@@ -3,7 +3,6 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-
 README_TEXT = (Path(__file__).parent / "README.md").read_text(encoding="utf-8")
 
 MAINTAINER = "Lewis Tunstall, Tom Aarsen"
@@ -14,7 +13,7 @@ REQUIRED_PKGS = [
     "datasets>=2.3.0",
     "sentence-transformers>=2.2.1",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.13.0",
+    "huggingface_hub>=0.21.0",
     "scikit-learn",
     "packaging",
 ]
