@@ -124,7 +124,7 @@ class TrainingArguments:
             Whether to log and evaluate the first `global_step` or not.
         logging_steps (`int`, defaults to 50):
             Number of update steps between two logs if `logging_strategy="steps"`.
-        evaluation_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
+        eval_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"no"`):
             The evaluation strategy to adopt during training. Possible values are:
 
                 - `"no"`: No evaluation is done during training.
@@ -132,11 +132,11 @@ class TrainingArguments:
                 - `"epoch"`: Evaluation is done at the end of each epoch.
 
         eval_steps (`int`, *optional*):
-            Number of update steps between two evaluations if `evaluation_strategy="steps"`. Will default to the same
+            Number of update steps between two evaluations if `eval_strategy="steps"`. Will default to the same
             value as `logging_steps` if not set.
         eval_delay (`float`, *optional*):
             Number of epochs or steps to wait for before the first evaluation can be performed, depending on the
-            evaluation_strategy.
+            eval_strategy.
         eval_max_steps (`int`, defaults to `-1`):
             If set to a positive number, the total number of evaluation steps to perform. The evaluation may stop
             before reaching the set number of steps when all data is exhausted.
@@ -151,13 +151,13 @@ class TrainingArguments:
             Number of updates steps before two checkpoint saves if `save_strategy="steps"`.
         save_total_limit (`int`, *optional*, defaults to `1`):
             If a value is passed, will limit the total amount of checkpoints. Deletes the older checkpoints in
-            `output_dir`. Note, the best model is always preserved if the `evaluation_strategy` is not `"no"`.
+            `output_dir`. Note, the best model is always preserved if the `eval_strategy` is not `"no"`.
         load_best_model_at_end (`bool`, *optional*, defaults to `False`):
             Whether or not to load the best model found during training at the end of training.
 
             <Tip>
 
-            When set to `True`, the parameters `save_strategy` needs to be the same as `evaluation_strategy`, and in
+            When set to `True`, the parameters `save_strategy` needs to be the same as `eval_strategy`, and in
             the case it is "steps", `save_steps` must be a round multiple of `eval_steps`.
 
             </Tip>
@@ -208,7 +208,7 @@ class TrainingArguments:
     logging_first_step: bool = True
     logging_steps: int = 50
 
-    evaluation_strategy: str = "no"
+    eval_strategy: str = "no"
     eval_steps: Optional[int] = None
     eval_delay: int = 0
     eval_max_steps: int = -1
@@ -251,30 +251,30 @@ class TrainingArguments:
             self.logging_dir = default_logdir()
 
         self.logging_strategy = IntervalStrategy(self.logging_strategy)
-        self.evaluation_strategy = IntervalStrategy(self.evaluation_strategy)
+        self.eval_strategy = IntervalStrategy(self.eval_strategy)
 
-        if self.eval_steps is not None and self.evaluation_strategy == IntervalStrategy.NO:
-            logger.info('Using `evaluation_strategy="steps"` as `eval_steps` is defined.')
-            self.evaluation_strategy = IntervalStrategy.STEPS
+        if self.eval_steps is not None and self.eval_strategy == IntervalStrategy.NO:
+            logger.info('Using `eval_strategy="steps"` as `eval_steps` is defined.')
+            self.eval_strategy = IntervalStrategy.STEPS
 
         # eval_steps has to be defined and non-zero, fallbacks to logging_steps if the latter is non-zero
-        if self.evaluation_strategy == IntervalStrategy.STEPS and (self.eval_steps is None or self.eval_steps == 0):
+        if self.eval_strategy == IntervalStrategy.STEPS and (self.eval_steps is None or self.eval_steps == 0):
             if self.logging_steps > 0:
                 self.eval_steps = self.logging_steps
             else:
                 raise ValueError(
-                    f"evaluation strategy {self.evaluation_strategy} requires either non-zero `eval_steps` or"
+                    f"evaluation strategy {self.eval_strategy} requires either non-zero `eval_steps` or"
                     " `logging_steps`"
                 )
 
         # Sanity checks for load_best_model_at_end: we require save and eval strategies to be compatible.
         if self.load_best_model_at_end:
-            if self.evaluation_strategy != self.save_strategy:
+            if self.eval_strategy != self.save_strategy:
                 raise ValueError(
                     "`load_best_model_at_end` requires the save and eval strategy to match, but found\n- Evaluation "
-                    f"strategy: {self.evaluation_strategy}\n- Save strategy: {self.save_strategy}"
+                    f"strategy: {self.eval_strategy}\n- Save strategy: {self.save_strategy}"
                 )
-            if self.evaluation_strategy == IntervalStrategy.STEPS and self.save_steps % self.eval_steps != 0:
+            if self.eval_strategy == IntervalStrategy.STEPS and self.save_steps % self.eval_steps != 0:
                 raise ValueError(
                     "`load_best_model_at_end` requires the saving steps to be a round multiple of the evaluation "
                     f"steps, but found {self.save_steps}, which is not a round multiple of {self.eval_steps}."

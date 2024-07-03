@@ -590,7 +590,7 @@ def test_train_load_best(model: SetFitModel, tmp_path: Path, caplog: LogCaptureF
         output_dir=tmp_path,
         save_steps=5,
         eval_steps=5,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         load_best_model_at_end=True,
         num_epochs=5,
     )
