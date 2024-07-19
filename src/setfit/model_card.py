@@ -25,6 +25,7 @@ from setfit import __version__ as setfit_version
 
 from . import logging
 
+
 logger = logging.get_logger(__name__)
 
 if TYPE_CHECKING:
