@@ -35,7 +35,7 @@ def test_model_card(tmp_path: Path) -> None:
         eval_steps=1,
         logging_steps=1,
         max_steps=2,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
     )
     trainer = Trainer(
         model=model,

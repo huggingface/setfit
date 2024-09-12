@@ -80,7 +80,7 @@ class ModelCardCallback(TrainerCallback):
             "logging_strategy",
             "logging_first_step",
             "logging_steps",
-            "evaluation_strategy",
+            "eval_strategy",
             "eval_steps",
             "eval_delay",
             "save_strategy",
