@@ -209,7 +209,7 @@ class TrainingArguments:
     logging_steps: int = 50
 
     eval_strategy: str = "no"
-    evaluation_strategy: str = field(default="no", repr=False)  # Softly deprecated
+    evaluation_strategy: Optional[str] = field(default=None, repr=False)  # Softly deprecated
     eval_steps: Optional[int] = None
     eval_delay: int = 0
     eval_max_steps: int = -1
@@ -252,7 +252,7 @@ class TrainingArguments:
             self.logging_dir = default_logdir()
 
         self.logging_strategy = IntervalStrategy(self.logging_strategy)
-        if self.evaluation_strategy:
+        if self.evaluation_strategy is not None:
             logger.warning(
                 "The `evaluation_strategy` argument is deprecated and will be removed in a future version. "
                 "Please use `eval_strategy` instead."
