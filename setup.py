@@ -13,8 +13,9 @@ INTEGRATIONS_REQUIRE = ["optuna"]
 REQUIRED_PKGS = [
     "datasets>=2.3.0",
     "sentence-transformers>=2.2.1",
+    "transformers>=4.41.0",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.21.0",
+    "huggingface_hub>=0.23.0",
     "scikit-learn",
     "packaging",
 ]
