@@ -47,6 +47,7 @@ def test_model_card(tmp_path: Path) -> None:
     trainer.train()
     trainer.evaluate()
     model_card = generate_model_card(trainer.model)
+    print(model_card) # For easier debugging if the test fails
     assert MODEL_CARD_PATTERN.fullmatch(model_card)
 
 
