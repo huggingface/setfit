@@ -22,7 +22,7 @@ REQUIRED_PKGS = [
 ABSA_REQUIRE = ["spacy<3.7.6"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 ONNX_REQUIRE = ["onnxruntime", "onnx!=1.16.2", "skl2onnx"]
-OPENVINO_REQUIRE = ["hummingbird-ml<0.4.9", "openvino==2022.3.0"]
+OPENVINO_REQUIRE = ["hummingbird-ml", "openvino"]
 TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE + ABSA_REQUIRE
 DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
 CODECARBON_REQUIRE = ["codecarbon<2.6.0"]
