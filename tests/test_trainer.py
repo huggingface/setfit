@@ -257,6 +257,10 @@ class TrainerDifferentiableHeadTest(TestCase):
         metrics = trainer.evaluate()
         self.assertEqual(metrics, {"accuracy": 1.0})
 
+    @pytest.mark.skip(
+        "This test is flaky and needs to be fixed; it passes when run in isolation, under "
+        "TrainerDifferentiableHeadTest, and even under test_trainer.py, but fails when run in the full test suite."
+    )
     def test_trainer_max_length_exceeds_max_acceptable_length(self):
         trainer = Trainer(
             model=self.model,
