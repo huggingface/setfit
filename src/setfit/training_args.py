@@ -252,7 +252,7 @@ class TrainingArguments:
             self.logging_dir = default_logdir()
 
         self.logging_strategy = IntervalStrategy(self.logging_strategy)
-        if self.evaluation_strategy and not self.eval_strategy:
+        if self.evaluation_strategy:
             logger.warning(
                 "The `evaluation_strategy` argument is deprecated and will be removed in a future version. "
                 "Please use `eval_strategy` instead."
