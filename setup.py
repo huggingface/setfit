@@ -14,7 +14,7 @@ REQUIRED_PKGS = [
     "datasets>=2.3.0",
     "sentence-transformers>=2.2.1",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.22.1",
+    "huggingface_hub>=0.21.0",
     "scikit-learn",
     "packaging",
 ]
