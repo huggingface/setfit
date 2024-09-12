@@ -18,6 +18,7 @@ from .. import logging
 from ..modeling import SetFitModel
 from .aspect_extractor import AspectExtractor
 
+
 if TYPE_CHECKING:
     from spacy.tokens import Doc
 
