@@ -85,7 +85,7 @@ def train_single_dataset(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         weight_decay=0.001,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         logging_steps=100,
         metric_for_best_model=metric,
         load_best_model_at_end=True,

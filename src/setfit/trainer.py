@@ -4,7 +4,7 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import evaluate
 import torch
@@ -46,13 +46,6 @@ from .losses import SupConLoss
 from .sampler import ContrastiveDataset
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
-
-
-# For Python 3.7 compatibility
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
 
 
 if TYPE_CHECKING:
@@ -443,7 +436,7 @@ class Trainer(ColumnMappingMixin):
         train_dataloader, loss_func, batch_size, num_unique_pairs = self.get_dataloader(
             x_train, y_train, args=args, max_pairs=train_max_pairs
         )
-        if x_eval is not None and args.evaluation_strategy != IntervalStrategy.NO:
+        if x_eval is not None and args.eval_strategy != IntervalStrategy.NO:
             eval_max_pairs = -1 if args.eval_max_steps == -1 else args.eval_max_steps * args.embedding_batch_size
             eval_dataloader, _, _, _ = self.get_dataloader(x_eval, y_eval, args=args, max_pairs=eval_max_pairs)
         else:
