@@ -4,14 +4,7 @@ import tempfile
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
-
-
-# For Python 3.7 compatibility
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
+from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
 import joblib
 import numpy as np

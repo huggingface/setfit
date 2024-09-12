@@ -4,7 +4,7 @@ import shutil
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import evaluate
 import torch
@@ -46,13 +46,6 @@ from .losses import SupConLoss
 from .sampler import ContrastiveDataset
 from .training_args import TrainingArguments
 from .utils import BestRun, default_hp_space_optuna
-
-
-# For Python 3.7 compatibility
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
 
 
 if TYPE_CHECKING:
