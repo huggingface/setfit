@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 import numpy as np
@@ -14,6 +13,7 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel, Trainer
 from setfit.modeling import MODEL_HEAD_NAME
+from tests.utils import SafeTemporaryDirectory
 
 
 torch_cuda_available = pytest.mark.skipif(not torch.cuda.is_available(), reason="PyTorch must be compiled with CUDA")
@@ -262,7 +262,7 @@ def test_load_model_on_device(device):
 
 
 def test_save_load_config(model: SetFitModel) -> None:
-    with TemporaryDirectory() as tmp_dir:
+    with SafeTemporaryDirectory() as tmp_dir:
         tmp_dir = str(Path(tmp_dir) / "model")
         model.save_pretrained(tmp_dir)
         config_path = Path(tmp_dir) / "config_setfit.json"
@@ -271,7 +271,7 @@ def test_save_load_config(model: SetFitModel) -> None:
             config = json.load(f)
         assert config == {"normalize_embeddings": False, "labels": None}
 
-    with TemporaryDirectory() as tmp_dir:
+    with SafeTemporaryDirectory() as tmp_dir:
         tmp_dir = str(Path(tmp_dir) / "model")
         model.normalize_embeddings = True
         model.labels = ["negative", "positive"]
