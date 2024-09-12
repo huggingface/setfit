@@ -209,7 +209,7 @@ class TrainingArguments:
     logging_steps: int = 50
 
     eval_strategy: str = "no"
-    evaluation_strategy: str = field(default="no", repr=False, init=False)  # Softly deprecated
+    evaluation_strategy: str = field(default="no", repr=False)  # Softly deprecated
     eval_steps: Optional[int] = None
     eval_delay: int = 0
     eval_max_steps: int = -1
