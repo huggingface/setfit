@@ -662,7 +662,11 @@ class SetFitModel(ModelHubMixin):
         # via push_to_hub, and the path is in a temporary folder, then we only take the last two
         # directories
         model_path = Path(model_name)
-        if model_path.exists() and Path(tempfile.gettempdir()) in model_path.resolve().parents:
+        if (
+            self.model_card_data.model_id is None
+            and model_path.exists()
+            and Path(tempfile.gettempdir()) in model_path.resolve().parents
+        ):
             self.model_card_data.model_id = "/".join(model_path.parts[-2:])
 
         with open(os.path.join(path, "README.md"), "w", encoding="utf-8") as f:

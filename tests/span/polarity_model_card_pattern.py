@@ -6,46 +6,7 @@ import re
 POLARITY_MODEL_CARD_PATTERN = re.compile(
     """\
 ---
-language:
-- en
-license: apache-2\.0
-library_name: setfit
-tags:
-- setfit
-- absa
-- sentence-transformers
-- text-classification
-- generated_from_setfit_trainer
-base_model: sentence-transformers/paraphrase-albert-small-v2
-metrics:
-- accuracy
-widget:
-- text: .*
-pipeline_tag: text-classification
-inference: false
-co2_eq_emissions:
-  emissions: [\d\.\-e]+
-  source: codecarbon
-  training_type: fine-tuning
-  on_cloud: (false|true)
-  cpu_model: .+
-  ram_total_size: [\d\.]+
-  hours_used: [\d\.]+
-(  hardware_used: .+
-)?model-index:
-- name: SetFit Polarity Model with sentence-transformers\/paraphrase-albert-small-v2
-  results:
-  - task:
-      type: text-classification
-      name: Text Classification
-    dataset:
-      name: Unknown
-      type: unknown
-      split: test
-    metrics:
-    - type: accuracy
-      value: [\d\.]+
-      name: Accuracy
+.*
 ---
 
 \# SetFit Polarity Model with sentence\-transformers/paraphrase\-albert\-small\-v2

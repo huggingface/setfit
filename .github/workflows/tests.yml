@@ -18,7 +18,7 @@ jobs:
     name: Run unit tests
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
         os: [ubuntu-latest, windows-latest]
         requirements: ['.[tests]', '.[compat_tests]']
       fail-fast: false
@@ -73,7 +73,7 @@ jobs:
         shell: bash
         run: |
           echo "OLD_HF_CACHE_HASH=$(find ~/.cache/huggingface/hub ~/.cache/torch -type f -exec sha256sum {} + | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)" >> $GITHUB_ENV
-          pytest -sv tests/
+          pytest -v tests/
           echo "NEW_HF_CACHE_HASH=$(find ~/.cache/huggingface/hub ~/.cache/torch -type f -exec sha256sum {} + | LC_ALL=C sort | sha256sum | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
       - name: Save new HF models to cache
