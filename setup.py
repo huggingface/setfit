@@ -24,7 +24,9 @@ ONNX_REQUIRE = ["onnxruntime", "onnx!=1.16.2", "skl2onnx"]
 OPENVINO_REQUIRE = ["hummingbird-ml<0.4.9", "openvino==2022.3.0"]
 TESTS_REQUIRE = ["pytest", "pytest-cov"] + ONNX_REQUIRE + OPENVINO_REQUIRE + ABSA_REQUIRE
 DOCS_REQUIRE = ["hf-doc-builder>=0.3.0"]
-CODECARBON_REQUIRE = ["codecarbon"]
+CODECARBON_REQUIRE = ["codecarbon<2.6.0"]
+# 2.7.* fails with AttributeError: 'EmissionsTracker' object has no attribute '_cloud'
+# 2.6.* has an accidental print statement spamming the terminal
 EXTRAS_REQUIRE = {
     "optuna": INTEGRATIONS_REQUIRE,
     "quality": QUALITY_REQUIRE,
