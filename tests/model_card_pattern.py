@@ -15,6 +15,7 @@ tags:
 - sentence-transformers
 - text-classification
 - generated_from_setfit_trainer
+base_model: sentence-transformers/paraphrase-albert-small-v2
 datasets:
 - sst2
 metrics:
@@ -32,8 +33,7 @@ co2_eq_emissions:
   ram_total_size: [\d\.]+
   hours_used: [\d\.]+
 (  hardware_used: .+
-)?base_model: sentence-transformers/paraphrase-albert-small-v2
-model-index:
+)?model-index:
 - name: SetFit with sentence-transformers\/paraphrase-albert-small-v2 on SST2
   results:
   - task:
@@ -62,8 +62,8 @@ The model has been trained using an efficient few\-shot learning technique that 
 
 ### Model Description
 - \*\*Model Type:\*\* SetFit
-- \*\*Sentence Transformer body:\*\* \[sentence-transformers/paraphrase-albert-small-v2\]\(https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2\)
-- \*\*Classification head:\*\* a \[LogisticRegression\]\(https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html\) instance
+- \*\*Sentence Transformer body:\*\* \[sentence-transformers/paraphrase-albert-small-v2\]\(https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2\) *
+- \*\*Classification head:\*\* a \[LogisticRegression\]\(https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html\) instance *
 - \*\*Maximum Sequence Length:\*\* 100 tokens
 - \*\*Number of Classes:\*\* 2 classes
 - \*\*Training Dataset:\*\* \[SST2\]\(https://huggingface.co/datasets/sst2\)
