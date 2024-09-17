@@ -194,22 +194,18 @@ class Trainer(ColumnMappingMixin):
         self.hp_search_backend = None
 
         st_args = SentenceTransformerTrainingArguments(output_dir="checkpoints", max_grad_norm=1)
-        callbacks = callbacks or []
-        callbacks += [ModelCardCallback(self)]
+        callbacks = callbacks + [ModelCardCallback(self)] if callbacks else [ModelCardCallback(self)]
         self.st_trainer = SentenceTransformerTrainer(
             model=model.model_body,
             args=st_args,
             callbacks=callbacks,
         )
-        if args:
+        if args is not None:
             self.apply_training_arguments(args)
-        code_carbon_callbacks = [
-            callback
-            for callback in self.st_trainer.callback_handler.callbacks
-            if isinstance(callback, CodeCarbonCallback)
-        ]
-        if code_carbon_callbacks:
-            self.model.model_card_data.code_carbon_callback = code_carbon_callbacks[0]
+        for callback in self.st_trainer.callback_handler.callbacks:
+            if isinstance(callback, CodeCarbonCallback):
+                self.model.model_card_data.code_carbon_callback = callback
+                break
 
     @property
     def args(self) -> TrainingArguments:
@@ -232,6 +228,9 @@ class Trainer(ColumnMappingMixin):
             self.st_trainer.model = model.model_body
 
     def apply_training_arguments(self, args: TrainingArguments) -> None:
+        """
+        Propagate the SetFit TrainingArguments to the SentenceTransformer Trainer.
+        """
         mapping = {
             "output_dir": "output_dir",
             "per_device_train_batch_size": "embedding_batch_size",
