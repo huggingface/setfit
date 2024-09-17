@@ -119,6 +119,7 @@ preds = model\(".+"\)
 - end_to_end: False
 - use_amp: False
 - warmup_proportion: 0.1
+- l2_weight: 0.01
 - seed: 42
 - eval_max_steps: -1
 - load_best_model_at_end: False

@@ -1,9 +1,8 @@
 from itertools import zip_longest
-from typing import Generator, Iterable, List, Optional
+from typing import Dict, Generator, Iterable, List, Optional, Union
 
 import numpy as np
 import torch
-from sentence_transformers import InputExample
 from torch.utils.data import IterableDataset
 
 from . import logging
@@ -35,7 +34,8 @@ def shuffle_combinations(iterable: Iterable, replacement: bool = True) -> Genera
 class ContrastiveDataset(IterableDataset):
     def __init__(
         self,
-        examples: List[InputExample],
+        sentences: List[str],
+        labels: List[Union[int, float]],
         multilabel: bool,
         num_iterations: Optional[None] = None,
         sampling_strategy: str = "oversampling",
@@ -57,8 +57,8 @@ class ContrastiveDataset(IterableDataset):
         self.neg_index = 0
         self.pos_pairs = []
         self.neg_pairs = []
-        self.sentences = np.array([s.texts[0] for s in examples])
-        self.labels = np.array([s.label for s in examples])
+        self.sentences = sentences
+        self.labels = labels
         self.sentence_labels = list(zip(self.sentences, self.labels))
         self.max_pairs = max_pairs
 
@@ -89,9 +89,9 @@ class ContrastiveDataset(IterableDataset):
     def generate_pairs(self) -> None:
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
             if _label == label:
-                self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0))
+                self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
             else:
-                self.neg_pairs.append(InputExample(texts=[_text, text], label=0.0))
+                self.neg_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 0.0})
             if self.max_pairs != -1 and len(self.pos_pairs) > self.max_pairs and len(self.neg_pairs) > self.max_pairs:
                 break
 
@@ -99,13 +99,13 @@ class ContrastiveDataset(IterableDataset):
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
             if any(np.logical_and(_label, label)):
                 # logical_and checks if labels are both set for each class
-                self.pos_pairs.append(InputExample(texts=[_text, text], label=1.0))
+                self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
             else:
-                self.neg_pairs.append(InputExample(texts=[_text, text], label=0.0))
+                self.neg_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 0.0})
             if self.max_pairs != -1 and len(self.pos_pairs) > self.max_pairs and len(self.neg_pairs) > self.max_pairs:
                 break
 
-    def get_positive_pairs(self) -> List[InputExample]:
+    def get_positive_pairs(self) -> List[Dict[str, Union[str, float]]]:
         pairs = []
         for _ in range(self.len_pos_pairs):
             if self.pos_index >= len(self.pos_pairs):
@@ -114,7 +114,7 @@ class ContrastiveDataset(IterableDataset):
             self.pos_index += 1
         return pairs
 
-    def get_negative_pairs(self) -> List[InputExample]:
+    def get_negative_pairs(self) -> List[Dict[str, Union[str, float]]]:
         pairs = []
         for _ in range(self.len_neg_pairs):
             if self.neg_index >= len(self.neg_pairs):
@@ -137,7 +137,7 @@ class ContrastiveDataset(IterableDataset):
 class ContrastiveDistillationDataset(ContrastiveDataset):
     def __init__(
         self,
-        examples: List[InputExample],
+        sentences: List[str],
         cos_sim_matrix: torch.Tensor,
         num_iterations: Optional[None] = None,
         sampling_strategy: str = "oversampling",
@@ -145,7 +145,8 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
     ) -> None:
         self.cos_sim_matrix = cos_sim_matrix
         super().__init__(
-            examples,
+            sentences,
+            [0] * len(sentences),
             multilabel=False,
             num_iterations=num_iterations,
             sampling_strategy=sampling_strategy,
@@ -163,6 +164,8 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
 
     def generate_pairs(self) -> None:
         for (text_one, id_one), (text_two, id_two) in shuffle_combinations(self.sentence_labels):
-            self.pos_pairs.append(InputExample(texts=[text_one, text_two], label=self.cos_sim_matrix[id_one][id_two]))
+            self.pos_pairs.append(
+                {"sentence_1": text_one, "sentence_2": text_two, "label": self.cos_sim_matrix[id_one][id_two]}
+            )
             if self.max_pairs != -1 and len(self.pos_pairs) > self.max_pairs:
                 break

@@ -33,8 +33,11 @@ def test_trainer(absa_model: AbsaModel, absa_dataset: Dataset) -> None:
 
 def test_trainer_callbacks(absa_model: AbsaModel) -> None:
     trainer = AbsaTrainer(absa_model)
-    assert len(trainer.aspect_trainer.callback_handler.callbacks) >= 2
-    callback_names = {callback.__class__.__name__ for callback in trainer.aspect_trainer.callback_handler.callbacks}
+    assert len(trainer.aspect_trainer.st_trainer.callback_handler.callbacks) >= 2
+    num_callbacks = len(trainer.aspect_trainer.st_trainer.callback_handler.callbacks)
+    callback_names = {
+        callback.__class__.__name__ for callback in trainer.aspect_trainer.st_trainer.callback_handler.callbacks
+    }
     assert {"DefaultFlowCallback", "ProgressCallback"} <= callback_names
 
     class TestCallback(TrainerCallback):
@@ -42,18 +45,18 @@ def test_trainer_callbacks(absa_model: AbsaModel) -> None:
 
     callback = TestCallback()
     trainer.add_callback(callback)
-    assert len(trainer.aspect_trainer.callback_handler.callbacks) == len(callback_names) + 1
-    assert len(trainer.polarity_trainer.callback_handler.callbacks) == len(callback_names) + 1
-    assert trainer.aspect_trainer.callback_handler.callbacks[-1] == callback
-    assert trainer.polarity_trainer.callback_handler.callbacks[-1] == callback
+    assert len(trainer.aspect_trainer.st_trainer.callback_handler.callbacks) == num_callbacks + 1
+    assert len(trainer.polarity_trainer.st_trainer.callback_handler.callbacks) == num_callbacks + 1
+    assert trainer.aspect_trainer.st_trainer.callback_handler.callbacks[-1] == callback
+    assert trainer.polarity_trainer.st_trainer.callback_handler.callbacks[-1] == callback
 
     assert trainer.pop_callback(callback) == (callback, callback)
     trainer.add_callback(callback)
-    assert trainer.aspect_trainer.callback_handler.callbacks[-1] == callback
-    assert trainer.polarity_trainer.callback_handler.callbacks[-1] == callback
+    assert trainer.aspect_trainer.st_trainer.callback_handler.callbacks[-1] == callback
+    assert trainer.polarity_trainer.st_trainer.callback_handler.callbacks[-1] == callback
     trainer.remove_callback(callback)
-    assert callback not in trainer.aspect_trainer.callback_handler.callbacks
-    assert callback not in trainer.polarity_trainer.callback_handler.callbacks
+    assert callback not in trainer.aspect_trainer.st_trainer.callback_handler.callbacks
+    assert callback not in trainer.polarity_trainer.st_trainer.callback_handler.callbacks
 
 
 def test_train_ordinal_too_high(absa_model: AbsaModel, caplog: LogCaptureFixture) -> None:

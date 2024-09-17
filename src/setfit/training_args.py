@@ -192,7 +192,7 @@ class TrainingArguments:
 
     use_amp: bool = False
     warmup_proportion: float = 0.1
-    l2_weight: Optional[float] = None
+    l2_weight: Optional[float] = 0.01
     max_length: Optional[int] = None
     samples_per_label: int = 2
 
@@ -219,7 +219,7 @@ class TrainingArguments:
     save_total_limit: Optional[int] = 1
 
     load_best_model_at_end: bool = False
-    metric_for_best_model: str = field(default="embedding_loss", repr=False)
+    metric_for_best_model: Optional[str] = field(default=None, repr=False)
     greater_is_better: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -290,6 +290,9 @@ class TrainingArguments:
         # logging_steps must be non-zero for logging_strategy that is other than 'no'
         if self.logging_strategy == IntervalStrategy.STEPS and self.logging_steps == 0:
             raise ValueError(f"Logging strategy {self.logging_strategy} requires non-zero `logging_steps`")
+
+        if self.samples_per_label != 2:
+            logger.warning("The `samples_per_label` argument is deprecated and will be removed in a future version.")
 
     @property
     def embedding_batch_size(self) -> int:

@@ -89,7 +89,7 @@ class AbsaTrainer(ColumnMappingMixin):
         )
         self.aspect_trainer._set_logs_mapper(
             {
-                "eval_embedding_loss": "eval_aspect_embedding_loss",
+                "eval_loss": "eval_aspect_embedding_loss",
                 "embedding_loss": "aspect_embedding_loss",
             }
         )
