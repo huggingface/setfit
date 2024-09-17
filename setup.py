@@ -19,6 +19,7 @@ REQUIRED_PKGS = [
     "scikit-learn",
     "packaging",
 ]
+TRAIN_REQUIRE = ["accelerate>=0.20.3"]
 ABSA_REQUIRE = ["spacy<3.7.6"]
 QUALITY_REQUIRE = ["black", "flake8", "isort", "tabulate"]
 ONNX_REQUIRE = ["onnxruntime", "onnx!=1.16.2", "skl2onnx"]
@@ -29,6 +30,7 @@ CODECARBON_REQUIRE = ["codecarbon<2.6.0"]
 # 2.7.* fails with AttributeError: 'EmissionsTracker' object has no attribute '_cloud'
 # 2.6.* has an accidental print statement spamming the terminal
 EXTRAS_REQUIRE = {
+    "train": TRAIN_REQUIRE,
     "optuna": INTEGRATIONS_REQUIRE,
     "quality": QUALITY_REQUIRE,
     "tests": TESTS_REQUIRE,
