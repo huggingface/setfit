@@ -40,31 +40,31 @@ class ModelCardCallback(TrainerCallback):
         self.trainer = trainer
 
     def on_init_end(
-        self, st_args: SentenceTransformerTrainingArguments, state: TrainerState, control: TrainerControl, **kwargs
+        self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
     ):
-        if not self.model_card_data.dataset_id:
+        if not model.model_card_data.dataset_id:
             # Inferring is hacky - it may break in the future, so let's be safe
             try:
-                self.model_card_data.infer_dataset_id(self.trainer.train_dataset)
+                model.model_card_data.infer_dataset_id(self.trainer.train_dataset)
             except Exception:
                 pass
 
         dataset = self.trainer.eval_dataset or self.trainer.train_dataset
         if dataset is not None:
-            if not self.model_card_data.widget:
-                self.model_card_data.set_widget_examples(dataset)
+            if not model.model_card_data.widget:
+                model.model_card_data.set_widget_examples(dataset)
 
         if self.trainer.train_dataset:
-            self.model_card_data.set_train_set_metrics(self.trainer.train_dataset)
+            model.model_card_data.set_train_set_metrics(self.trainer.train_dataset)
             # Does not work for multilabel
             try:
-                self.model_card_data.num_classes = len(set(self.trainer.train_dataset["label"]))
-                self.model_card_data.set_label_examples(self.trainer.train_dataset)
+                model.model_card_data.num_classes = len(set(self.trainer.train_dataset["label"]))
+                model.model_card_data.set_label_examples(self.trainer.train_dataset)
             except Exception:
                 pass
 
     def on_train_begin(
-        self, st_args: SentenceTransformerTrainingArguments, state: TrainerState, control: TrainerControl, **kwargs
+        self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
     ) -> None:
         # model.model_card_data.hyperparameters = extract_hyperparameters_from_trainer(self.trainer)
         ignore_keys = {
@@ -86,8 +86,8 @@ class ModelCardCallback(TrainerCallback):
             "show_progress_bar",
         }
         get_name_keys = {"loss", "distance_metric"}
-        args_dict = self.trainer.args.to_dict()
-        self.model_card_data.hyperparameters = {
+        args_dict = args.to_dict()
+        model.model_card_data.hyperparameters = {
             key: value.__name__ if key in get_name_keys else value
             for key, value in args_dict.items()
             if key not in ignore_keys and value is not None
@@ -95,48 +95,54 @@ class ModelCardCallback(TrainerCallback):
 
     def on_evaluate(
         self,
-        st_args: SentenceTransformerTrainingArguments,
+        args: SentenceTransformerTrainingArguments,
         state: TrainerState,
         control: TrainerControl,
+        model: "SetFitModel",
         metrics: Dict[str, float],
         **kwargs,
     ) -> None:
+        keys = {"eval_embedding_loss", "eval_polarity_embedding_loss", "eval_aspect_embedding_loss"} & set(metrics)
+        if not keys:
+            return
         if (
-            self.model_card_data.eval_lines_list
-            and self.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
+            model.model_card_data.eval_lines_list
+            and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
         ):
-            self.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics["eval_loss"]
+            model.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics[keys.pop()]
         else:
-            self.model_card_data.eval_lines_list.append(
+            model.model_card_data.eval_lines_list.append(
                 {
                     # "Training Loss": self.state.log_history[-1]["loss"] if "loss" in self.state.log_history[-1] else "-",
                     "Epoch": state.epoch,
                     "Step": state.global_step,
                     "Training Loss": "-",
-                    "Validation Loss": metrics["eval_loss"],
+                    "Validation Loss": metrics[keys.pop()],
                 }
             )
 
     def on_log(
         self,
-        st_args: TrainingArguments,
+        args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
+        model: "SetFitModel",
         logs: Dict[str, float],
         **kwargs,
     ):
-        if "loss" in logs:
+        keys = {"embedding_loss", "polarity_embedding_loss", "aspect_embedding_loss"} & set(logs)
+        if keys:
             if (
-                self.model_card_data.eval_lines_list
-                and self.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
+                model.model_card_data.eval_lines_list
+                and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
             ):
-                self.model_card_data.eval_lines_list[-1]["Training Loss"] = logs["loss"]
+                model.model_card_data.eval_lines_list[-1]["Training Loss"] = logs[keys.pop()]
             else:
-                self.model_card_data.eval_lines_list.append(
+                model.model_card_data.eval_lines_list.append(
                     {
                         "Epoch": state.epoch,
                         "Step": state.global_step,
-                        "Training Loss": logs["loss"],
+                        "Training Loss": logs[keys.pop()],
                         "Validation Loss": "-",
                     }
                 )

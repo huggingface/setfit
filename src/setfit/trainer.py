@@ -4,8 +4,9 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, 
 import evaluate
 import torch
 from datasets import Dataset, DatasetDict
-from sentence_transformers import SentenceTransformerTrainer, SentenceTransformerTrainingArguments, losses
+from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
+from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
 from sentence_transformers.training_args import BatchSamplers
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
@@ -40,6 +41,137 @@ if is_in_notebook():
     from transformers.utils.notebook import NotebookProgressCallback
 
     DEFAULT_PROGRESS_CALLBACK = NotebookProgressCallback
+
+
+class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
+    """
+    Subclass of SentenceTransformerTrainer that is backwards compatible with the SetFit API.
+    """
+
+    def __init__(
+        self, setfit_model: "SetFitModel", setfit_args: "TrainingArguments", callbacks: List[TrainerCallback], **kwargs
+    ):
+        self._setfit_model = setfit_model
+        self._setfit_args = setfit_args
+        self.logs_prefix = "embedding"
+        super().__init__(model=setfit_model.model_body, **kwargs)
+        self._apply_training_arguments(setfit_args)
+
+        for callback in list(self.callback_handler.callbacks):
+            if isinstance(callback, CodeCarbonCallback):
+                self.setfit_model.model_card_data.code_carbon_callback = callback
+
+            if isinstance(callback, STModelCardCallback):
+                self.remove_callback(callback)
+
+        def overwritten_call_event(self, event, args, state, control, **kwargs):
+            for callback in self.callbacks:
+                result = getattr(callback, event)(
+                    self.setfit_args,
+                    state,
+                    control,
+                    model=self.setfit_model,
+                    st_model=self.model,
+                    st_args=args,
+                    tokenizer=self.tokenizer,
+                    optimizer=self.optimizer,
+                    lr_scheduler=self.lr_scheduler,
+                    train_dataloader=self.train_dataloader,
+                    eval_dataloader=self.eval_dataloader,
+                    **kwargs,
+                )
+                # A Callback can skip the return of `control` if it doesn't change it.
+                if result is not None:
+                    control = result
+            return control
+
+        self.callback_handler.call_event = lambda *args, **kwargs: overwritten_call_event(
+            self.callback_handler, *args, **kwargs
+        )
+        self.callback_handler.setfit_args = setfit_args
+        self.callback_handler.setfit_model = setfit_model
+        for callback in callbacks:
+            self.add_callback(callback)
+        self.callback_handler.on_init_end(self.args, self.state, self.control)
+
+    @property
+    def setfit_model(self) -> "SetFitModel":
+        return self._setfit_model
+
+    @setfit_model.setter
+    def setfit_model(self, setfit_model: "SetFitModel") -> None:
+        self._setfit_model = setfit_model
+        self.model = setfit_model.model_body
+        self.callback_handler.setfit_model = setfit_model
+
+    @property
+    def setfit_args(self) -> TrainingArguments:
+        return self._setfit_args
+
+    @setfit_args.setter
+    def setfit_args(self, setfit_args: TrainingArguments) -> None:
+        self._setfit_args = setfit_args
+        self._apply_training_arguments(setfit_args)
+        self.callback_handler.setfit_args = setfit_args
+
+    def _apply_training_arguments(self, args: TrainingArguments) -> None:
+        """
+        Propagate the SetFit TrainingArguments to the SentenceTransformer Trainer.
+        """
+        self.args.output_dir = args.output_dir
+
+        self.args.per_device_train_batch_size = args.embedding_batch_size
+        self.args.per_device_eval_batch_size = args.embedding_batch_size
+        self.args.num_train_epochs = args.embedding_num_epochs
+        self.args.max_steps = args.max_steps
+        self.args.learning_rate = args.body_embedding_learning_rate
+        self.args.fp16 = args.use_amp
+        self.args.weight_decay = args.l2_weight
+        self.args.seed = args.seed
+        self.args.report_to = args.report_to
+        self.args.run_name = args.run_name
+        self.args.warmup_ratio = args.warmup_proportion
+
+        self.args.logging_dir = args.logging_dir
+        self.args.logging_strategy = args.logging_strategy
+        self.args.logging_first_step = args.logging_first_step
+        self.args.logging_steps = args.logging_steps
+
+        self.args.eval_strategy = args.eval_strategy
+        self.args.eval_steps = args.eval_steps
+        self.args.eval_delay = args.eval_delay
+
+        self.args.save_strategy = args.save_strategy
+        self.args.save_steps = args.save_steps
+        self.args.save_total_limit = args.save_total_limit
+
+        self.args.load_best_model_at_end = args.load_best_model_at_end
+        self.args.metric_for_best_model = args.metric_for_best_model
+        self.args.greater_is_better = args.greater_is_better
+
+    def _set_logs_prefix(self, logs_prefix: str) -> None:
+        """Set the logging prefix.
+
+        Args:
+            logs_mapper (str): The logging prefix, e.g. "aspect_embedding".
+        """
+        self.logs_prefix = logs_prefix
+
+    def log(self, logs: Dict[str, float]) -> None:
+        logs = {f"{self.logs_prefix}_{k}" if k == "loss" else k: v for k, v in logs.items()}
+        return super().log(logs)
+
+    def evaluate(
+        self,
+        eval_dataset: Optional[Union[Dataset, Dict[str, Dataset]]] = None,
+        ignore_keys: Optional[List[str]] = None,
+        metric_key_prefix: str = "eval",
+    ) -> Dict[str, float]:
+        return super().evaluate(
+            eval_dataset=eval_dataset,
+            ignore_keys=ignore_keys,
+            metric_key_prefix=f"{metric_key_prefix}_{self.logs_prefix}",
+        )
 
 
 class ColumnMappingMixin:
@@ -157,7 +289,7 @@ class Trainer(ColumnMappingMixin):
     ) -> None:
         if args is not None and not isinstance(args, TrainingArguments):
             raise ValueError("`args` must be a `TrainingArguments` instance imported from `setfit`.")
-        self._args = args or TrainingArguments()
+        self.args = args or TrainingArguments()
         self.column_mapping = column_mapping
         if train_dataset:
             self._validate_column_mapping(train_dataset)
@@ -193,19 +325,12 @@ class Trainer(ColumnMappingMixin):
         self._model = model
         self.hp_search_backend = None
 
-        st_args = SentenceTransformerTrainingArguments(output_dir="checkpoints", max_grad_norm=1)
         callbacks = callbacks + [ModelCardCallback(self)] if callbacks else [ModelCardCallback(self)]
-        self.st_trainer = SentenceTransformerTrainer(
-            model=model.model_body,
-            args=st_args,
+        self.st_trainer = BCSentenceTransformersTrainer(
+            setfit_model=model,
+            setfit_args=self.args,
             callbacks=callbacks,
         )
-        if args is not None:
-            self.apply_training_arguments(args)
-        for callback in self.st_trainer.callback_handler.callbacks:
-            if isinstance(callback, CodeCarbonCallback):
-                self.model.model_card_data.code_carbon_callback = callback
-                break
 
     @property
     def args(self) -> TrainingArguments:
@@ -215,7 +340,7 @@ class Trainer(ColumnMappingMixin):
     def args(self, args: TrainingArguments) -> None:
         self._args = args
         if hasattr(self, "st_trainer"):
-            self.apply_training_arguments(args)
+            self.st_trainer.setfit_args = args
 
     @property
     def model(self) -> "SetFitModel":
@@ -225,41 +350,7 @@ class Trainer(ColumnMappingMixin):
     def model(self, model: "SetFitModel") -> None:
         self._model = model
         if hasattr(self, "st_trainer"):
-            self.st_trainer.model = model.model_body
-
-    def apply_training_arguments(self, args: TrainingArguments) -> None:
-        """
-        Propagate the SetFit TrainingArguments to the SentenceTransformer Trainer.
-        """
-        mapping = {
-            "output_dir": "output_dir",
-            "per_device_train_batch_size": "embedding_batch_size",
-            "per_device_eval_batch_size": "embedding_batch_size",
-            "num_train_epochs": "embedding_num_epochs",
-            "max_steps": "max_steps",
-            "learning_rate": "body_embedding_learning_rate",
-            "fp16": "use_amp",
-            "weight_decay": "l2_weight",
-            "seed": "seed",
-            "report_to": "report_to",
-            "run_name": "run_name",
-            "warmup_ratio": "warmup_proportion",
-            "logging_dir": "logging_dir",
-            "logging_strategy": "logging_strategy",
-            "logging_first_step": "logging_first_step",
-            "logging_steps": "logging_steps",
-            "eval_strategy": "eval_strategy",
-            "eval_steps": "eval_steps",
-            "eval_delay": "eval_delay",
-            "save_strategy": "save_strategy",
-            "save_steps": "save_steps",
-            "save_total_limit": "save_total_limit",
-            "load_best_model_at_end": "load_best_model_at_end",
-            "metric_for_best_model": "metric_for_best_model",
-            "greater_is_better": "greater_is_better",
-        }
-        for st_args_key, args_key in mapping.items():
-            setattr(self.st_trainer.args, st_args_key, getattr(args, args_key))
+            self.st_trainer.setfit_model = model
 
     def add_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
@@ -449,7 +540,7 @@ class Trainer(ColumnMappingMixin):
                 Temporarily change the training arguments for this training call.
         """
         if args:
-            self.apply_training_arguments(args)
+            self.st_trainer.setfit_args = args
         args = args or self.args or TrainingArguments()
 
         train_max_pairs = -1 if args.max_steps == -1 else args.max_steps * args.embedding_batch_size
@@ -517,13 +608,13 @@ class Trainer(ColumnMappingMixin):
 
         return dataset, loss
 
-    def _set_logs_mapper(self, logs_mapper: Dict[str, str]) -> None:
-        """Set the logging mapper.
+    def _set_logs_prefix(self, logs_prefix: str) -> None:
+        """Set the logging prefix.
 
         Args:
-            logs_mapper (str): The logging mapper, e.g. {"eval_embedding_loss": "eval_aspect_embedding_loss"}.
+            logs_mapper (str): The logging prefix, e.g. "aspect_embedding".
         """
-        self.logs_mapper = logs_mapper
+        self.st_trainer._set_logs_prefix(logs_prefix)
 
     def train_classifier(
         self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None
