@@ -14,7 +14,6 @@ from datasets import Dataset
 from huggingface_hub import CardData, ModelCard, dataset_info, list_datasets, model_info
 from huggingface_hub.repocard_data import EvalResult, eval_results_to_model_index
 from huggingface_hub.utils import yaml_dump
-from sentence_transformers import SentenceTransformerTrainingArguments
 from sentence_transformers import __version__ as sentence_transformers_version
 from transformers import PretrainedConfig, TrainerCallback
 from transformers.integrations import CodeCarbonCallback
@@ -95,7 +94,7 @@ class ModelCardCallback(TrainerCallback):
 
     def on_evaluate(
         self,
-        args: SentenceTransformerTrainingArguments,
+        args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
         model: "SetFitModel",
