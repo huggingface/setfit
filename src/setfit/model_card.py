@@ -146,14 +146,6 @@ class ModelCardCallback(TrainerCallback):
                     }
                 )
 
-    @property
-    def model(self) -> "SetFitModel":
-        return self.trainer.model
-
-    @property
-    def model_card_data(self) -> "SetFitModelCardData":
-        return self.trainer.model.model_card_data
-
 
 YAML_FIELDS = [
     "language",
