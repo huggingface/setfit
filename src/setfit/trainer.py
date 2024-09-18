@@ -13,7 +13,7 @@ from torch import nn
 from transformers.integrations import CodeCarbonCallback
 from transformers.trainer_callback import IntervalStrategy, TrainerCallback
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
-from transformers.utils.notebook import NotebookProgressCallback
+from transformers.utils.import_utils import is_in_notebook
 
 from setfit.model_card import ModelCardCallback
 
@@ -22,7 +22,7 @@ from .integrations import default_hp_search_backend, is_optuna_available, run_hp
 from .losses import SupConLoss
 from .sampler import ContrastiveDataset
 from .training_args import TrainingArguments
-from .utils import BestRun, SetFitNotebookProgressCallback, default_hp_space_optuna
+from .utils import BestRun, default_hp_space_optuna
 
 
 if TYPE_CHECKING:
@@ -55,9 +55,13 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
             if isinstance(callback, STModelCardCallback):
                 self.remove_callback(callback)
 
-            if isinstance(callback, NotebookProgressCallback):
-                self.remove_callback(callback)
-                self.add_callback(SetFitNotebookProgressCallback())
+        if is_in_notebook():
+            from transformers.utils.notebook import NotebookProgressCallback
+
+            from setfit.notebook import SetFitNotebookProgressCallback
+
+            if self.pop_callback(NotebookProgressCallback):
+                self.add_callback(SetFitNotebookProgressCallback)
 
         def overwritten_call_event(self, event, args, state, control, **kwargs):
             for callback in self.callbacks:
