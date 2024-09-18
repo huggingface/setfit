@@ -137,8 +137,8 @@ preds = model\(".+"\)
 - load_best_model_at_end: False
 
 ### Training Results
-\| Epoch  \| Step \| Training Loss \| Validation Loss \|
-\|:------:\|:----:\|:-------------:\|:---------------:\|
+\| Epoch \| Step \| Training Loss \| Validation Loss \|
+\|:-----:\|:----:\|:-------------:\|:---------------:\|
 (\| [\d\.]+ +\| [\d\.]+ +\| [\d\.]+ +\| [\d\.]+ +\|\n)+
 ### Environmental Impact
 Carbon emissions were measured using \[CodeCarbon\]\(https://github.com/mlco2/codecarbon\)\.
