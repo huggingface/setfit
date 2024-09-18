@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument("--override_results", default=False, action="store_true")
     parser.add_argument("--keep_body_frozen", default=False, action="store_true")
     parser.add_argument("--add_data_augmentation", default=False)
-    parser.add_argument("--evaluation_strategy", default=False)
+    parser.add_argument("--eval_strategy", default=False)
 
     args = parser.parse_args()
 
@@ -149,8 +149,8 @@ def main():
                 num_epochs=args.num_epochs,
                 num_iterations=args.num_iterations,
             )
-            if not args.evaluation_strategy:
-                trainer.args.evaluation_strategy = "no"
+            if not args.eval_strategy:
+                trainer.args.eval_strategy = "no"
             if args.classifier == "pytorch":
                 trainer.freeze()
                 trainer.train()

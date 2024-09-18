@@ -6,46 +6,7 @@ import re
 ASPECT_MODEL_CARD_PATTERN = re.compile(
     """\
 ---
-language:
-- en
-license: apache-2\.0
-library_name: setfit
-tags:
-- setfit
-- absa
-- sentence-transformers
-- text-classification
-- generated_from_setfit_trainer
-metrics:
-- accuracy
-widget:
-- text: .*
-pipeline_tag: text-classification
-inference: false
-co2_eq_emissions:
-  emissions: [\d\.\-e]+
-  source: codecarbon
-  training_type: fine-tuning
-  on_cloud: (false|true)
-  cpu_model: .+
-  ram_total_size: [\d\.]+
-  hours_used: [\d\.]+
-(  hardware_used: .+
-)?base_model: sentence-transformers/paraphrase-albert-small-v2
-model-index:
-- name: SetFit Aspect Model with sentence-transformers\/paraphrase-albert-small-v2
-  results:
-  - task:
-      type: text-classification
-      name: Text Classification
-    dataset:
-      name: Unknown
-      type: unknown
-      split: test
-    metrics:
-    - type: accuracy
-      value: [\d\.]+
-      name: Accuracy
+.*
 ---
 
 \# SetFit Aspect Model with sentence\-transformers/paraphrase\-albert\-small\-v2
@@ -170,6 +131,7 @@ preds = model\(".+"\)
 - end_to_end: False
 - use_amp: False
 - warmup_proportion: 0.1
+- l2_weight: 0.01
 - seed: 42
 - eval_max_steps: -1
 - load_best_model_at_end: False

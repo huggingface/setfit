@@ -1,6 +1,5 @@
 import pathlib
 import re
-import tempfile
 from unittest import TestCase
 
 import evaluate
@@ -16,6 +15,7 @@ from setfit.losses import SupConLoss
 from setfit.modeling import SetFitModel
 from setfit.trainer import SetFitTrainer
 from setfit.utils import BestRun
+from tests.utils import SafeTemporaryDirectory
 
 
 logging.set_verbosity_warning()
@@ -134,7 +134,7 @@ class SetFitTrainerTest(TestCase):
 
     def test_trainer_raises_error_when_dataset_is_dataset_dict_with_train(self):
         """Verify that a useful error is raised if we pass an unsplit dataset with only a `train` split to the trainer."""
-        with tempfile.TemporaryDirectory() as tmpdirname:
+        with SafeTemporaryDirectory() as tmpdirname:
             path = pathlib.Path(tmpdirname) / "test_dataset_dict_with_train.csv"
             path.write_text("label,text\n1,good\n0,terrible\n")
             dataset = load_dataset("csv", data_files=str(path))

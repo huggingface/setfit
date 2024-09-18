@@ -25,7 +25,7 @@ def test_model_card(absa_dataset: Dataset, tmp_path: Path) -> None:
         eval_steps=1,
         logging_steps=1,
         max_steps=2,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
     )
     trainer = AbsaTrainer(
         model=model,

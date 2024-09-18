@@ -1,7 +1,6 @@
 import json
 import re
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 import torch
@@ -13,6 +12,7 @@ from setfit.logging import get_logger
 from setfit.span.aspect_extractor import AspectExtractor
 from setfit.span.modeling import AspectModel, PolarityModel
 from tests.test_modeling import torch_cuda_available
+from tests.utils import SafeTemporaryDirectory
 
 
 def test_loading():
@@ -65,7 +65,7 @@ def test_save_load(absa_model: AbsaModel, caplog: LogCaptureFixture) -> None:
 
     absa_model.polarity_model.span_context = 5
 
-    with TemporaryDirectory() as tmp_dir:
+    with SafeTemporaryDirectory() as tmp_dir:
         tmp_dir = str(Path(tmp_dir) / "model")
         absa_model.save_pretrained(tmp_dir)
         assert (Path(tmp_dir + "-aspect") / "config_setfit.json").exists()
@@ -93,8 +93,8 @@ def test_save_load(absa_model: AbsaModel, caplog: LogCaptureFixture) -> None:
         assert len(caplog.record_tuples) == 2
         caplog.clear()
 
-    with TemporaryDirectory() as aspect_tmp_dir:
-        with TemporaryDirectory() as polarity_tmp_dir:
+    with SafeTemporaryDirectory() as aspect_tmp_dir:
+        with SafeTemporaryDirectory() as polarity_tmp_dir:
             absa_model.save_pretrained(aspect_tmp_dir, polarity_tmp_dir)
             assert (Path(aspect_tmp_dir) / "config_setfit.json").exists()
             assert (Path(polarity_tmp_dir) / "config_setfit.json").exists()

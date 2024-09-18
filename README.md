@@ -69,7 +69,7 @@ model = SetFitModel.from_pretrained(
 args = TrainingArguments(
     batch_size=16,
     num_epochs=4,
-    evaluation_strategy="epoch",
+    eval_strategy="epoch",
     save_strategy="epoch",
     load_best_model_at_end=True,
 )

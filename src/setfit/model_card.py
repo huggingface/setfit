@@ -11,7 +11,7 @@ import tokenizers
 import torch
 import transformers
 from datasets import Dataset
-from huggingface_hub import CardData, DatasetFilter, ModelCard, dataset_info, list_datasets, model_info
+from huggingface_hub import CardData, ModelCard, dataset_info, list_datasets, model_info
 from huggingface_hub.repocard_data import EvalResult, eval_results_to_model_index
 from huggingface_hub.utils import yaml_dump
 from sentence_transformers import __version__ as sentence_transformers_version
@@ -37,14 +37,6 @@ class ModelCardCallback(TrainerCallback):
     def __init__(self, trainer: "Trainer") -> None:
         super().__init__()
         self.trainer = trainer
-
-        callbacks = [
-            callback
-            for callback in self.trainer.callback_handler.callbacks
-            if isinstance(callback, CodeCarbonCallback)
-        ]
-        if callbacks:
-            trainer.model.model_card_data.code_carbon_callback = callbacks[0]
 
     def on_init_end(
         self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
@@ -80,7 +72,7 @@ class ModelCardCallback(TrainerCallback):
             "logging_strategy",
             "logging_first_step",
             "logging_steps",
-            "evaluation_strategy",
+            "eval_strategy",
             "eval_steps",
             "eval_delay",
             "save_strategy",
@@ -109,11 +101,14 @@ class ModelCardCallback(TrainerCallback):
         metrics: Dict[str, float],
         **kwargs,
     ) -> None:
+        keys = {"eval_embedding_loss", "eval_polarity_embedding_loss", "eval_aspect_embedding_loss"} & set(metrics)
+        if not keys:
+            return
         if (
             model.model_card_data.eval_lines_list
             and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
         ):
-            model.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics["eval_embedding_loss"]
+            model.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics[keys.pop()]
         else:
             model.model_card_data.eval_lines_list.append(
                 {
@@ -121,7 +116,7 @@ class ModelCardCallback(TrainerCallback):
                     "Epoch": state.epoch,
                     "Step": state.global_step,
                     "Training Loss": "-",
-                    "Validation Loss": metrics["eval_embedding_loss"],
+                    "Validation Loss": metrics[keys.pop()],
                 }
             )
 
@@ -409,7 +404,7 @@ class SetFitModelCardData(CardData):
             # Make sure the normalized dataset IDs match
             dataset_list = [
                 dataset
-                for dataset in list_datasets(filter=DatasetFilter(author=author, dataset_name=dataset_name))
+                for dataset in list_datasets(author=author, dataset_name=dataset_name)
                 if normalize(dataset.id) == normalize(cache_dataset_name)
             ]
             # If there's only one match, get the ID from it

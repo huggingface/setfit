@@ -82,7 +82,7 @@ class BaselineDistillation:
             per_device_train_batch_size=self.batch_size,
             per_device_eval_batch_size=self.batch_size,
             num_train_epochs=self.num_epochs,
-            evaluation_strategy="no",
+            eval_strategy="no",
             save_strategy="no",
             load_best_model_at_end=False,
             weight_decay=0.01,
