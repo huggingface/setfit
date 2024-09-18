@@ -1,41 +1,18 @@
-import math
-import os
-import shutil
-import time
 import warnings
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import evaluate
 import torch
 from datasets import Dataset, DatasetDict
-from sentence_transformers import InputExample, SentenceTransformer, losses
-from sentence_transformers.datasets import SentenceLabelDataset
+from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
-from sentence_transformers.util import batch_to_device
+from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
+from sentence_transformers.training_args import BatchSamplers
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
-from torch.cuda.amp import autocast
-from torch.utils.data import DataLoader
-from tqdm.autonotebook import tqdm
-from transformers.integrations import WandbCallback, get_reporting_integration_callbacks
-from transformers.trainer_callback import (
-    CallbackHandler,
-    DefaultFlowCallback,
-    IntervalStrategy,
-    PrinterCallback,
-    ProgressCallback,
-    TrainerCallback,
-    TrainerControl,
-    TrainerState,
-)
-from transformers.trainer_utils import (
-    HPSearchBackend,
-    default_compute_objective,
-    number_of_arguments,
-    set_seed,
-    speed_metrics,
-)
+from transformers.integrations import CodeCarbonCallback
+from transformers.trainer_callback import DefaultFlowCallback, IntervalStrategy, ProgressCallback, TrainerCallback
+from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 from transformers.utils.import_utils import is_in_notebook
 
 from setfit.model_card import ModelCardCallback
@@ -64,6 +41,137 @@ if is_in_notebook():
     from transformers.utils.notebook import NotebookProgressCallback
 
     DEFAULT_PROGRESS_CALLBACK = NotebookProgressCallback
+
+
+class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
+    """
+    Subclass of SentenceTransformerTrainer that is backwards compatible with the SetFit API.
+    """
+
+    def __init__(
+        self, setfit_model: "SetFitModel", setfit_args: "TrainingArguments", callbacks: List[TrainerCallback], **kwargs
+    ):
+        self._setfit_model = setfit_model
+        self._setfit_args = setfit_args
+        self.logs_prefix = "embedding"
+        super().__init__(model=setfit_model.model_body, **kwargs)
+        self._apply_training_arguments(setfit_args)
+
+        for callback in list(self.callback_handler.callbacks):
+            if isinstance(callback, CodeCarbonCallback):
+                self.setfit_model.model_card_data.code_carbon_callback = callback
+
+            if isinstance(callback, STModelCardCallback):
+                self.remove_callback(callback)
+
+        def overwritten_call_event(self, event, args, state, control, **kwargs):
+            for callback in self.callbacks:
+                result = getattr(callback, event)(
+                    self.setfit_args,
+                    state,
+                    control,
+                    model=self.setfit_model,
+                    st_model=self.model,
+                    st_args=args,
+                    tokenizer=self.tokenizer,
+                    optimizer=self.optimizer,
+                    lr_scheduler=self.lr_scheduler,
+                    train_dataloader=self.train_dataloader,
+                    eval_dataloader=self.eval_dataloader,
+                    **kwargs,
+                )
+                # A Callback can skip the return of `control` if it doesn't change it.
+                if result is not None:
+                    control = result
+            return control
+
+        self.callback_handler.call_event = lambda *args, **kwargs: overwritten_call_event(
+            self.callback_handler, *args, **kwargs
+        )
+        self.callback_handler.setfit_args = setfit_args
+        self.callback_handler.setfit_model = setfit_model
+        for callback in callbacks:
+            self.add_callback(callback)
+        self.callback_handler.on_init_end(self.args, self.state, self.control)
+
+    @property
+    def setfit_model(self) -> "SetFitModel":
+        return self._setfit_model
+
+    @setfit_model.setter
+    def setfit_model(self, setfit_model: "SetFitModel") -> None:
+        self._setfit_model = setfit_model
+        self.model = setfit_model.model_body
+        self.callback_handler.setfit_model = setfit_model
+
+    @property
+    def setfit_args(self) -> TrainingArguments:
+        return self._setfit_args
+
+    @setfit_args.setter
+    def setfit_args(self, setfit_args: TrainingArguments) -> None:
+        self._setfit_args = setfit_args
+        self._apply_training_arguments(setfit_args)
+        self.callback_handler.setfit_args = setfit_args
+
+    def _apply_training_arguments(self, args: TrainingArguments) -> None:
+        """
+        Propagate the SetFit TrainingArguments to the SentenceTransformer Trainer.
+        """
+        self.args.output_dir = args.output_dir
+
+        self.args.per_device_train_batch_size = args.embedding_batch_size
+        self.args.per_device_eval_batch_size = args.embedding_batch_size
+        self.args.num_train_epochs = args.embedding_num_epochs
+        self.args.max_steps = args.max_steps
+        self.args.learning_rate = args.body_embedding_learning_rate
+        self.args.fp16 = args.use_amp
+        self.args.weight_decay = args.l2_weight
+        self.args.seed = args.seed
+        self.args.report_to = args.report_to
+        self.args.run_name = args.run_name
+        self.args.warmup_ratio = args.warmup_proportion
+
+        self.args.logging_dir = args.logging_dir
+        self.args.logging_strategy = args.logging_strategy
+        self.args.logging_first_step = args.logging_first_step
+        self.args.logging_steps = args.logging_steps
+
+        self.args.eval_strategy = args.eval_strategy
+        self.args.eval_steps = args.eval_steps
+        self.args.eval_delay = args.eval_delay
+
+        self.args.save_strategy = args.save_strategy
+        self.args.save_steps = args.save_steps
+        self.args.save_total_limit = args.save_total_limit
+
+        self.args.load_best_model_at_end = args.load_best_model_at_end
+        self.args.metric_for_best_model = args.metric_for_best_model
+        self.args.greater_is_better = args.greater_is_better
+
+    def _set_logs_prefix(self, logs_prefix: str) -> None:
+        """Set the logging prefix.
+
+        Args:
+            logs_mapper (str): The logging prefix, e.g. "aspect_embedding".
+        """
+        self.logs_prefix = logs_prefix
+
+    def log(self, logs: Dict[str, float]) -> None:
+        logs = {f"{self.logs_prefix}_{k}" if k == "loss" else k: v for k, v in logs.items()}
+        return super().log(logs)
+
+    def evaluate(
+        self,
+        eval_dataset: Optional[Union[Dataset, Dict[str, Dataset]]] = None,
+        ignore_keys: Optional[List[str]] = None,
+        metric_key_prefix: str = "eval",
+    ) -> Dict[str, float]:
+        return super().evaluate(
+            eval_dataset=eval_dataset,
+            ignore_keys=ignore_keys,
+            metric_key_prefix=f"{metric_key_prefix}_{self.logs_prefix}",
+        )
 
 
 class ColumnMappingMixin:
@@ -203,7 +311,7 @@ class Trainer(ColumnMappingMixin):
         self.logs_mapper = {}
 
         # Seed must be set before instantiating the model when using model_init.
-        set_seed(12)
+        set_seed(args.seed if args is not None else 12)
 
         if model is None:
             if model_init is not None:
@@ -214,27 +322,35 @@ class Trainer(ColumnMappingMixin):
             if model_init is not None:
                 raise RuntimeError("`Trainer` requires either a `model` or `model_init` argument, but not both.")
 
-        self.model = model
+        self._model = model
         self.hp_search_backend = None
 
-        # Setup the callbacks
-        default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(self.args.report_to)
-        callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
-        if WandbCallback in callbacks:
-            # Set the W&B project via environment variables if it's not already set
-            os.environ.setdefault("WANDB_PROJECT", "setfit")
-        # TODO: Observe optimizer and scheduler by wrapping SentenceTransformer._get_scheduler
-        self.callback_handler = CallbackHandler(callbacks, self.model, self.model.model_body.tokenizer, None, None)
-        self.state = TrainerState()
-        self.control = TrainerControl()
-        self.add_callback(DEFAULT_PROGRESS_CALLBACK if self.args.show_progress_bar else PrinterCallback)
-        self.control = self.callback_handler.on_init_end(self.args, self.state, self.control)
+        callbacks = callbacks + [ModelCardCallback(self)] if callbacks else [ModelCardCallback(self)]
+        self.st_trainer = BCSentenceTransformersTrainer(
+            setfit_model=model,
+            setfit_args=self.args,
+            callbacks=callbacks,
+        )
 
-        # Add the callback for filling the model card data with hyperparameters
-        # and evaluation results
-        self.add_callback(ModelCardCallback(self))
+    @property
+    def args(self) -> TrainingArguments:
+        return self._args
 
-        self.callback_handler.on_init_end(args, self.state, self.control)
+    @args.setter
+    def args(self, args: TrainingArguments) -> None:
+        self._args = args
+        if hasattr(self, "st_trainer"):
+            self.st_trainer.setfit_args = args
+
+    @property
+    def model(self) -> "SetFitModel":
+        return self._model
+
+    @model.setter
+    def model(self, model: "SetFitModel") -> None:
+        self._model = model
+        if hasattr(self, "st_trainer"):
+            self.st_trainer.setfit_model = model
 
     def add_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
@@ -245,7 +361,7 @@ class Trainer(ColumnMappingMixin):
                A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
                first case, will instantiate a member of that class.
         """
-        self.callback_handler.add_callback(callback)
+        self.st_trainer.add_callback(callback)
 
     def pop_callback(self, callback: Union[type, TrainerCallback]) -> TrainerCallback:
         """
@@ -261,7 +377,7 @@ class Trainer(ColumnMappingMixin):
         Returns:
             [`~transformers.TrainerCallback`]: The callback removed, if found.
         """
-        return self.callback_handler.pop_callback(callback)
+        return self.st_trainer.pop_callback(callback)
 
     def remove_callback(self, callback: Union[type, TrainerCallback]) -> None:
         """
@@ -272,7 +388,7 @@ class Trainer(ColumnMappingMixin):
                A [`~transformers.TrainerCallback`] class or an instance of a [`~transformers.TrainerCallback`]. In the
                first case, will remove the first member of that class found in the list of callbacks.
         """
-        self.callback_handler.remove_callback(callback)
+        self.st_trainer.remove_callback(callback)
 
     def apply_hyperparameters(self, params: Dict[str, Any], final_model: bool = False) -> None:
         """Applies a dictionary of hyperparameters to both the trainer and the model
@@ -423,50 +539,39 @@ class Trainer(ColumnMappingMixin):
             args (`TrainingArguments`, *optional*):
                 Temporarily change the training arguments for this training call.
         """
+        if args:
+            self.st_trainer.setfit_args = args
         args = args or self.args or TrainingArguments()
-        # Since transformers v4.32.0, the log/eval/save steps should be saved on the state instead
-        self.state.logging_steps = args.logging_steps
-        self.state.eval_steps = args.eval_steps
-        self.state.save_steps = args.save_steps
-        # Reset the state
-        self.state.global_step = 0
-        self.state.total_flos = 0
 
         train_max_pairs = -1 if args.max_steps == -1 else args.max_steps * args.embedding_batch_size
-        train_dataloader, loss_func, batch_size, num_unique_pairs = self.get_dataloader(
-            x_train, y_train, args=args, max_pairs=train_max_pairs
-        )
+        train_dataset, loss = self.get_dataset(x_train, y_train, args=args, max_pairs=train_max_pairs)
         if x_eval is not None and args.eval_strategy != IntervalStrategy.NO:
             eval_max_pairs = -1 if args.eval_max_steps == -1 else args.eval_max_steps * args.embedding_batch_size
-            eval_dataloader, _, _, _ = self.get_dataloader(x_eval, y_eval, args=args, max_pairs=eval_max_pairs)
+            eval_dataset, _ = self.get_dataset(x_eval, y_eval, args=args, max_pairs=eval_max_pairs)
         else:
-            eval_dataloader = None
+            eval_dataset = None
 
-        total_train_steps = len(train_dataloader) * args.embedding_num_epochs
-        if args.max_steps > 0:
-            total_train_steps = min(args.max_steps, total_train_steps)
         logger.info("***** Running training *****")
-        logger.info(f"  Num unique pairs = {num_unique_pairs}")
-        logger.info(f"  Batch size = {batch_size}")
+        logger.info(f"  Num unique pairs = {len(train_dataset)}")
+        logger.info(f"  Batch size = {args.embedding_batch_size}")
         logger.info(f"  Num epochs = {args.embedding_num_epochs}")
-        logger.info(f"  Total optimization steps = {total_train_steps}")
 
-        warmup_steps = math.ceil(total_train_steps * args.warmup_proportion)
-        self._train_sentence_transformer(
-            self.model.model_body,
-            train_dataloader=train_dataloader,
-            eval_dataloader=eval_dataloader,
-            args=args,
-            loss_func=loss_func,
-            warmup_steps=warmup_steps,
-        )
+        self.st_trainer.train_dataset = train_dataset
+        self.st_trainer.eval_dataset = eval_dataset
+        self.st_trainer.loss = loss
+        if loss in (
+            losses.BatchAllTripletLoss,
+            losses.BatchHardTripletLoss,
+            losses.BatchSemiHardTripletLoss,
+            losses.BatchHardSoftMarginTripletLoss,
+            SupConLoss,
+        ):
+            self.st_trainer.args.batch_sampler = BatchSamplers.GROUP_BY_LABEL
+        self.st_trainer.train()
 
-    def get_dataloader(
+    def get_dataset(
         self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments, max_pairs: int = -1
-    ) -> Tuple[DataLoader, nn.Module, int, int]:
-        # sentence-transformers adaptation
-        input_data = [InputExample(texts=[text], label=label) for text, label in zip(x, y)]
-
+    ) -> Tuple[Dataset, nn.Module, int, int]:
         if args.loss in [
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
@@ -474,9 +579,7 @@ class Trainer(ColumnMappingMixin):
             losses.BatchHardSoftMarginTripletLoss,
             SupConLoss,
         ]:
-            data_sampler = SentenceLabelDataset(input_data, samples_per_label=args.samples_per_label)
-            batch_size = min(args.embedding_batch_size, len(data_sampler))
-            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=True)
+            dataset = Dataset.from_dict({"sentence": x, "label": y})
 
             if args.loss is losses.BatchHardSoftMarginTripletLoss:
                 loss = args.loss(
@@ -493,275 +596,25 @@ class Trainer(ColumnMappingMixin):
                 )
         else:
             data_sampler = ContrastiveDataset(
-                input_data,
+                x,
+                y,
                 self.model.multi_target_strategy,
                 args.num_iterations,
                 args.sampling_strategy,
                 max_pairs=max_pairs,
             )
-            batch_size = min(args.embedding_batch_size, len(data_sampler))
-            dataloader = DataLoader(data_sampler, batch_size=batch_size, drop_last=False)
+            dataset = Dataset.from_list(list(data_sampler))
             loss = args.loss(self.model.model_body)
 
-        return dataloader, loss, batch_size, len(data_sampler)
+        return dataset, loss
 
-    def log(self, args: TrainingArguments, logs: Dict[str, float]) -> None:
-        """
-        Log `logs` on the various objects watching training.
-
-        Subclass and override this method to inject custom behavior.
+    def _set_logs_prefix(self, logs_prefix: str) -> None:
+        """Set the logging prefix.
 
         Args:
-            logs (`Dict[str, float]`):
-                The values to log.
+            logs_mapper (str): The logging prefix, e.g. "aspect_embedding".
         """
-        logs = {self.logs_mapper.get(key, key): value for key, value in logs.items()}
-        if self.state.epoch is not None:
-            logs["epoch"] = round(self.state.epoch, 2)
-
-        output = {**logs, **{"step": self.state.global_step}}
-        self.state.log_history.append(output)
-        return self.callback_handler.on_log(args, self.state, self.control, logs)
-
-    def _set_logs_mapper(self, logs_mapper: Dict[str, str]) -> None:
-        """Set the logging mapper.
-
-        Args:
-            logs_mapper (str): The logging mapper, e.g. {"eval_embedding_loss": "eval_aspect_embedding_loss"}.
-        """
-        self.logs_mapper = logs_mapper
-
-    def _train_sentence_transformer(
-        self,
-        model_body: SentenceTransformer,
-        train_dataloader: DataLoader,
-        eval_dataloader: Optional[DataLoader],
-        args: TrainingArguments,
-        loss_func: nn.Module,
-        warmup_steps: int = 10000,
-    ) -> None:
-        """
-        Train the model with the given training objective
-        Each training objective is sampled in turn for one batch.
-        We sample only as many batches from each objective as there are in the smallest one
-        to make sure of equal training with each dataset.
-        """
-        # TODO: args.gradient_accumulation_steps
-        # TODO: fp16/bf16, etc.
-        # TODO: Safetensors
-
-        # Hardcoded training arguments
-        max_grad_norm = 1
-        weight_decay = 0.01
-
-        self.state.epoch = 0
-        start_time = time.time()
-        if args.max_steps > 0:
-            self.state.max_steps = args.max_steps
-        else:
-            self.state.max_steps = len(train_dataloader) * args.embedding_num_epochs
-        self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
-        steps_per_epoch = len(train_dataloader)
-
-        if args.use_amp:
-            scaler = torch.cuda.amp.GradScaler()
-
-        model_body.to(self.model.device)
-        loss_func.to(self.model.device)
-
-        # Use smart batching
-        train_dataloader.collate_fn = model_body.smart_batching_collate
-        if eval_dataloader:
-            eval_dataloader.collate_fn = model_body.smart_batching_collate
-
-        # Prepare optimizers
-        param_optimizer = list(loss_func.named_parameters())
-
-        no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-                "weight_decay": weight_decay,
-            },
-            {"params": [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
-        ]
-
-        optimizer = torch.optim.AdamW(optimizer_grouped_parameters, **{"lr": args.body_embedding_learning_rate})
-        scheduler_obj = model_body._get_scheduler(
-            optimizer, scheduler="WarmupLinear", warmup_steps=warmup_steps, t_total=self.state.max_steps
-        )
-        self.callback_handler.optimizer = optimizer
-        self.callback_handler.lr_scheduler = scheduler_obj
-        self.callback_handler.train_dataloader = train_dataloader
-        self.callback_handler.eval_dataloader = eval_dataloader
-
-        self.callback_handler.on_train_begin(args, self.state, self.control)
-
-        data_iterator = iter(train_dataloader)
-        skip_scheduler = False
-        for epoch in range(args.embedding_num_epochs):
-            self.control = self.callback_handler.on_epoch_begin(args, self.state, self.control)
-
-            loss_func.zero_grad()
-            loss_func.train()
-
-            for step in range(steps_per_epoch):
-                self.control = self.callback_handler.on_step_begin(args, self.state, self.control)
-
-                try:
-                    data = next(data_iterator)
-                except StopIteration:
-                    data_iterator = iter(train_dataloader)
-                    data = next(data_iterator)
-
-                features, labels = data
-                labels = labels.to(self.model.device)
-                features = list(map(lambda batch: batch_to_device(batch, self.model.device), features))
-
-                if args.use_amp:
-                    with autocast():
-                        loss_value = loss_func(features, labels)
-
-                    scale_before_step = scaler.get_scale()
-                    scaler.scale(loss_value).backward()
-                    scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(loss_func.parameters(), max_grad_norm)
-                    scaler.step(optimizer)
-                    scaler.update()
-
-                    skip_scheduler = scaler.get_scale() != scale_before_step
-                else:
-                    loss_value = loss_func(features, labels)
-                    loss_value.backward()
-                    torch.nn.utils.clip_grad_norm_(loss_func.parameters(), max_grad_norm)
-                    optimizer.step()
-
-                optimizer.zero_grad()
-
-                if not skip_scheduler:
-                    scheduler_obj.step()
-
-                self.state.global_step += 1
-                self.state.epoch = epoch + (step + 1) / steps_per_epoch
-                self.control = self.callback_handler.on_step_end(args, self.state, self.control)
-
-                self.maybe_log_eval_save(model_body, eval_dataloader, args, scheduler_obj, loss_func, loss_value)
-
-                if self.control.should_epoch_stop or self.control.should_training_stop:
-                    break
-
-            self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
-
-            self.maybe_log_eval_save(model_body, eval_dataloader, args, scheduler_obj, loss_func, loss_value)
-
-            if self.control.should_training_stop:
-                break
-
-        if self.args.load_best_model_at_end and self.state.best_model_checkpoint:
-            dir_name = Path(self.state.best_model_checkpoint).name
-            if dir_name.startswith("step_"):
-                step_to_load = dir_name[5:]
-                logger.info(f"Loading best SentenceTransformer model from step {step_to_load}.")
-                self.model.model_card_data.set_best_model_step(int(step_to_load))
-            sentence_transformer_kwargs = self.model.sentence_transformers_kwargs
-            sentence_transformer_kwargs["device"] = self.model.device
-            self.model.model_body = SentenceTransformer(
-                self.state.best_model_checkpoint, **sentence_transformer_kwargs
-            )
-            self.model.model_body.to(self.model.device)
-
-        # Ensure logging the speed metrics
-        num_train_samples = self.state.max_steps * args.embedding_batch_size  # * args.gradient_accumulation_steps
-        metrics = speed_metrics("train", start_time, num_samples=num_train_samples, num_steps=self.state.max_steps)
-        self.control.should_log = True
-        self.log(args, metrics)
-
-        self.control = self.callback_handler.on_train_end(args, self.state, self.control)
-
-    def maybe_log_eval_save(
-        self,
-        model_body: SentenceTransformer,
-        eval_dataloader: Optional[DataLoader],
-        args: TrainingArguments,
-        scheduler_obj,
-        loss_func,
-        loss_value: torch.Tensor,
-    ) -> None:
-        if self.control.should_log:
-            learning_rate = scheduler_obj.get_last_lr()[0]
-            metrics = {"embedding_loss": round(loss_value.item(), 4), "learning_rate": learning_rate}
-            self.control = self.log(args, metrics)
-
-        eval_loss = None
-        if self.control.should_evaluate and eval_dataloader is not None:
-            eval_loss = self._evaluate_with_loss(model_body, eval_dataloader, args, loss_func)
-            learning_rate = scheduler_obj.get_last_lr()[0]
-            metrics = {"eval_embedding_loss": round(eval_loss, 4), "learning_rate": learning_rate}
-            self.control = self.log(args, metrics)
-
-            self.control = self.callback_handler.on_evaluate(args, self.state, self.control, metrics)
-
-            loss_func.zero_grad()
-            loss_func.train()
-
-        if self.control.should_save:
-            checkpoint_dir = self._checkpoint(self.args.output_dir, args.save_total_limit, self.state.global_step)
-            self.control = self.callback_handler.on_save(self.args, self.state, self.control)
-
-            if eval_loss is not None and (self.state.best_metric is None or eval_loss < self.state.best_metric):
-                self.state.best_metric = eval_loss
-                self.state.best_model_checkpoint = checkpoint_dir
-
-    def _evaluate_with_loss(
-        self,
-        model_body: SentenceTransformer,
-        eval_dataloader: DataLoader,
-        args: TrainingArguments,
-        loss_func: nn.Module,
-    ) -> float:
-        model_body.eval()
-        losses = []
-        eval_steps = (
-            min(len(eval_dataloader), args.eval_max_steps) if args.eval_max_steps != -1 else len(eval_dataloader)
-        )
-        for step, data in enumerate(
-            tqdm(iter(eval_dataloader), total=eval_steps, leave=False, disable=not args.show_progress_bar), start=1
-        ):
-            features, labels = data
-            labels = labels.to(self.model.device)
-            features = list(map(lambda batch: batch_to_device(batch, self.model.device), features))
-
-            if args.use_amp:
-                with autocast():
-                    loss_value = loss_func(features, labels)
-
-                losses.append(loss_value.item())
-            else:
-                losses.append(loss_func(features, labels).item())
-
-            if step >= eval_steps:
-                break
-
-        model_body.train()
-        return sum(losses) / len(losses)
-
-    def _checkpoint(self, checkpoint_path: str, checkpoint_save_total_limit: int, step: int) -> None:
-        # Delete old checkpoints
-        if checkpoint_save_total_limit is not None and checkpoint_save_total_limit > 0:
-            old_checkpoints = []
-            for subdir in Path(checkpoint_path).glob("step_*"):
-                if subdir.name[5:].isdigit() and (
-                    self.state.best_model_checkpoint is None or subdir != Path(self.state.best_model_checkpoint)
-                ):
-                    old_checkpoints.append({"step": int(subdir.name[5:]), "path": str(subdir)})
-
-            if len(old_checkpoints) > checkpoint_save_total_limit - 1:
-                old_checkpoints = sorted(old_checkpoints, key=lambda x: x["step"])
-                shutil.rmtree(old_checkpoints[0]["path"])
-
-        checkpoint_file_path = str(Path(checkpoint_path) / f"step_{step}")
-        self.model.save_pretrained(checkpoint_file_path)
-        return checkpoint_file_path
+        self.st_trainer._set_logs_prefix(logs_prefix)
 
     def train_classifier(
         self, x_train: List[str], y_train: Union[List[int], List[List[int]]], args: Optional[TrainingArguments] = None

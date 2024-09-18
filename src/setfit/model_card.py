@@ -38,14 +38,6 @@ class ModelCardCallback(TrainerCallback):
         super().__init__()
         self.trainer = trainer
 
-        callbacks = [
-            callback
-            for callback in self.trainer.callback_handler.callbacks
-            if isinstance(callback, CodeCarbonCallback)
-        ]
-        if callbacks:
-            trainer.model.model_card_data.code_carbon_callback = callbacks[0]
-
     def on_init_end(
         self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: "SetFitModel", **kwargs
     ):
@@ -109,11 +101,14 @@ class ModelCardCallback(TrainerCallback):
         metrics: Dict[str, float],
         **kwargs,
     ) -> None:
+        keys = {"eval_embedding_loss", "eval_polarity_embedding_loss", "eval_aspect_embedding_loss"} & set(metrics)
+        if not keys:
+            return
         if (
             model.model_card_data.eval_lines_list
             and model.model_card_data.eval_lines_list[-1]["Step"] == state.global_step
         ):
-            model.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics["eval_embedding_loss"]
+            model.model_card_data.eval_lines_list[-1]["Validation Loss"] = metrics[keys.pop()]
         else:
             model.model_card_data.eval_lines_list.append(
                 {
@@ -121,7 +116,7 @@ class ModelCardCallback(TrainerCallback):
                     "Epoch": state.epoch,
                     "Step": state.global_step,
                     "Training Loss": "-",
-                    "Validation Loss": metrics["eval_embedding_loss"],
+                    "Validation Loss": metrics[keys.pop()],
                 }
             )
 
