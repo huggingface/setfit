@@ -89,33 +89,33 @@ class ContrastiveDataset(IterableDataset):
 
     def generate_pairs(self) -> None:
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
-            if (_label == label) and ((self.max_pairs == -1) or (len(self.pos_pairs) < self.max_pairs)):
-                self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
-            elif (_label != label) and ((self.max_pairs == -1) or (len(self.neg_pairs) < self.max_pairs)):
+            is_positive = _label == label
+            is_positive_full = self.max_pairs != -1 and len(self.pos_pairs) >= self.max_pairs
+            is_negative_full = self.max_pairs != -1 and len(self.neg_pairs) >= self.max_pairs
+
+            if is_positive:
+                if not is_positive_full:
+                    self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
+            elif not is_negative_full:
                 self.neg_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 0.0})
-            elif (
-                self.max_pairs != -1
-                and len(self.pos_pairs) >= self.max_pairs
-                and len(self.neg_pairs) >= self.max_pairs
-            ):
+
+            if is_positive_full and is_negative_full:
                 break
 
     def generate_multilabel_pairs(self) -> None:
         for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
-            if any(np.logical_and(_label, label)) and (
-                (self.max_pairs == -1) or (len(self.pos_pairs) < self.max_pairs)
-            ):
-                # logical_and checks if labels are both set for each class
-                self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
-            elif any(np.logical_xor(_label, label)) and (
-                (self.max_pairs == -1) or (len(self.neg_pairs) < self.max_pairs)
-            ):
+            # logical_and checks if labels are both set for each class
+            is_positive = any(np.logical_and(_label, label))
+            is_positive_full = self.max_pairs != -1 and len(self.pos_pairs) >= self.max_pairs
+            is_negative_full = self.max_pairs != -1 and len(self.neg_pairs) >= self.max_pairs
+
+            if is_positive:
+                if not is_positive_full:
+                    self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
+            elif not is_negative_full:
                 self.neg_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 0.0})
-            elif (
-                self.max_pairs != -1
-                and len(self.pos_pairs) >= self.max_pairs
-                and len(self.neg_pairs) >= self.max_pairs
-            ):
+
+            if is_positive_full and is_negative_full:
                 break
 
     def get_positive_pairs(self) -> List[Dict[str, Union[str, float]]]:
