@@ -44,7 +44,8 @@ class ContrastiveDataset(IterableDataset):
         """Generates positive and negative text pairs for contrastive learning.
 
         Args:
-            examples (InputExample): text and labels in a text transformer dataclass
+            sentences (List[str]): text sentences to generate pairs from
+            labels (List[Union[int, float]]): labels for each sentence
             multilabel: set to process "multilabel" labels array
             sampling_strategy: "unique", "oversampling", or "undersampling"
             num_iterations: if provided explicitly sets the number of pairs to be generated
