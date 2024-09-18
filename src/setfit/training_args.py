@@ -219,7 +219,7 @@ class TrainingArguments:
     save_total_limit: Optional[int] = 1
 
     load_best_model_at_end: bool = False
-    metric_for_best_model: Optional[str] = field(default=None, repr=False)
+    metric_for_best_model: Optional[str] = field(default="embedding_loss", repr=False)
     greater_is_better: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:

@@ -78,9 +78,17 @@ class AbsaTrainer(ColumnMappingMixin):
             model.aspect_model, model.polarity_model, eval_dataset
         )
 
+        # Set a better default value for the metric for best model for the aspect and polarity models
+        aspect_args = args if args is not None else TrainingArguments()
+        polarity_args = (polarity_args or args or TrainingArguments()).copy()
+        if aspect_args.metric_for_best_model == "embedding_loss":
+            aspect_args.metric_for_best_model = "aspect_embedding_loss"
+        if polarity_args.metric_for_best_model == "embedding_loss":
+            polarity_args.metric_for_best_model = "polarity_embedding_loss"
+
         self.aspect_trainer = Trainer(
             model.aspect_model,
-            args=args,
+            args=aspect_args,
             train_dataset=aspect_train_dataset,
             eval_dataset=aspect_eval_dataset,
             metric=metric,
@@ -88,9 +96,10 @@ class AbsaTrainer(ColumnMappingMixin):
             callbacks=callbacks,
         )
         self.aspect_trainer._set_logs_prefix("aspect_embedding")
+
         self.polarity_trainer = Trainer(
             model.polarity_model,
-            args=polarity_args or args,
+            args=polarity_args,
             train_dataset=polarity_train_dataset,
             eval_dataset=polarity_eval_dataset,
             metric=metric,
