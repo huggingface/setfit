@@ -59,11 +59,15 @@ trainer.train()
 SetFit supports custom callbacks in the same way that `transformers` does: by subclassing [`TrainerCallback`](https://huggingface.co/docs/transformers/main_classes/callback#transformers.TrainerCallback). This class implements a lot of `on_...` methods that can be overridden. For example, the following script shows a custom callback that saves plots of the tSNE of the training and evaluation embeddings during training.
 
 ```py
+import os
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
 class EmbeddingPlotCallback(TrainerCallback):
     """Simple embedding plotting callback that plots the tSNE of the training and evaluation datasets throughout training."""
+    def on_init_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        os.makedirs("logs", exist_ok=True)
+
     def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, model: SetFitModel, **kwargs):
         train_embeddings = model.encode(train_dataset["text"])
         eval_embeddings = model.encode(eval_dataset["text"])
