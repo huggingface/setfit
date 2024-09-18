@@ -39,8 +39,8 @@ The model has been trained using an efficient few\-shot learning technique that 
 ### Model Labels
 \| Label\s+\| Examples\s+\|
 \|:-+\|:-+\|
-\| negative\s+\| [^\|]+ \|
 \| positive\s+\| [^\|]+ \|
+\| negative\s+\| [^\|]+ \|
 
 ## Evaluation
 
@@ -97,9 +97,9 @@ preds = model\(".+"\)
 ## Training Details
 
 ### Training Set Metrics
-\| Training set \| Min \| Median  \| Max \|
-\|:-------------\|:----\|:--------\|:----\|
-\| Word count   \| 2   \| 11.4375 \| 33  \|
+\| Training set \| Min \| Median \| Max \|
+\|:-------------\|:----\|:-------\|:----\|
+\| Word count   \| 3   \| 7.875  \| 18  \|
 
 \| Label    \| Training Sample Count \|
 \|:---------\|:----------------------\|

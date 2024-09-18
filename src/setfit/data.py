@@ -148,10 +148,8 @@ def sample_dataset(dataset: Dataset, label_column: str = "label", num_samples: i
     shuffled_dataset = dataset.shuffle(seed=seed)
 
     df = shuffled_dataset.to_pandas()
-    df = df.groupby(label_column)
-
-    # sample num_samples, or at least as much as possible
-    df = df.apply(lambda x: x.sample(min(num_samples, len(x)), random_state=seed))
+    # Sample (at most) num_samples examples per class
+    df = df.groupby(label_column).head(n=num_samples)
     df = df.reset_index(drop=True)
 
     all_samples = Dataset.from_pandas(df, features=dataset.features)

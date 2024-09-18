@@ -91,7 +91,7 @@ class SetFitHead(models.Dense):
         self.temperature = temperature
         self.eps = eps
         self.bias = bias
-        self._device = device or "cuda" if torch.cuda.is_available() else "cpu"
+        self._device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.multitarget = multitarget
 
         self.to(self._device)
