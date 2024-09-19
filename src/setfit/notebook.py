@@ -4,6 +4,11 @@ from transformers.utils.notebook import NotebookProgressCallback
 
 
 class SetFitNotebookProgressCallback(NotebookProgressCallback):
+    """
+    A variation of NotebookProgressCallback that accepts logs/metrics other than "loss" and "eval_loss".
+    In particular, it accepts "embedding_loss", "aspect_embedding_loss", and "polarity_embedding_loss"
+    and the corresponding metrics for the validation set.
+    """
     def on_log(self, *args, logs=None, **kwargs):
         if logs is not None:
             logs = {key if key != "embedding_loss" else "loss": value for key, value in logs.items()}
