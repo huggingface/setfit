@@ -11,7 +11,7 @@ from sentence_transformers.training_args import BatchSamplers
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
 from transformers.integrations import CodeCarbonCallback
-from transformers.trainer_callback import DefaultFlowCallback, IntervalStrategy, ProgressCallback, TrainerCallback
+from transformers.trainer_callback import IntervalStrategy, TrainerCallback
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 from transformers.utils.import_utils import is_in_notebook
 
@@ -34,15 +34,6 @@ logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
 
-DEFAULT_CALLBACKS = [DefaultFlowCallback]
-DEFAULT_PROGRESS_CALLBACK = ProgressCallback
-
-if is_in_notebook():
-    from transformers.utils.notebook import NotebookProgressCallback
-
-    DEFAULT_PROGRESS_CALLBACK = NotebookProgressCallback
-
-
 class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
     """
     Subclass of SentenceTransformerTrainer that is backwards compatible with the SetFit API.
@@ -63,6 +54,14 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
 
             if isinstance(callback, STModelCardCallback):
                 self.remove_callback(callback)
+
+        if is_in_notebook():
+            from transformers.utils.notebook import NotebookProgressCallback
+
+            from setfit.notebook import SetFitNotebookProgressCallback
+
+            if self.pop_callback(NotebookProgressCallback):
+                self.add_callback(SetFitNotebookProgressCallback)
 
         def overwritten_call_event(self, event, args, state, control, **kwargs):
             for callback in self.callbacks:
