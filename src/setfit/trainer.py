@@ -72,7 +72,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
                     model=self.setfit_model,
                     st_model=self.model,
                     st_args=args,
-                    tokenizer=self.tokenizer,
+                    tokenizer=self.processing_class,
                     optimizer=self.optimizer,
                     lr_scheduler=self.lr_scheduler,
                     train_dataloader=self.train_dataloader,
@@ -156,9 +156,9 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         """
         self.logs_prefix = logs_prefix
 
-    def log(self, logs: Dict[str, float]) -> None:
+    def log(self, logs: Dict[str, float], start_time: Optional[float] = None) -> None:
         logs = {f"{self.logs_prefix}_{k}" if k == "loss" else k: v for k, v in logs.items()}
-        return super().log(logs)
+        return super().log(logs, start_time)
 
     def evaluate(
         self,
