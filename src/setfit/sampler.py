@@ -82,7 +82,7 @@ class ContrastiveDatasetIt(IterableDataset):
         labels: List[Union[int, float]],
         multilabel: bool = False,  # False for now
         num_iterations: Optional[None] = None,
-        sampling_strategy: str = "oversampling",
+        sampling_strategy: Literal["oversampling", "undersampling", "unique"] = "oversampling",
         max_pairs: int = -1,
     ) -> None:
         """Generates positive and negative text pairs for contrastive learning.
@@ -107,46 +107,39 @@ class ContrastiveDatasetIt(IterableDataset):
         self.sentence_labels = list(zip(self.sentences, self.labels))
         self.max_pos_or_neg = np.inf if max_pairs == -1 else max_pairs // 2
 
-        from collections import Counter
-        from math import prod
+        sampling_strategy = SamplingStrategy(sampling_strategy)
+
+        # calculate number of positive and negative combinations
         label_counts = Counter(labels)
         # postive number of pairs from an n element set without replacement
         self.total_pos_pairs = int(sum([n * (n - 1) / 2 for n in label_counts.values()]))
         # negative product
         self.total_neg_pairs = prod(label_counts.values())
 
-        self.generated_pos_pairs = 0
-        self.generated_neg_pairs = 0
-
         if num_iterations is not None and num_iterations > 0:
             self.len_pos_pairs = num_iterations * len(self.sentences)
             self.len_neg_pairs = num_iterations * len(self.sentences)
 
-        elif sampling_strategy == "unique":
+        elif sampling_strategy == SamplingStrategy.UNIQUE:
             self.len_pos_pairs = int(np.min([self.total_pos_pairs, self.max_pos_or_neg]))
             self.len_neg_pairs = int(np.min([self.total_neg_pairs, self.max_pos_or_neg]))
 
-        elif sampling_strategy == "undersampling":
+        elif sampling_strategy == SamplingStrategy.UNDERSAMPLING:
             self.len_pos_pairs = int(np.min([min(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
             self.len_neg_pairs = int(np.min([min(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
 
-        elif sampling_strategy == "oversampling":
+        elif sampling_strategy == SamplingStrategy.OVERSAMPLING:
             self.len_pos_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
             self.len_neg_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
 
-        else:
-            raise ValueError("Invalid sampling strategy. Must be one of 'unique', 'oversampling', or 'undersampling'.")
-
     # generate pair functions are not ideal but still wont blow the memory if you decide to train on big dataset
     def generate_positive_pair(self):
-
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
                 is_positive = _label == label
 
-                if is_positive and self.generated_pos_pairs <= self.len_pos_pairs:
-                    self.generated_pos_pairs += 1
+                if is_positive:
                     yield {"sentence_1": _text, "sentence_2": text, "label": 1.0}
             # restart
             pair_generator = shuffle_combinations(self.sentence_labels)
@@ -157,25 +150,25 @@ class ContrastiveDatasetIt(IterableDataset):
             for (_text, _label), (text, label) in pair_generator:
                 is_negative = _label != label
 
-                if is_negative and self.generated_neg_pairs <= self.len_neg_pairs:
-                    self.generated_neg_pairs += 1
+                if is_negative:
                     yield {"sentence_1": _text, "sentence_2": text, "label": 0.0}
-            # restart
             pair_generator = shuffle_combinations(self.sentence_labels)
 
     def __iter__(self):
-        # reset to starting values(state) so that iterator can be recreated and used again if needed.
-        self.generated_pos_pairs = 0
-        self.generated_neg_pairs = 0
+
+        generated_pos_pairs = 0
+        generated_neg_pairs = 0
 
         pos_generator = self.generate_positive_pair()
         neg_generator = self.generate_negative_pair()
 
-        while (self.generated_pos_pairs + self.generated_neg_pairs) < len(self):
-            if self.generated_pos_pairs < self.len_pos_pairs:
+        while (generated_pos_pairs + generated_neg_pairs) < len(self):
+            if generated_pos_pairs < self.len_pos_pairs:
                 yield next(pos_generator)
-            if self.generated_neg_pairs < self.len_neg_pairs:
+                generated_pos_pairs += 1
+            if generated_neg_pairs < self.len_neg_pairs:
                 yield next(neg_generator)
+                generated_neg_pairs += 1
 
     def __len__(self) -> int:
         return self.len_pos_pairs + self.len_neg_pairs
