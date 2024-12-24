@@ -1,15 +1,59 @@
 from itertools import zip_longest
-from typing import Dict, Generator, Iterable, List, Optional, Union
+from typing import Dict, Generator, Iterable, List, Literal, Optional, Union
+from collections import Counter
+from math import prod
 
 import numpy as np
 import torch
 from torch.utils.data import IterableDataset
+from transformers.utils import ExplicitEnum
 
 from . import logging
 
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
+
+
+class SamplingStrategy(ExplicitEnum):
+    """
+    ## Oversampling
+
+    By default, SetFit applies the oversampling strategy for its contrastive pairs. This strategy samples an equal amount of positive and negative training
+    pairs, oversampling the minority pair type to match that of the majority pair type. As the number of negative pairs is generally larger than the number
+    of positive pairs, this usually involves oversampling the positive pairs.
+
+    In our running example, this would involve oversampling the 62 positive pairs up to 128, resulting in one epoch of 128 + 128 = 256 pairs. In summary:
+
+    * Y An equal amount of positive and negative pairs are sampled.
+    * Y Every possible pair is used.
+    * X There is some data duplication.
+
+    ## Undersampling
+
+    Like oversampling, this strategy samples an equal amount of positive and negative training pairs. However, it undersamples the majority pair type to match
+    that of the minority pair type. This usually involves undersampling the negative pairs to match the positive pairs.
+
+    In our running example, this would involve undersampling the 128 negative pairs down to 62, resulting in one epoch of 62 + 62 = 124 pairs. In summary:
+
+    * Y An equal amount of positive and negative pairs are sampled.
+    * X **Not** every possible pair is used.
+    * Y There is **no** data duplication.
+
+    ## Unique
+
+    Thirdly, the unique strategy does not sample an equal amount of positive and negative training pairs. Instead, it simply samples all possible pairs exactly
+     once. No form of oversampling or undersampling is used here.
+
+    In our running example, this would involve sampling all negative and positive pairs, resulting in one epoch of 62 + 128 = 190 pairs. In summary:
+
+    * X **Not** an equal amount of positive and negative pairs are sampled.
+    * Y Every possible pair is used.
+    * Y There is **no** data duplication.
+    """
+    OVERSAMPLING = "oversampling"
+    UNDERSAMPLING = "undersampling"
+    UNIQUE = "unique"
 
 
 def shuffle_combinations(iterable: Iterable, replacement: bool = False) -> Generator:
