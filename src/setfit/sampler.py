@@ -105,6 +105,7 @@ class ContrastiveDatasetIt(IterableDataset):
         self.labels = labels
         self.sentence_labels = list(zip(self.sentences, self.labels))
         self.max_pos_or_neg = np.inf if max_pairs == -1 else max_pairs // 2
+        self._multilabel = multilabel
 
         sampling_strategy = SamplingStrategy(sampling_strategy)
 
@@ -136,7 +137,10 @@ class ContrastiveDatasetIt(IterableDataset):
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
-                is_positive = _label == label
+                if self._multilabel:
+                    is_positive = any(np.logical_and(_label, label))
+                else:
+                    is_positive = _label == label
 
                 if is_positive:
                     yield {"sentence_1": _text, "sentence_2": text, "label": 1.0}
@@ -147,7 +151,10 @@ class ContrastiveDatasetIt(IterableDataset):
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
-                is_negative = _label != label
+                if self._multilabel:
+                    is_negative = not any(np.logical_and(_label, label))
+                else:
+                    is_negative = _label != label
 
                 if is_negative:
                     yield {"sentence_1": _text, "sentence_2": text, "label": 0.0}
