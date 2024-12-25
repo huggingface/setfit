@@ -1,4 +1,4 @@
-from itertools import combinations, zip_longest
+from itertools import combinations
 from typing import Dict, Generator, Iterable, List, Literal, Optional, Union
 from collections import Counter
 
@@ -74,7 +74,7 @@ def shuffle_combinations(iterable: Iterable, replacement: bool = False) -> Gener
         yield iterable[_idx], iterable[idx]
 
 
-class ContrastiveDatasetIt(IterableDataset):
+class ContrastiveDataset(IterableDataset):
     def __init__(
         self,
         sentences: List[str],
@@ -132,8 +132,7 @@ class ContrastiveDatasetIt(IterableDataset):
             self.len_pos_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
             self.len_neg_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
 
-    # generate pair functions are not ideal but still wont blow the memory if you decide to train on big dataset
-    def generate_positive_pair(self):
+    def generate_positive_pair(self) -> Generator[Dict[str, Union[str, float]]]:
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
@@ -147,7 +146,7 @@ class ContrastiveDatasetIt(IterableDataset):
             # restart
             pair_generator = shuffle_combinations(self.sentence_labels)
 
-    def generate_negative_pair(self):
+    def generate_negative_pair(self) -> Generator[Dict[str, Union[str, float]]]:
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
@@ -160,7 +159,7 @@ class ContrastiveDatasetIt(IterableDataset):
                     yield {"sentence_1": _text, "sentence_2": text, "label": 0.0}
             pair_generator = shuffle_combinations(self.sentence_labels)
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[Dict[str, Union[str, float]]]:
 
         generated_pos_pairs = 0
         generated_neg_pairs = 0
@@ -175,122 +174,6 @@ class ContrastiveDatasetIt(IterableDataset):
             if generated_neg_pairs < self.len_neg_pairs:
                 yield next(neg_generator)
                 generated_neg_pairs += 1
-
-    def __len__(self) -> int:
-        return self.len_pos_pairs + self.len_neg_pairs
-
-
-class ContrastiveDataset(IterableDataset):
-    def __init__(
-        self,
-        sentences: List[str],
-        labels: List[Union[int, float]],
-        multilabel: bool,
-        num_iterations: Optional[None] = None,
-        sampling_strategy: str = "oversampling",
-        max_pairs: int = -1,
-    ) -> None:
-        """Generates positive and negative text pairs for contrastive learning.
-
-        Args:
-            sentences (List[str]): text sentences to generate pairs from
-            labels (List[Union[int, float]]): labels for each sentence
-            multilabel: set to process "multilabel" labels array
-            sampling_strategy: "unique", "oversampling", or "undersampling"
-            num_iterations: if provided explicitly sets the number of pairs to be generated
-                where n_pairs = n_iterations * n_sentences * 2 (for pos & neg pairs)
-            max_pairs: If not -1, then we only sample pairs until we have certainly reached
-                max_pairs pairs.
-        """
-        super().__init__()
-        self.pos_index = 0
-        self.neg_index = 0
-        self.pos_pairs = []
-        self.neg_pairs = []
-        self.sentences = sentences
-        self.labels = labels
-        self.sentence_labels = list(zip(self.sentences, self.labels))
-        self.max_pos_or_neg = -1 if max_pairs == -1 else max_pairs // 2
-
-        if multilabel:
-            self.generate_multilabel_pairs()
-        else:
-            self.generate_pairs()
-
-        if num_iterations is not None and num_iterations > 0:
-            self.len_pos_pairs = num_iterations * len(self.sentences)
-            self.len_neg_pairs = num_iterations * len(self.sentences)
-
-        elif sampling_strategy == "unique":
-            self.len_pos_pairs = len(self.pos_pairs)
-            self.len_neg_pairs = len(self.neg_pairs)
-
-        elif sampling_strategy == "undersampling":
-            self.len_pos_pairs = min(len(self.pos_pairs), len(self.neg_pairs))
-            self.len_neg_pairs = min(len(self.pos_pairs), len(self.neg_pairs))
-
-        elif sampling_strategy == "oversampling":
-            self.len_pos_pairs = max(len(self.pos_pairs), len(self.neg_pairs))
-            self.len_neg_pairs = max(len(self.pos_pairs), len(self.neg_pairs))
-
-        else:
-            raise ValueError("Invalid sampling strategy. Must be one of 'unique', 'oversampling', or 'undersampling'.")
-
-    def generate_pairs(self) -> None:
-        for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
-            is_positive = _label == label
-            is_positive_full = self.max_pos_or_neg != -1 and len(self.pos_pairs) >= self.max_pos_or_neg
-            is_negative_full = self.max_pos_or_neg != -1 and len(self.neg_pairs) >= self.max_pos_or_neg
-
-            if is_positive:
-                if not is_positive_full:
-                    self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
-            elif not is_negative_full:
-                self.neg_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 0.0})
-
-            if is_positive_full and is_negative_full:
-                break
-
-    def generate_multilabel_pairs(self) -> None:
-        for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
-            # logical_and checks if labels are both set for each class
-            is_positive = any(np.logical_and(_label, label))
-            is_positive_full = self.max_pos_or_neg != -1 and len(self.pos_pairs) >= self.max_pos_or_neg
-            is_negative_full = self.max_pos_or_neg != -1 and len(self.neg_pairs) >= self.max_pos_or_neg
-
-            if is_positive:
-                if not is_positive_full:
-                    self.pos_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 1.0})
-            elif not is_negative_full:
-                self.neg_pairs.append({"sentence_1": _text, "sentence_2": text, "label": 0.0})
-
-            if is_positive_full and is_negative_full:
-                break
-
-    def get_positive_pairs(self) -> List[Dict[str, Union[str, float]]]:
-        pairs = []
-        for _ in range(self.len_pos_pairs):
-            if self.pos_index >= len(self.pos_pairs):
-                self.pos_index = 0
-            pairs.append(self.pos_pairs[self.pos_index])
-            self.pos_index += 1
-        return pairs
-
-    def get_negative_pairs(self) -> List[Dict[str, Union[str, float]]]:
-        pairs = []
-        for _ in range(self.len_neg_pairs):
-            if self.neg_index >= len(self.neg_pairs):
-                self.neg_index = 0
-            pairs.append(self.neg_pairs[self.neg_index])
-            self.neg_index += 1
-        return pairs
-
-    def __iter__(self):
-        for pos_pair, neg_pair in zip_longest(self.get_positive_pairs(), self.get_negative_pairs()):
-            if pos_pair is not None:
-                yield pos_pair
-            if neg_pair is not None:
-                yield neg_pair
 
     def __len__(self) -> int:
         return self.len_pos_pairs + self.len_neg_pairs
