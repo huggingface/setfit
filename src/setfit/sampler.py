@@ -185,7 +185,6 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
         sentences: List[str],
         cos_sim_matrix: torch.Tensor,
         num_iterations: Optional[None] = None,
-        sampling_strategy: str = "oversampling",
         max_pairs: int = -1,
     ) -> None:
         self.cos_sim_matrix = cos_sim_matrix
@@ -194,23 +193,16 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
             [0] * len(sentences),
             multilabel=False,
             num_iterations=num_iterations,
-            sampling_strategy=sampling_strategy,
+            sampling_strategy=SamplingStrategy.UNIQUE,  # use unique to create all pos pairs, implementation choice to use generate_positive_pair method (*)
             max_pairs=max_pairs,
         )
-        # Internally we store all pairs in pos_pairs, regardless of sampling strategy.
-        # After all, without labels, there isn't much of a strategy.
-        self.sentence_labels = list(enumerate(self.sentences))
 
-        self.len_neg_pairs = 0
-        if num_iterations is not None and num_iterations > 0:
-            self.len_pos_pairs = num_iterations * len(self.sentences)
-        else:
-            self.len_pos_pairs = len(self.pos_pairs)
+        self.sentence_labels = list(zip(self.sentences, range(len(self.sentences))))
 
-    def generate_pairs(self) -> None:
-        for (text_one, id_one), (text_two, id_two) in shuffle_combinations(self.sentence_labels):
-            self.pos_pairs.append(
-                {"sentence_1": text_one, "sentence_2": text_two, "label": self.cos_sim_matrix[id_one][id_two]}
-            )
-            if self.max_pos_or_neg != -1 and len(self.pos_pairs) > self.max_pos_or_neg:
-                break
+    # (*) Internally we use generate_positive_pair
+    def generate_positive_pair(self) -> Generator[Dict[str, Union[str, float]]]:
+        pair_generator = shuffle_combinations(self.sentence_labels)
+        while True:
+            for (text_one, id_one), (text_two, id_two) in pair_generator:
+                yield {"sentence_1": text_one, "sentence_2": text_two, "label": self.cos_sim_matrix[id_one][id_two]}
+            pair_generator = shuffle_combinations(self.sentence_labels)

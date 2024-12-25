@@ -92,7 +92,7 @@ class DistillationTrainer(Trainer):
         data_sampler = ContrastiveDistillationDataset(
             x, cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
         )
-        dataset = Dataset.from_list(list(data_sampler))
+        dataset = Dataset.from_generator(data_sampler.__iter__)
         loss = args.loss(self.model.model_body)
         return dataset, loss
 
