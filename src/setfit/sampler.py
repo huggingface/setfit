@@ -1,5 +1,5 @@
 from itertools import combinations
-from typing import Dict, Generator, Iterable, List, Literal, Optional, Union
+from typing import Dict, Generator, Iterable, List, Literal, Optional, Union, TypeAlias
 from collections import Counter
 
 import numpy as np
@@ -12,6 +12,8 @@ from . import logging
 
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
+
+SentencePair: TypeAlias = Dict[str, Union[str, float]]
 
 
 class SamplingStrategy(ExplicitEnum):
@@ -132,7 +134,7 @@ class ContrastiveDataset(IterableDataset):
             self.len_pos_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
             self.len_neg_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
 
-    def generate_positive_pair(self) -> Generator[Dict[str, Union[str, float]]]:
+    def generate_positive_pair(self) -> Generator[SentencePair, None, None]:
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
@@ -146,7 +148,7 @@ class ContrastiveDataset(IterableDataset):
             # restart
             pair_generator = shuffle_combinations(self.sentence_labels)
 
-    def generate_negative_pair(self) -> Generator[Dict[str, Union[str, float]]]:
+    def generate_negative_pair(self) -> Generator[SentencePair, None, None]:
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (_text, _label), (text, label) in pair_generator:
@@ -159,7 +161,7 @@ class ContrastiveDataset(IterableDataset):
                     yield {"sentence_1": _text, "sentence_2": text, "label": 0.0}
             pair_generator = shuffle_combinations(self.sentence_labels)
 
-    def __iter__(self) -> Generator[Dict[str, Union[str, float]]]:
+    def __iter__(self) -> Generator[SentencePair, None, None]:
 
         generated_pos_pairs = 0
         generated_neg_pairs = 0
@@ -200,7 +202,7 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
         self.sentence_labels = list(zip(self.sentences, range(len(self.sentences))))
 
     # (*) Internally we use generate_positive_pair
-    def generate_positive_pair(self) -> Generator[Dict[str, Union[str, float]]]:
+    def generate_positive_pair(self) -> Generator[SentencePair, None, None]:
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (text_one, id_one), (text_two, id_two) in pair_generator:
