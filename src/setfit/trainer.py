@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, 
 import evaluate
 import torch
 from datasets import Dataset, DatasetDict
+from packaging.version import parse as parse_version
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
 from sentence_transformers.training_args import BatchSamplers
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
+from transformers import __version__ as transformers_version
 from transformers.integrations import CodeCarbonCallback
 from transformers.trainer_callback import IntervalStrategy, TrainerCallback
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
@@ -72,7 +74,11 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
                     model=self.setfit_model,
                     st_model=self.model,
                     st_args=args,
-                    tokenizer=self.processing_class,
+                    tokenizer=(
+                        self.processing_class
+                        if parse_version(transformers_version) >= parse_version("4.46.0")
+                        else self.tokenizer
+                    ),
                     optimizer=self.optimizer,
                     lr_scheduler=self.lr_scheduler,
                     train_dataloader=self.train_dataloader,
@@ -156,9 +162,9 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         """
         self.logs_prefix = logs_prefix
 
-    def log(self, logs: Dict[str, float], start_time: Optional[float] = None) -> None:
+    def log(self, logs: Dict[str, float], *args, **kwargs) -> None:
         logs = {f"{self.logs_prefix}_{k}" if k == "loss" else k: v for k, v in logs.items()}
-        return super().log(logs, start_time)
+        return super().log(logs, *args, **kwargs)
 
     def evaluate(
         self,
@@ -792,8 +798,8 @@ class Trainer(ColumnMappingMixin):
                 Configuration object to be saved alongside the model weights.
             commit_message (`str`, *optional*):
                 Message to commit while pushing.
-            private (`bool`, *optional*, defaults to `False`):
-                Whether the repository created should be private.
+            private (`bool`, *optional*):
+                Whether to make the repo private. If `None` (default), the repo will be public unless the organization's default is private. This value is ignored if the repo already exists.
             api_endpoint (`str`, *optional*):
                 The API endpoint to use when pushing the model to the hub.
             token (`str`, *optional*):

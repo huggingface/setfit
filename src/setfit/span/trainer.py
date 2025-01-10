@@ -291,8 +291,8 @@ class AbsaTrainer(ColumnMappingMixin):
                 Configuration object to be saved alongside the model weights.
             commit_message (`str`, *optional*):
                 Message to commit while pushing.
-            private (`bool`, *optional*, defaults to `False`):
-                Whether the repository created should be private.
+            private (`bool`, *optional*):
+                Whether to make the repo private. If `None` (default), the repo will be public unless the organization's default is private. This value is ignored if the repo already exists.
             api_endpoint (`str`, *optional*):
                 The API endpoint to use when pushing the model to the hub.
             token (`str`, *optional*):
