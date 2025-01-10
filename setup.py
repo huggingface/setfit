@@ -15,7 +15,7 @@ REQUIRED_PKGS = [
     "sentence-transformers[train]>=3",
     "transformers>=4.41.0",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.23.0",
+    "huggingface_hub>=0.24.0",
     "scikit-learn",
     "packaging",
 ]
