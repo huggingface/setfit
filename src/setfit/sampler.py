@@ -1,6 +1,6 @@
+from collections import Counter
 from itertools import combinations
 from typing import Dict, Generator, Iterable, List, Literal, Optional, Union
-from collections import Counter
 
 import numpy as np
 import torch
@@ -52,6 +52,7 @@ class SamplingStrategy(ExplicitEnum):
     * Y Every possible pair is used.
     * Y There is **no** data duplication.
     """
+
     OVERSAMPLING = "oversampling"
     UNDERSAMPLING = "undersampling"
     UNIQUE = "unique"
