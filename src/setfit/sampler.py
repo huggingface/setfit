@@ -1,5 +1,5 @@
 from itertools import combinations
-from typing import Dict, Generator, Iterable, List, Literal, Optional, Union, TypeAlias
+from typing import Dict, Generator, Iterable, List, Literal, Optional, Union
 from collections import Counter
 
 import numpy as np
@@ -13,7 +13,7 @@ from . import logging
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
-SentencePair: TypeAlias = Dict[str, Union[str, float]]
+SentencePair = Dict[str, Union[str, float]]
 
 
 class SamplingStrategy(ExplicitEnum):
