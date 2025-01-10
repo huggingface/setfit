@@ -4,18 +4,18 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, 
 import evaluate
 import torch
 from datasets import Dataset, DatasetDict
+from packaging.version import parse as parse_version
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
 from sentence_transformers.training_args import BatchSamplers
 from sklearn.preprocessing import LabelEncoder
-from packaging.version import parse as parse_version
 from torch import nn
+from transformers import __version__ as transformers_version
 from transformers.integrations import CodeCarbonCallback
 from transformers.trainer_callback import IntervalStrategy, TrainerCallback
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
 from transformers.utils.import_utils import is_in_notebook
-from transformers import __version__ as transformers_version
 
 from setfit.model_card import ModelCardCallback
 
@@ -74,7 +74,11 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
                     model=self.setfit_model,
                     st_model=self.model,
                     st_args=args,
-                    tokenizer=self.processing_class if parse_version(transformers_version) >= parse_version("4.46.0") else self.tokenizer,
+                    tokenizer=(
+                        self.processing_class
+                        if parse_version(transformers_version) >= parse_version("4.46.0")
+                        else self.tokenizer
+                    ),
                     optimizer=self.optimizer,
                     lr_scheduler=self.lr_scheduler,
                     train_dataloader=self.train_dataloader,
