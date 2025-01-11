@@ -1,6 +1,6 @@
-from itertools import combinations
-from typing import Dict, Generator, Iterable, List, Literal, Optional, Union, TypeAlias
 from collections import Counter
+from itertools import combinations
+from typing import Dict, Generator, Iterable, List, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ from . import logging
 logging.set_verbosity_info()
 logger = logging.get_logger(__name__)
 
-SentencePair: TypeAlias = Dict[str, Union[str, float]]
+SentencePair = Dict[str, Union[str, float]]
 
 
 class SamplingStrategy(ExplicitEnum):
@@ -52,6 +52,7 @@ class SamplingStrategy(ExplicitEnum):
     * Y Every possible pair is used.
     * Y There is **no** data duplication.
     """
+
     OVERSAMPLING = "oversampling"
     UNDERSAMPLING = "undersampling"
     UNIQUE = "unique"

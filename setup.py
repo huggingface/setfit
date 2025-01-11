@@ -15,7 +15,7 @@ REQUIRED_PKGS = [
     "sentence-transformers[train]>=3",
     "transformers>=4.41.0",
     "evaluate>=0.3.0",
-    "huggingface_hub>=0.23.0",
+    "huggingface_hub>=0.24.0",
     "scikit-learn",
     "packaging",
 ]
@@ -79,7 +79,6 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
