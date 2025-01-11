@@ -116,7 +116,7 @@ class ContrastiveDataset(IterableDataset):
         # postive number of pairs from an n element set without replacement
         self.total_pos_pairs = int(sum([n * (n - 1) / 2 for n in label_counts.values()]))
         # negative product
-        self.total_neg_pairs = self.total_neg_pairs = sum(a * b for a, b in combinations(label_counts.values(), 2))
+        self.total_neg_pairs = sum(a * b for a, b in combinations(label_counts.values(), 2))
 
         if num_iterations is not None and num_iterations > 0:
             self.len_pos_pairs = num_iterations * len(self.sentences)
