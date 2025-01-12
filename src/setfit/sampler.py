@@ -100,10 +100,6 @@ class ContrastiveDataset(IterableDataset):
                 max_pairs pairs.
         """
         super().__init__()
-        self.pos_index = 0
-        self.neg_index = 0
-        self.pos_pairs = []
-        self.neg_pairs = []
         self.sentences = sentences
         self.labels = labels
         self.sentence_labels = list(zip(self.sentences, self.labels))
