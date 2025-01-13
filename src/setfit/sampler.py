@@ -111,9 +111,9 @@ class ContrastiveDataset(IterableDataset):
         # calculate number of positive and negative combinations
         label_counts = Counter(labels)
         # postive number of pairs from an n element set without replacement
-        self.total_pos_pairs = int(sum([n * (n - 1) / 2 for n in label_counts.values()]))
+        self.pos_pairs_combination = sum([n * (n - 1) // 2 for n in label_counts.values()])
         # negative product
-        self.total_neg_pairs = sum(a * b for a, b in combinations(label_counts.values(), 2))
+        self.neg_pairs_combination = sum(a * b for a, b in combinations(label_counts.values(), 2))
 
         if num_iterations is not None and num_iterations > 0:
             iterations = num_iterations * len(self.sentences)
@@ -121,16 +121,16 @@ class ContrastiveDataset(IterableDataset):
             self.len_neg_pairs = iterations if self.neg_pairs_combination > 0 else 0
 
         elif sampling_strategy == SamplingStrategy.UNIQUE:
-            self.len_pos_pairs = int(np.min([self.total_pos_pairs, self.max_pos_or_neg]))
-            self.len_neg_pairs = int(np.min([self.total_neg_pairs, self.max_pos_or_neg]))
+            self.len_pos_pairs = min(self.pos_pairs_combination, self.max_pos_or_neg)
+            self.len_neg_pairs = min(self.neg_pairs_combination, self.max_pos_or_neg)
 
         elif sampling_strategy == SamplingStrategy.UNDERSAMPLING:
-            self.len_pos_pairs = int(np.min([min(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
-            self.len_neg_pairs = int(np.min([min(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
+            self.len_pos_pairs = min([min(self.pos_pairs_combination, self.neg_pairs_combination), self.max_pos_or_neg])
+            self.len_neg_pairs = min([min(self.pos_pairs_combination, self.neg_pairs_combination), self.max_pos_or_neg])
 
         elif sampling_strategy == SamplingStrategy.OVERSAMPLING:
-            self.len_pos_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
-            self.len_neg_pairs = int(np.min([max(self.total_pos_pairs, self.total_neg_pairs), self.max_pos_or_neg]))
+            self.len_pos_pairs = min([max(self.pos_pairs_combination, self.neg_pairs_combination), self.max_pos_or_neg])
+            self.len_neg_pairs = min([max(self.pos_pairs_combination, self.neg_pairs_combination), self.max_pos_or_neg])
 
     def generate_positive_pair(self) -> Generator[SentencePair, None, None]:
         pair_generator = shuffle_combinations(self.sentence_labels)
