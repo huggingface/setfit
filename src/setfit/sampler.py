@@ -159,6 +159,9 @@ class ContrastiveDataset(IterableDataset):
             pair_generator = shuffle_combinations(self.sentence_labels)
 
     def __iter__(self) -> Generator[SentencePair, None, None]:
+        """Use this to create generator to loop over the dataset.
+        You should rewrite this method if you want to change how pairs are generated.
+        """
 
         generated_pos_pairs = 0
         generated_neg_pairs = 0
@@ -200,6 +203,8 @@ class ContrastiveDistillationDataset(ContrastiveDataset):
 
     # (*) Internally we use generate_positive_pair
     def generate_positive_pair(self) -> Generator[SentencePair, None, None]:
+        """We define either generate_positive_pair or generate_negative_pair to change the pairs generation behavior. Does not matter which we choose.
+        """
         pair_generator = shuffle_combinations(self.sentence_labels)
         while True:
             for (text_one, id_one), (text_two, id_two) in pair_generator:
