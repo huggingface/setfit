@@ -117,8 +117,8 @@ class ContrastiveDataset(IterableDataset):
 
         if num_iterations is not None and num_iterations > 0:
             iterations = num_iterations * len(self.sentences)
-            self.len_pos_pairs = int(np.min([self.total_pos_pairs, iterations]))
-            self.len_neg_pairs = int(np.min([self.total_neg_pairs, iterations]))
+            self.len_pos_pairs = iterations if self.pos_pairs_combination > 0 else 0
+            self.len_neg_pairs = iterations if self.neg_pairs_combination > 0 else 0
 
         elif sampling_strategy == SamplingStrategy.UNIQUE:
             self.len_pos_pairs = int(np.min([self.total_pos_pairs, self.max_pos_or_neg]))
