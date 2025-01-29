@@ -161,6 +161,10 @@ class TrainingArguments:
             the case it is "steps", `save_steps` must be a round multiple of `eval_steps`.
 
             </Tip>
+        guide('str', *optional*, defaults to `all-MiniLM-L6-v2`):
+            guide: SentenceTransformer model to guide the in-batch sample selection. Used only with losses that 
+            require guide model such as GISTEmbedLoss.
+
     """
 
     output_dir: str = "checkpoints"
@@ -221,6 +225,8 @@ class TrainingArguments:
     load_best_model_at_end: bool = False
     metric_for_best_model: Optional[str] = field(default="embedding_loss", repr=False)
     greater_is_better: bool = field(default=False, repr=False)
+
+    guide: str = "all-MiniLM-L6-v2"
 
     def __post_init__(self) -> None:
         # Set `self.embedding_batch_size` and `self.classifier_batch_size` using values from `self.batch_size`
