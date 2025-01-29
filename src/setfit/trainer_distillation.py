@@ -89,10 +89,8 @@ class DistillationTrainer(Trainer):
         )
         cos_sim_matrix = util.cos_sim(x_embd_student, x_embd_student)
 
-        data_sampler = ContrastiveDistillationDataset(
-            x, cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
-        )
-        dataset = Dataset.from_list(list(data_sampler))
+        data_sampler = ContrastiveDistillationDataset(x, cos_sim_matrix, args.num_iterations, max_pairs=max_pairs)
+        dataset = Dataset.from_generator(data_sampler.__iter__)
         loss = args.loss(self.model.model_body)
         return dataset, loss
 
