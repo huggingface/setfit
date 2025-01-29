@@ -249,8 +249,6 @@ class TrainingArguments:
 
         if self.report_to in (None, "all", ["all"]):
             self.report_to = get_available_reporting_integrations()
-        elif self.report_to in ("none", ["none"]):
-            self.report_to = []
         elif not isinstance(self.report_to, list):
             self.report_to = [self.report_to]
 

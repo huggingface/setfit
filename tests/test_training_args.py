@@ -64,9 +64,9 @@ class TestTrainingArguments(TestCase):
 
     def test_report_to(self):
         args = TrainingArguments(report_to="none")
-        self.assertEqual(args.report_to, [])
+        self.assertEqual(args.report_to, ["none"])
         args = TrainingArguments(report_to=["none"])
-        self.assertEqual(args.report_to, [])
+        self.assertEqual(args.report_to, ["none"])
         args = TrainingArguments(report_to="hello")
         self.assertEqual(args.report_to, ["hello"])
 
