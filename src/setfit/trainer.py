@@ -103,6 +103,9 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
             self.add_callback(callback)
         self.callback_handler.on_init_end(self.args, self.state, self.control)
 
+    def add_model_card_callback(self, *args, **kwargs):
+        pass
+
     @property
     def setfit_model(self) -> "SetFitModel":
         return self._setfit_model
