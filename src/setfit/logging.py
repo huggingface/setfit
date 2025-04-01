@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 # Copied from: https://github.com/huggingface/transformers/blob/main/src/transformers/utils/logging.py
-""" Logging utilities."""
+"""Logging utilities."""
 
 import logging
 import os
