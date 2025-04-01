@@ -8,7 +8,7 @@ from packaging.version import parse as parse_version
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
-from sentence_transformers.training_args import BatchSamplers
+from sentence_transformers.training_args import BatchSamplers, SentenceTransformerTrainingArguments
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
 from transformers import __version__ as transformers_version
@@ -47,7 +47,11 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self._setfit_model = setfit_model
         self._setfit_args = setfit_args
         self.logs_prefix = "embedding"
-        super().__init__(model=setfit_model.model_body, **kwargs)
+        super().__init__(
+            model=setfit_model.model_body,
+            args=SentenceTransformerTrainingArguments(output_dir=setfit_args.output_dir),
+            **kwargs,
+        )
         self._apply_training_arguments(setfit_args)
 
         for callback in list(self.callback_handler.callbacks):
