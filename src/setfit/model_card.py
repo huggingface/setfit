@@ -432,6 +432,9 @@ class SetFitModelCardData(CardData):
     def infer_st_id(self, setfit_model_id: str) -> None:
         config_dict, _ = PretrainedConfig.get_config_dict(setfit_model_id)
         st_id = config_dict.get("_name_or_path")
+        if st_id is None:
+            # If we can't access _name_or_path, we can't infer the base model ID
+            return
         st_id_path = Path(st_id)
         # Sometimes the name_or_path ends exactly with the model_id, e.g.
         # "C:\\Users\\tom/.cache\\torch\\sentence_transformers\\BAAI_bge-small-en-v1.5\\"
