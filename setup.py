@@ -57,7 +57,7 @@ EXTRAS_REQUIRE["compat_tests"] = (
 
 setup(
     name="setfit",
-    version="1.1.1",
+    version="1.1.2",
     description="Efficient few-shot learning with Sentence Transformers",
     long_description=README_TEXT,
     long_description_content_type="text/markdown",
