@@ -45,7 +45,7 @@ class DistillationTrainer(Trainer):
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model.
             The expected format is a dictionary with the following format:
-            `{"text_column_name": "text", "label_column_name: "label"}`.
+            `{"text_column_name": "text", "label_column_name": "label"}`.
     """
 
     _REQUIRED_COLUMNS = {"text"}
