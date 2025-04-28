@@ -1,3 +1,4 @@
+import inspect
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
@@ -5,7 +6,7 @@ import evaluate
 import torch
 from datasets import Dataset, DatasetDict
 from packaging.version import parse as parse_version
-from sentence_transformers import SentenceTransformerTrainer, losses
+from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
 from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
 from sentence_transformers.training_args import BatchSamplers, SentenceTransformerTrainingArguments
@@ -615,8 +616,13 @@ class Trainer(ColumnMappingMixin):
                 args.sampling_strategy,
                 max_pairs=max_pairs,
             )
-            dataset = Dataset.from_list(list(data_sampler))
-            loss = args.loss(self.model.model_body)
+            dataset = Dataset.from_generator(data_sampler.__iter__)
+
+            extra_params = {}
+            if "guide" in inspect.signature(args.loss).parameters:
+                extra_params.update({"guide": SentenceTransformer(args.guide)})
+
+            loss = args.loss(self.model.model_body, **extra_params)
 
         return dataset, loss
 
