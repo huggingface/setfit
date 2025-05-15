@@ -7,7 +7,8 @@ from datasets import Dataset, DatasetDict
 from packaging.version import parse as parse_version
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
-from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
+from sentence_transformers.model_card import ModelCardCallback as DeprecatedSTModelCardCallback
+from sentence_transformers.model_card import SentenceTransformerModelCardCallback
 from sentence_transformers.training_args import BatchSamplers, SentenceTransformerTrainingArguments
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
@@ -58,7 +59,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
             if isinstance(callback, CodeCarbonCallback):
                 self.setfit_model.model_card_data.code_carbon_callback = callback
 
-            if isinstance(callback, STModelCardCallback):
+            if isinstance(callback, (DeprecatedSTModelCardCallback, SentenceTransformerModelCardCallback)):
                 self.remove_callback(callback)
 
         if is_in_notebook():
