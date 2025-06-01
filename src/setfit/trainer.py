@@ -49,7 +49,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.logs_prefix = "embedding"
         super().__init__(
             model=setfit_model.model_body,
-            args=SentenceTransformerTrainingArguments(output_dir=setfit_args.output_dir),
+            args=SentenceTransformerTrainingArguments(output_dir=setfit_args.output_dir, fp16=setfit_args.use_amp),
             **kwargs,
         )
         self._apply_training_arguments(setfit_args)
