@@ -294,13 +294,16 @@ class SetFitModelCardData(CardData):
     def set_best_model_step(self, step: int) -> None:
         self.best_model_step = step
 
-    def set_widget_examples(self, dataset: Dataset) -> None:
+    def set_widget_examples(self, dataset: Dataset) -> None:        
         samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
-        self.widget = [{"text": sample} for sample in samples]
-
+        # Convert to a Python list if not already (fix for datasets 4.x)
+        if not isinstance(samples, list):
+            samples = list(samples)
         samples.sort(key=len)
+        self.widget = [{"text": sample} for sample in samples]
         if samples:
             self.predict_example = samples[0]
+
 
     def set_train_set_metrics(self, dataset: Dataset) -> None:
         def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
