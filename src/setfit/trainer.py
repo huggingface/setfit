@@ -655,6 +655,7 @@ class Trainer(ColumnMappingMixin):
             end_to_end=args.end_to_end,
         )
 
+    @torch.no_grad()
     def evaluate(self, dataset: Optional[Dataset] = None, metric_key_prefix: str = "test") -> Dict[str, float]:
         """
         Computes the metrics for a given classifier.
