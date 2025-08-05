@@ -284,7 +284,7 @@ class SetFitModel(ModelHubMixin):
             if not end_to_end:
                 self.freeze("body")
 
-            dataloader = self._prepare_dataloader(x_train, y_train, batch_size, max_length)
+            dataloader = self._prepare_dataloader(list(x_train), list(y_train), batch_size, max_length)
             criterion = self.model_head.get_loss_fn()
             optimizer = self._prepare_optimizer(head_learning_rate, body_learning_rate, l2_weight)
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
@@ -314,8 +314,8 @@ class SetFitModel(ModelHubMixin):
             if not end_to_end:
                 self.unfreeze("body")
         else:  # train with sklearn
-            embeddings = self.model_body.encode(x_train, normalize_embeddings=self.normalize_embeddings)
-            self.model_head.fit(embeddings, y_train)
+            embeddings = self.model_body.encode(list(x_train), normalize_embeddings=self.normalize_embeddings)
+            self.model_head.fit(embeddings, list(y_train))
             if self.labels is None and self.multi_target_strategy is None:
                 # Try to set the labels based on the head classes, if they exist
                 # This can fail in various ways, so we catch all exceptions
@@ -477,6 +477,7 @@ class SetFitModel(ModelHubMixin):
             outputs = torch.from_numpy(outputs)
         return outputs
 
+    @torch.no_grad()
     def predict_proba(
         self,
         inputs: Union[str, List[str]],
@@ -521,6 +522,7 @@ class SetFitModel(ModelHubMixin):
         outputs = self._output_type_conversion(probs, as_numpy=as_numpy)
         return outputs[0] if is_singular else outputs
 
+    @torch.no_grad()
     def predict(
         self,
         inputs: Union[str, List[str]],
@@ -556,7 +558,7 @@ class SetFitModel(ModelHubMixin):
         is_singular = isinstance(inputs, str)
         if is_singular:
             inputs = [inputs]
-        embeddings = self.encode(inputs, batch_size=batch_size, show_progress_bar=show_progress_bar)
+        embeddings = self.encode(list(inputs), batch_size=batch_size, show_progress_bar=show_progress_bar)
         preds = self.model_head.predict(embeddings)
         # If labels are defined, we don't have multilabels & the output is not already strings, then we convert to string labels
         if (
