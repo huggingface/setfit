@@ -298,7 +298,7 @@ class SetFitModelCardData(CardData):
         samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
         self.widget = [{"text": sample} for sample in samples]
 
-        samples.sort(key=len)
+        samples = sorted(list(samples), key=len)
         if samples:
             self.predict_example = samples[0]
 

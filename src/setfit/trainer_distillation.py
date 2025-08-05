@@ -85,12 +85,12 @@ class DistillationTrainer(Trainer):
         max_pairs: int = -1,
     ) -> Tuple[DataLoader, nn.Module, int, int]:
         x_embd_student = self.teacher_model.model_body.encode(
-            x, convert_to_tensor=self.teacher_model.has_differentiable_head
+            list(x), convert_to_tensor=self.teacher_model.has_differentiable_head
         )
         cos_sim_matrix = util.cos_sim(x_embd_student, x_embd_student)
 
         data_sampler = ContrastiveDistillationDataset(
-            x, cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
+            list(x), cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
         )
         dataset = Dataset.from_list(list(data_sampler))
         loss = args.loss(self.model.model_body)
@@ -105,7 +105,8 @@ class DistillationTrainer(Trainer):
             args (`TrainingArguments`, *optional*):
                 Temporarily change the training arguments for this training call.
         """
-        y_train = self.teacher_model.predict(x_train, as_numpy=not self.student_model.has_differentiable_head)
+        with torch.no_grad():
+            y_train = self.teacher_model.predict(x_train, as_numpy=not self.student_model.has_differentiable_head)
         return super().train_classifier(x_train, y_train, args)
 
 

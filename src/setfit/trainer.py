@@ -284,7 +284,7 @@ class Trainer(ColumnMappingMixin):
         column_mapping (`Dict[str, str]`, *optional*):
             A mapping from the column names in the dataset to the column names expected by the model.
             The expected format is a dictionary with the following format:
-            `{"text_column_name": "text", "label_column_name: "label"}`.
+            `{"text_column_name": "text", "label_column_name": "label"}`.
     """
 
     def __init__(
@@ -655,6 +655,7 @@ class Trainer(ColumnMappingMixin):
             end_to_end=args.end_to_end,
         )
 
+    @torch.no_grad()
     def evaluate(self, dataset: Optional[Dataset] = None, metric_key_prefix: str = "test") -> Dict[str, float]:
         """
         Computes the metrics for a given classifier.
