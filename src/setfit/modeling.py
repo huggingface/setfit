@@ -7,10 +7,9 @@ from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
 import joblib
 import numpy as np
-import requests
 import torch
 from huggingface_hub import ModelHubMixin, hf_hub_download
-from huggingface_hub.utils import validate_hf_hub_args
+from huggingface_hub.utils import validate_hf_hub_args, HfHubHTTPError
 from packaging.version import Version, parse
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import __version__ as sentence_transformers_version
@@ -774,7 +773,7 @@ class SetFitModel(ModelHubMixin):
                     token=token,
                     local_files_only=local_files_only,
                 )
-            except requests.exceptions.RequestException:
+            except HfHubHTTPError:
                 pass
 
         model_kwargs = {key: value for key, value in model_kwargs.items() if value is not None}
@@ -816,7 +815,7 @@ class SetFitModel(ModelHubMixin):
                     token=token,
                     local_files_only=local_files_only,
                 )
-            except requests.exceptions.RequestException:
+            except HfHubHTTPError:
                 logger.info(
                     f"{MODEL_HEAD_NAME} not found on HuggingFace Hub, initialising classification head with random weights."
                     " You should TRAIN this model on a downstream task to use it for predictions and inference."
