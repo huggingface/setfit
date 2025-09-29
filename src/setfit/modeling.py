@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 import torch
 from huggingface_hub import ModelHubMixin, hf_hub_download
-from huggingface_hub.utils import validate_hf_hub_args, HfHubHTTPError
+from huggingface_hub.utils import HfHubHTTPError, validate_hf_hub_args
 from packaging.version import Version, parse
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import __version__ as sentence_transformers_version
