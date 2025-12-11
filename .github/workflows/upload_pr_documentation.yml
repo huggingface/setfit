@@ -16,4 +16,4 @@ jobs:
       comment_bot_app_id: ${{ secrets.COMMENT_BOT_APP_ID }}
       comment_bot_secret_pem: ${{ secrets.COMMENT_BOT_SECRET_PEM }}
       # comment_bot_token: ${{ secrets.COMMENT_BOT_TOKEN }}
-      
+      #revert
