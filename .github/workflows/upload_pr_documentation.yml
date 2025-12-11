@@ -8,12 +8,12 @@ on:
 
 jobs:
   build:
-    uses: huggingface/doc-builder/.github/workflows/upload_pr_documentation.yml@803cc895829ea30f251eca5e4338f1e2fc73d872
+    uses: huggingface/doc-builder/.github/workflows/upload_pr_documentation.yml@main
     with:
       package_name: setfit
     secrets:
       hf_token: ${{ secrets.HF_DOC_BUILD_PUSH }}
-      comment_bot_app_id: ${{ secrets.COMMENT_BOT_APP_ID }}
-      comment_bot_secret_pem: ${{ secrets.COMMENT_BOT_SECRET_PEM }}
-      # comment_bot_token: ${{ secrets.COMMENT_BOT_TOKEN }}
+      comment_bot_token: ${{ secrets.COMMENT_BOT_TOKEN }}
+      # comment_bot_app_id: ${{ secrets.COMMENT_BOT_APP_ID }}
+      # comment_bot_secret_pem: ${{ secrets.COMMENT_BOT_SECRET_PEM }}
       
