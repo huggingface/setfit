@@ -14,3 +14,4 @@ jobs:
     secrets:
       hf_token: ${{ secrets.HF_DOC_BUILD_PUSH }}
       comment_bot_token: ${{ secrets.COMMENT_BOT_TOKEN }}
+#revert after
