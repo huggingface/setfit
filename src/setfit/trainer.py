@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, 
 
 import evaluate
 import torch
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, IterableDataset as HFIterableDataset
 from packaging.version import parse as parse_version
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
@@ -556,15 +556,15 @@ class Trainer(ColumnMappingMixin):
         args = args or self.args or TrainingArguments()
 
         train_max_pairs = -1 if args.max_steps == -1 else args.max_steps * args.embedding_batch_size
-        train_dataset, loss = self.get_dataset(x_train, y_train, args=args, max_pairs=train_max_pairs)
+        train_dataset, loss, train_num_pairs = self.get_dataset(x_train, y_train, args=args, max_pairs=train_max_pairs)
         if x_eval is not None and args.eval_strategy != IntervalStrategy.NO:
             eval_max_pairs = -1 if args.eval_max_steps == -1 else args.eval_max_steps * args.embedding_batch_size
-            eval_dataset, _ = self.get_dataset(x_eval, y_eval, args=args, max_pairs=eval_max_pairs)
+            eval_dataset, _, _ = self.get_dataset(x_eval, y_eval, args=args, max_pairs=eval_max_pairs)
         else:
             eval_dataset = None
 
         logger.info("***** Running training *****")
-        logger.info(f"  Num unique pairs = {len(train_dataset)}")
+        logger.info(f"  Num unique pairs = {train_num_pairs}")
         logger.info(f"  Batch size = {args.embedding_batch_size}")
         logger.info(f"  Num epochs = {args.embedding_num_epochs}")
 
@@ -579,11 +579,17 @@ class Trainer(ColumnMappingMixin):
             SupConLoss,
         ):
             self.st_trainer.args.batch_sampler = BatchSamplers.GROUP_BY_LABEL
+
+        # For IterableDataset (streaming), we must set max_steps explicitly
+        if isinstance(train_dataset, HFIterableDataset) and self.st_trainer.args.max_steps == -1:
+            steps_per_epoch = max(1, train_num_pairs // args.embedding_batch_size)
+            self.st_trainer.args.max_steps = steps_per_epoch * args.embedding_num_epochs
+
         self.st_trainer.train()
 
     def get_dataset(
         self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments, max_pairs: int = -1
-    ) -> Tuple[Dataset, nn.Module, int, int]:
+    ) -> Tuple[Dataset, nn.Module, int]:
         if args.loss in [
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
@@ -592,6 +598,7 @@ class Trainer(ColumnMappingMixin):
             SupConLoss,
         ]:
             dataset = Dataset.from_dict({"sentence": x, "label": y})
+            estimated_num_pairs = len(dataset)
 
             if args.loss is losses.BatchHardSoftMarginTripletLoss:
                 loss = args.loss(
@@ -615,10 +622,12 @@ class Trainer(ColumnMappingMixin):
                 args.sampling_strategy,
                 max_pairs=max_pairs,
             )
-            dataset = Dataset.from_list(list(data_sampler))
+            estimated_num_pairs = data_sampler.estimated_num_pairs
+            # Wrap in HuggingFace IterableDataset for SentenceTransformerTrainer compatibility
+            dataset = HFIterableDataset.from_generator(lambda sampler=data_sampler: iter(sampler))
             loss = args.loss(self.model.model_body)
 
-        return dataset, loss
+        return dataset, loss, estimated_num_pairs
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.

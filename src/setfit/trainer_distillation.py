@@ -2,7 +2,7 @@ import warnings
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
-from datasets import Dataset
+from datasets import Dataset, IterableDataset as HFIterableDataset
 from sentence_transformers import losses, util
 from torch import nn
 from torch.utils.data import DataLoader
@@ -83,7 +83,7 @@ class DistillationTrainer(Trainer):
         y: Optional[Union[List[int], List[List[int]]]],
         args: TrainingArguments,
         max_pairs: int = -1,
-    ) -> Tuple[DataLoader, nn.Module, int, int]:
+    ) -> Tuple[Dataset, nn.Module, int]:
         x_embd_student = self.teacher_model.model_body.encode(
             list(x), convert_to_tensor=self.teacher_model.has_differentiable_head
         )
@@ -92,9 +92,11 @@ class DistillationTrainer(Trainer):
         data_sampler = ContrastiveDistillationDataset(
             list(x), cos_sim_matrix, args.num_iterations, args.sampling_strategy, max_pairs=max_pairs
         )
-        dataset = Dataset.from_list(list(data_sampler))
+        estimated_num_pairs = data_sampler.estimated_num_pairs
+        # Wrap in HuggingFace IterableDataset for SentenceTransformerTrainer compatibility
+        dataset = HFIterableDataset.from_generator(lambda sampler=data_sampler: iter(sampler))
         loss = args.loss(self.model.model_body)
-        return dataset, loss
+        return dataset, loss, estimated_num_pairs
 
     def train_classifier(self, x_train: List[str], args: Optional[TrainingArguments] = None) -> None:
         """
