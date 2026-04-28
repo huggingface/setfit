@@ -10,7 +10,7 @@ import torch
 from sentence_transformers import losses
 from transformers import IntervalStrategy
 from transformers.integrations import get_available_reporting_integrations
-from transformers.training_args import default_logdir
+from transformers.integrations.integration_utils import default_logdir
 from transformers.utils import is_torch_available
 
 from . import logging
