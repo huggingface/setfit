@@ -6,7 +6,7 @@ from transformers.utils.notebook import NotebookProgressCallback
 class SetFitNotebookProgressCallback(NotebookProgressCallback):
     """
     A variation of NotebookProgressCallback that accepts logs/metrics other than "loss" and "eval_loss".
-    In particular, it accepts "embedding_loss", "aspect_embedding_loss", and "polarity_embedding_loss"
+    In particular, it accepts "embedding_loss"
     and the corresponding metrics for the validation set.
     """
 
@@ -20,7 +20,7 @@ class SetFitNotebookProgressCallback(NotebookProgressCallback):
             values = {"Training Loss": "No log", "Validation Loss": "No log"}
             for log in reversed(state.log_history):
                 if loss_logs := {
-                    key for key in log if key in ("embedding_loss", "aspect_embedding_loss", "polarity_embedding_loss")
+                    key for key in log if key in {"embedding_loss"}
                 }:
                     values["Training Loss"] = log[loss_logs.pop()]
                     break
@@ -42,7 +42,7 @@ class SetFitNotebookProgressCallback(NotebookProgressCallback):
             for k, v in metrics.items():
                 splits = k.split("_")
                 name = " ".join([part.capitalize() for part in splits[1:]])
-                if name in ("Embedding Loss", "Aspect Embedding Loss", "Polarity Embedding Loss"):
+                if name in ("Embedding Loss",):
                     # Single dataset
                     name = "Validation Loss"
                 values[name] = v

@@ -39,7 +39,6 @@ This list contains new functionality that can be used starting from v1.0.0.
     * `use_labels` (defaults to `True`): Whether to use the `SetFitModel.labels` to convert integer labels to string labels. Not used if the training labels are already strings.
 * [`SetFitModel.encode`] has been introduce to convert input sentences to embeddings using the `SentenceTransformer` body.
 * [`SetFitModel.device`] has been introduced to determine the device of the model.
-* [`AbsaTrainer`] and [`AbsaModel`] have been introduced for applying [SetFit for Aspect Based Sentiment Analysis](absa).
 * [`Trainer`] now supports a `callbacks` argument for a list of [`transformers` `TrainerCallback` instances](https://huggingface.co/docs/transformers/main/en/main_classes/callback).
     * By default, all installed callbacks integrated with `transformers` are supported, including [`TensorBoardCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.TensorBoardCallback), [`WandbCallback`](https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.integrations.WandbCallback) to log training logs to [TensorBoard](https://www.tensorflow.org/tensorboard) and [W&B](https://wandb.ai), respectively.
     * The [`Trainer`] will now print `embedding_loss` in the terminal, as well as `eval_embedding_loss` if `eval_strategy` is set to `"epoch"` or `"steps"` in [`TrainingArguments`].
@@ -90,4 +89,3 @@ This list contains new functionality that can be used starting from v1.0.0.
     the case it is "steps", `save_steps` must be a round multiple of `eval_steps`.
 
     </Tip>
-* Pushing SetFit or SetFitABSA models to the Hub with [`SetFitModel.push_to_hub`] or [`AbsaModel.push_to_hub`] now results in a detailed model card. As an example, see [this SetFitModel](https://huggingface.co/tomaarsen/setfit-paraphrase-mpnet-base-v2-sst2-8-shot) or [this SetFitABSA polarity model](https://huggingface.co/tomaarsen/setfit-absa-bge-small-en-v1.5-restaurants-polarity).
