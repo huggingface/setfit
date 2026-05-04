@@ -768,7 +768,7 @@ class SetFitModel(ModelHubMixin):
                     token=token,
                     local_files_only=local_files_only,
                 )
-            except requests.exceptions.RequestException:
+            except (requests.exceptions.RequestException, Exception):
                 pass
 
         model_kwargs = {key: value for key, value in model_kwargs.items() if value is not None}
@@ -810,7 +810,7 @@ class SetFitModel(ModelHubMixin):
                     token=token,
                     local_files_only=local_files_only,
                 )
-            except requests.exceptions.RequestException:
+            except (requests.exceptions.RequestException, Exception):
                 logger.info(
                     f"{MODEL_HEAD_NAME} not found on HuggingFace Hub, initialising classification head with random weights."
                     " You should TRAIN this model on a downstream task to use it for predictions and inference."
