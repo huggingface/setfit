@@ -6,12 +6,24 @@ from copy import copy
 from dataclasses import dataclass, field, fields
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
+import socket
+from datetime import datetime
+
 import torch
 from sentence_transformers import losses
-from transformers import IntervalStrategy
+from transformers.trainer_callback import IntervalStrategy
 from transformers.integrations import get_available_reporting_integrations
-from transformers.training_args import default_logdir
 from transformers.utils import is_torch_available
+
+
+def default_logdir() -> str:
+    """
+    Returns the default log directory for Tensorboard.
+    """
+    import os
+
+    current_time = datetime.now().strftime("%b%d_%H-%M-%S")
+    return os.path.join("runs", current_time + "_" + socket.gethostname())
 
 from . import logging
 
