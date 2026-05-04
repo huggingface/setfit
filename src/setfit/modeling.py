@@ -21,7 +21,7 @@ from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
-from transformers.utils import copy_func
+from .utils import copy_func
 
 from . import logging
 from .data import SetFitDataset

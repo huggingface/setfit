@@ -6,7 +6,15 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 from sentence_transformers import losses
-from transformers.utils import copy_func
+try:
+    from transformers.utils import copy_func
+except ImportError:
+    def copy_func(f):
+        import types
+        fn = types.FunctionType(f.__code__, f.__globals__, name=f.__name__,
+                               argdefs=f.__defaults__, closure=f.__closure__)
+        fn.__dict__.update(f.__dict__)
+        return fn
 
 from .data import create_fewshot_splits, create_fewshot_splits_multilabel
 from .losses import SupConLoss

@@ -17,7 +17,19 @@ from huggingface_hub.utils import yaml_dump
 from sentence_transformers import __version__ as sentence_transformers_version
 from transformers import PretrainedConfig, TrainerCallback
 from transformers.integrations import CodeCarbonCallback
-from transformers.modelcard import make_markdown_table
+try:
+    from transformers.modelcard import make_markdown_table
+except ImportError:
+    def make_markdown_table(items):
+        if not items:
+            return ""
+        headers = list(items[0].keys())
+        header_row = "| " + " | ".join(headers) + " |"
+        separator_row = "| " + " | ".join(["---"] * len(headers)) + " |"
+        body_rows = []
+        for item in items:
+            body_rows.append("| " + " | ".join(str(item.get(h, "")) for h in headers) + " |")
+        return "\n".join([header_row, separator_row] + body_rows)
 from transformers.trainer_callback import TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
