@@ -15,15 +15,17 @@ from transformers.trainer_callback import IntervalStrategy
 from transformers.integrations import get_available_reporting_integrations
 from transformers.utils import is_torch_available
 
+try:
+    from transformers.training_args import default_logdir
+except ImportError:
+    def default_logdir() -> str:
+        """
+        Returns the default log directory for Tensorboard.
+        """
+        import os
 
-def default_logdir() -> str:
-    """
-    Returns the default log directory for Tensorboard.
-    """
-    import os
-
-    current_time = datetime.now().strftime("%b%d_%H-%M-%S")
-    return os.path.join("runs", current_time + "_" + socket.gethostname())
+        current_time = datetime.now().strftime("%b%d_%H-%M-%S")
+        return os.path.join("runs", current_time + "_" + socket.gethostname())
 
 from . import logging
 

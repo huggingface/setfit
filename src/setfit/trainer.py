@@ -16,9 +16,12 @@ from transformers.integrations import CodeCarbonCallback
 from transformers.trainer_callback import IntervalStrategy, TrainerCallback
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, set_seed
 
-def number_of_arguments(func):
-    import inspect
-    return len(inspect.signature(func).parameters)
+try:
+    from transformers.trainer_utils import number_of_arguments
+except ImportError:
+    def number_of_arguments(func):
+        import inspect
+        return len(inspect.signature(func).parameters)
 from transformers.utils.import_utils import is_in_notebook
 
 from setfit.model_card import ModelCardCallback

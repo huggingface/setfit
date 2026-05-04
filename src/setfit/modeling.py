@@ -726,12 +726,23 @@ class SetFitModel(ModelHubMixin):
         trust_remote_code: bool = False,
         **model_kwargs,
     ) -> "SetFitModel":
-        sentence_transformers_kwargs = {
-            "cache_folder": cache_dir,
-            "token": token,
-            "device": device,
-            "trust_remote_code": trust_remote_code,
-        }
+        if parse(sentence_transformers_version) >= Version("2.3.0"):
+            sentence_transformers_kwargs = {
+                "cache_folder": cache_dir,
+                "token": token,
+                "device": device,
+                "trust_remote_code": trust_remote_code,
+            }
+        else:
+            if trust_remote_code:
+                raise ValueError(
+                    "The `trust_remote_code` argument is only supported for `sentence-transformers` >= 2.3.0."
+                )
+            sentence_transformers_kwargs = {
+                "cache_folder": cache_dir,
+                "use_auth_token": token,
+                "device": device,
+            }
         model_body = SentenceTransformer(model_id, **sentence_transformers_kwargs)
         if parse(sentence_transformers_version) >= Version("2.3.0"):
             device = model_body.device
