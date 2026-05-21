@@ -6,6 +6,7 @@ from collections import defaultdict
 from glob import glob
 from os import listdir
 from os.path import isdir, join, splitext
+from pathlib import Path, PureWindowsPath
 from typing import List, Tuple
 
 from numpy import mean, median, std
@@ -28,11 +29,34 @@ TEST_DATASET_TO_METRIC = {
 }
 
 
-def extract_results(path: str) -> None:
-    tar = tarfile.open(path, "r:gz")
+def _validate_tar_member(member: tarfile.TarInfo, extraction_dir: Path) -> None:
+    member_path = Path(member.name)
+    windows_member_path = PureWindowsPath(member.name)
+
+    if member_path.is_absolute() or windows_member_path.is_absolute() or windows_member_path.drive:
+        raise ValueError(f"Unsafe path in tar archive: {member.name}")
+    if ".." in member_path.parts or ".." in windows_member_path.parts:
+        raise ValueError(f"Unsafe path in tar archive: {member.name}")
+    if not (member.isfile() or member.isdir()):
+        raise ValueError(f"Unsupported member type in tar archive: {member.name}")
+
+    target_path = (extraction_dir / member.name).resolve()
+    if extraction_dir not in [target_path, *target_path.parents]:
+        raise ValueError(f"Unsafe path in tar archive: {member.name}")
+
+
+def extract_results(path: str) -> str:
     unzip_path = splitext(splitext(path)[-2])[-2]
-    tar.extractall(path=os.path.dirname(unzip_path))
-    tar.close()
+    extraction_dir = Path(os.path.dirname(unzip_path)).resolve()
+
+    with tarfile.open(path, "r:gz") as tar:
+        for member in tar.getmembers():
+            _validate_tar_member(member, extraction_dir)
+        try:
+            tar.extractall(path=extraction_dir, filter="data")
+        except TypeError:
+            tar.extractall(path=extraction_dir)
+
     return unzip_path
 
 
