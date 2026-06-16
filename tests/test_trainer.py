@@ -603,3 +603,28 @@ def test_trainer_wrong_args(model: SetFitModel) -> None:
     expected = "`args` must be a `TrainingArguments` instance imported from `setfit`."
     with pytest.raises(ValueError, match=expected):
         Trainer(model, dataset)
+
+
+def test_trainer_max_length_applied_to_embedding_phase(model: SetFitModel) -> None:
+    # Regression test for #561: `TrainingArguments.max_length` was honored when fitting the
+    # classifier head but silently ignored when finetuning the embedding body.
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
+    max_length = 32
+    assert max_length < model.model_body.get_max_seq_length()
+    original_max_seq_length = model.model_body.max_seq_length
+
+    args = TrainingArguments(num_iterations=1, max_length=max_length)
+    trainer = Trainer(model, args=args, train_dataset=dataset)
+
+    observed = {}
+
+    def fake_train() -> None:
+        observed["max_seq_length"] = model.model_body.max_seq_length
+
+    trainer.st_trainer.train = fake_train
+    trainer.train_embeddings(dataset["text"], dataset["label"], args=args)
+
+    # The body is truncated to `max_length` while the embeddings are trained, and the
+    # original truncation length is restored afterwards so inference is unaffected.
+    assert observed["max_seq_length"] == max_length
+    assert model.model_body.max_seq_length == original_max_seq_length
