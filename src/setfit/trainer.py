@@ -579,7 +579,19 @@ class Trainer(ColumnMappingMixin):
             SupConLoss,
         ):
             self.st_trainer.args.batch_sampler = BatchSamplers.GROUP_BY_LABEL
-        self.st_trainer.train()
+
+        # `args.max_length` is honored in the classifier phase (via `SetFitModel.fit`),
+        # but was previously ignored while finetuning the embedding body. Apply it to the
+        # body's truncation length for this phase too, clamping to the model's maximum as
+        # `_prepare_dataloader` does, and restore the original afterwards so that encoding
+        # at inference time is unaffected.
+        original_max_seq_length = self.model.model_body.max_seq_length
+        if args.max_length is not None:
+            self.model.model_body.max_seq_length = min(args.max_length, self.model.model_body.get_max_seq_length())
+        try:
+            self.st_trainer.train()
+        finally:
+            self.model.model_body.max_seq_length = original_max_seq_length
 
     def get_dataset(
         self, x: List[str], y: Union[List[int], List[List[int]]], args: TrainingArguments, max_pairs: int = -1
