@@ -8,6 +8,7 @@ import pytest
 import torch
 from datasets import Dataset, load_dataset
 from sentence_transformers import losses
+from sentence_transformers.training_args import BatchSamplers
 from transformers import TrainerCallback
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
@@ -458,6 +459,44 @@ def test_trainer_works_with_non_default_loss_class(loss_class):
     )
     trainer.train()
     # no asserts here because this is a regression test - we only test if an exception is raised
+
+
+@pytest.mark.parametrize(
+    ("loss_class", "expected_batch_sampler"),
+    [
+        (losses.BatchAllTripletLoss, BatchSamplers.GROUP_BY_LABEL),
+        (SupConLoss, BatchSamplers.GROUP_BY_LABEL),
+        (losses.CosineSimilarityLoss, BatchSamplers.BATCH_SAMPLER),
+    ],
+)
+def test_trainer_batch_sampler_for_loss_class(loss_class, expected_batch_sampler):
+    dataset = Dataset.from_dict({"text": ["a 1", "b 1", "c 1", "a 2", "b 2", "c 2"], "label": [0, 1, 2, 0, 1, 2]})
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    args = TrainingArguments(num_iterations=1, loss=loss_class)
+    trainer = Trainer(
+        model=model,
+        args=args,
+        train_dataset=dataset,
+    )
+    trainer.train()
+    # The losses that form their pairs/triplets within a batch require every batch to
+    # contain multiple samples per label
+    assert trainer.st_trainer.args.batch_sampler == expected_batch_sampler
+
+
+def test_trainer_batch_sampler_is_reset_between_losses():
+    dataset = Dataset.from_dict({"text": ["a 1", "b 1", "c 1", "a 2", "b 2", "c 2"], "label": [0, 1, 2, 0, 1, 2]})
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = Trainer(
+        model=model,
+        args=TrainingArguments(num_iterations=1, loss=losses.BatchAllTripletLoss),
+        train_dataset=dataset,
+    )
+    trainer.train()
+    assert trainer.st_trainer.args.batch_sampler == BatchSamplers.GROUP_BY_LABEL
+
+    trainer.train(args=TrainingArguments(num_iterations=1, loss=losses.CosineSimilarityLoss))
+    assert trainer.st_trainer.args.batch_sampler == BatchSamplers.BATCH_SAMPLER
 
 
 def test_trainer_evaluate_with_strings(model: SetFitModel):

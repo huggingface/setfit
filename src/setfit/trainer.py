@@ -571,7 +571,9 @@ class Trainer(ColumnMappingMixin):
         self.st_trainer.train_dataset = train_dataset
         self.st_trainer.eval_dataset = eval_dataset
         self.st_trainer.loss = loss
-        if loss in (
+        # These losses form their pairs/triplets within a batch, so every batch must contain
+        # multiple samples per label
+        if args.loss in (
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
             losses.BatchSemiHardTripletLoss,
@@ -579,6 +581,8 @@ class Trainer(ColumnMappingMixin):
             SupConLoss,
         ):
             self.st_trainer.args.batch_sampler = BatchSamplers.GROUP_BY_LABEL
+        else:
+            self.st_trainer.args.batch_sampler = BatchSamplers.BATCH_SAMPLER
         self.st_trainer.train()
 
     def get_dataset(
