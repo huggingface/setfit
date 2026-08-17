@@ -558,6 +558,7 @@ def test_trainer_callbacks(model: SetFitModel):
 
 
 def test_trainer_report_to(model: SetFitModel, monkeypatch: pytest.MonkeyPatch):
+    # Issue #621: integrations that were not requested via `report_to` must not be loaded
     class DummyReportCallback(TrainerCallback):
         pass
 
