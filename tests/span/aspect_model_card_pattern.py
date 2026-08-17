@@ -111,7 +111,7 @@ preds = model\(".+"\)
 ### Training Set Metrics
 \| Training set \| Min \| Median \| Max \|
 \|:-------------\|:----\|:-------\|:----\|
-\| Word count   \| 5   \| 14.5   \| 23  \|
+\| Word count   \| 5   \| [\d.]+ +\| 23  \|
 
 \| Label     \| Training Sample Count \|
 \|:----------\|:----------------------\|

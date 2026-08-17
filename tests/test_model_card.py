@@ -62,6 +62,26 @@ def test_model_card_languages() -> None:
     assert "**Languages:** en, nl, de" in model_card
 
 
+def test_train_set_metrics_word_count() -> None:
+    # The word counts are 2, 3, 4 and 11, i.e. a median of 3.5 and a mean of 5.0
+    train_dataset = Dataset.from_dict(
+        {
+            "text": [
+                "one two",
+                "one two three",
+                "one two three four",
+                "one two three four five six seven eight nine ten eleven",
+            ],
+            "label": [0, 1, 0, 1],
+        }
+    )
+    model_card_data = SetFitModelCardData()
+    model_card_data.set_train_set_metrics(train_dataset)
+    assert model_card_data.train_set_metrics_list == [
+        {"Training set": "Word count", "Min": 2, "Median": 3.5, "Max": 11}
+    ]
+
+
 def test_is_on_huggingface_edge_case() -> None:
     assert not is_on_huggingface("test_value")
     assert not is_on_huggingface("a/test/value")

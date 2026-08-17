@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from platform import python_version
+from statistics import median
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import datasets
@@ -312,7 +313,7 @@ class SetFitModelCardData(CardData):
             {
                 "Training set": "Word count",
                 "Min": min(dataset["word_count"]),
-                "Median": sum(dataset["word_count"]) / len(dataset),
+                "Median": median(dataset["word_count"]),
                 "Max": max(dataset["word_count"]),
             },
         ]

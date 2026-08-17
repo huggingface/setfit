@@ -99,7 +99,7 @@ preds = model\(".+"\)
 ### Training Set Metrics
 \| Training set \| Min \| Median \| Max \|
 \|:-------------\|:----\|:-------\|:----\|
-\| Word count   \| 3   \| 7.875  \| 18  \|
+\| Word count   \| 3   \| [\d.]+ +\| 18  \|
 
 \| Label    \| Training Sample Count \|
 \|:---------\|:----------------------\|
