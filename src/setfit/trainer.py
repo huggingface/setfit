@@ -49,7 +49,11 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.logs_prefix = "embedding"
         super().__init__(
             model=setfit_model.model_body,
-            args=SentenceTransformerTrainingArguments(output_dir=setfit_args.output_dir),
+            # `report_to` must be set before the superclass initializes the reporting callbacks, otherwise
+            # integrations that the user excluded are still loaded and executed.
+            args=SentenceTransformerTrainingArguments(
+                output_dir=setfit_args.output_dir, report_to=setfit_args.report_to
+            ),
             **kwargs,
         )
         self._apply_training_arguments(setfit_args)

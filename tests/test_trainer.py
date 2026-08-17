@@ -8,11 +8,11 @@ import pytest
 import torch
 from datasets import Dataset, load_dataset
 from sentence_transformers import losses
-from transformers import TrainerCallback
+from transformers import TrainerCallback, integrations
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
-from setfit import logging
+from setfit import logging, training_args
 from setfit.losses import SupConLoss
 from setfit.modeling import SetFitModel
 from setfit.trainer import Trainer
@@ -555,6 +555,24 @@ def test_trainer_callbacks(model: SetFitModel):
     assert trainer.st_trainer.callback_handler.callbacks[-1] == callback
     trainer.remove_callback(callback)
     assert callback not in trainer.st_trainer.callback_handler.callbacks
+
+
+def test_trainer_report_to(model: SetFitModel, monkeypatch: pytest.MonkeyPatch):
+    class DummyReportCallback(TrainerCallback):
+        pass
+
+    monkeypatch.setattr(training_args, "get_available_reporting_integrations", lambda: ["dummy"])
+    monkeypatch.setitem(integrations.INTEGRATION_TO_CALLBACK, "dummy", DummyReportCallback)
+
+    def reports_to_dummy(args: TrainingArguments) -> bool:
+        trainer = Trainer(model=model, args=args)
+        return any(
+            isinstance(callback, DummyReportCallback) for callback in trainer.st_trainer.callback_handler.callbacks
+        )
+
+    assert reports_to_dummy(TrainingArguments(report_to="all"))
+    assert reports_to_dummy(TrainingArguments(report_to="dummy"))
+    assert not reports_to_dummy(TrainingArguments(report_to="none"))
 
 
 def test_trainer_warn_freeze(model: SetFitModel):
