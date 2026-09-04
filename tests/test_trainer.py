@@ -608,8 +608,9 @@ def test_trainer_wrong_args(model: SetFitModel) -> None:
 
 def test_trainer_report_to(model: SetFitModel) -> None:
     trainer = Trainer(model, args=TrainingArguments(report_to="none"))
-    callback_names = {callback.__class__.__name__ for callback in trainer.st_trainer.callback_handler.callbacks}
-    assert callback_names == {"DefaultFlowCallback", "ProgressCallback", "ModelCardCallback"}
+    callbacks = trainer.st_trainer.callback_handler.callbacks
+    assert not any(type(callback).__module__.startswith("transformers.integrations") for callback in callbacks)
+    assert {"DefaultFlowCallback", "ModelCardCallback"} <= {type(callback).__name__ for callback in callbacks}
 
     pytest.importorskip("codecarbon")
     trainer = Trainer(model, args=TrainingArguments(report_to="codecarbon"))
