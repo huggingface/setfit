@@ -103,7 +103,7 @@ class SpanSetFitModel(SetFitModel):
             f.write(self.generate_model_card())
 
 
-docstring = SpanSetFitModel.from_pretrained.__doc__
+docstring = SpanSetFitModel.from_pretrained.__doc__ or ""
 cut_index = docstring.find("multi_target_strategy")
 if cut_index != -1:
     docstring = (

@@ -4,14 +4,9 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Literal, 
 import evaluate
 import torch
 from datasets import Dataset, DatasetDict
-from packaging.version import parse as parse_version
-from sentence_transformers import SentenceTransformerTrainer, losses
-from sentence_transformers.losses.BatchHardTripletLoss import BatchHardTripletLossDistanceFunction
-from sentence_transformers.model_card import ModelCardCallback as STModelCardCallback
-from sentence_transformers.training_args import BatchSamplers, SentenceTransformerTrainingArguments
+from sentence_transformers import SentenceTransformerTrainer, SentenceTransformerTrainingArguments
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
-from transformers import __version__ as transformers_version
 from transformers.integrations import CodeCarbonCallback
 from transformers.trainer_callback import IntervalStrategy, TrainerCallback
 from transformers.trainer_utils import HPSearchBackend, default_compute_objective, number_of_arguments, set_seed
@@ -20,6 +15,7 @@ from transformers.utils.import_utils import is_in_notebook
 from setfit.model_card import ModelCardCallback
 
 from . import logging
+from .compat import TRANSFORMERS_VERSION, BatchSamplers, SentenceTransformerModelCardCallback, Version, losses
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
 from .sampler import ContrastiveDataset
@@ -47,9 +43,15 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self._setfit_model = setfit_model
         self._setfit_args = setfit_args
         self.logs_prefix = "embedding"
+        # The Trainer creates the integration callbacks (TensorBoard, CodeCarbon, ...) during initialization,
+        # so report_to has to be known already
         super().__init__(
             model=setfit_model.model_body,
-            args=SentenceTransformerTrainingArguments(output_dir=setfit_args.output_dir),
+            args=SentenceTransformerTrainingArguments(
+                output_dir=setfit_args.output_dir,
+                report_to=setfit_args.report_to,
+                seed=setfit_args.seed,
+            ),
             **kwargs,
         )
         self._apply_training_arguments(setfit_args)
@@ -58,7 +60,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
             if isinstance(callback, CodeCarbonCallback):
                 self.setfit_model.model_card_data.code_carbon_callback = callback
 
-            if isinstance(callback, STModelCardCallback):
+            if isinstance(callback, SentenceTransformerModelCardCallback):
                 self.remove_callback(callback)
 
         if is_in_notebook():
@@ -70,6 +72,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
                 self.add_callback(SetFitNotebookProgressCallback)
 
         def overwritten_call_event(self, event, args, state, control, **kwargs):
+            processing_class = self.processing_class if TRANSFORMERS_VERSION >= Version("4.46.0") else self.tokenizer
             for callback in self.callbacks:
                 result = getattr(callback, event)(
                     self.setfit_args,
@@ -78,11 +81,8 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
                     model=self.setfit_model,
                     st_model=self.model,
                     st_args=args,
-                    tokenizer=(
-                        self.processing_class
-                        if parse_version(transformers_version) >= parse_version("4.46.0")
-                        else self.tokenizer
-                    ),
+                    tokenizer=processing_class,
+                    processing_class=processing_class,
                     optimizer=self.optimizer,
                     lr_scheduler=self.lr_scheduler,
                     train_dataloader=self.train_dataloader,
@@ -130,6 +130,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         """
         Propagate the SetFit TrainingArguments to the SentenceTransformer Trainer.
         """
+        args._transformers_args = self.args
         self.args.output_dir = args.output_dir
 
         self.args.per_device_train_batch_size = args.embedding_batch_size
@@ -142,9 +143,13 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.args.seed = args.seed
         self.args.report_to = args.report_to
         self.args.run_name = args.run_name
-        self.args.warmup_ratio = args.warmup_proportion
+        if TRANSFORMERS_VERSION >= Version("5.0.0"):
+            # transformers v5 replaced warmup_ratio with a fractional warmup_steps and dropped logging_dir
+            self.args.warmup_steps = args.warmup_proportion
+        else:
+            self.args.warmup_ratio = args.warmup_proportion
+            self.args.logging_dir = args.logging_dir
 
-        self.args.logging_dir = args.logging_dir
         self.args.logging_strategy = args.logging_strategy
         self.args.logging_first_step = args.logging_first_step
         self.args.logging_steps = args.logging_steps
@@ -532,7 +537,7 @@ class Trainer(ColumnMappingMixin):
         self.train_classifier(*train_parameters, args=args)
 
     def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
-        return [dataset["text"], dataset["label"]]
+        return [list(dataset["text"]), list(dataset["label"])]
 
     def train_embeddings(
         self,
@@ -682,8 +687,8 @@ class Trainer(ColumnMappingMixin):
         if eval_dataset is None:
             raise ValueError("No evaluation dataset provided to `Trainer.evaluate` nor the `Trainer` initialzation.")
 
-        x_test = eval_dataset["text"]
-        y_test = eval_dataset["label"]
+        x_test = list(eval_dataset["text"])
+        y_test = list(eval_dataset["label"])
 
         logger.info("***** Running evaluation *****")
         y_pred = self.model.predict(x_test, use_labels=False)
@@ -860,7 +865,7 @@ class SetFitTrainer(Trainer):
         column_mapping: Optional[Dict[str, str]] = None,
         use_amp: bool = False,
         warmup_proportion: float = 0.1,
-        distance_metric: Callable = BatchHardTripletLossDistanceFunction.cosine_distance,
+        distance_metric: Callable = losses.BatchHardTripletLossDistanceFunction.cosine_distance,
         margin: float = 0.25,
         samples_per_label: int = 2,
     ):

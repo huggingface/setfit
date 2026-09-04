@@ -1,12 +1,14 @@
 import os
 
 import numpy as np
-import openvino.runtime as ov
 import pytest
 from transformers import AutoTokenizer
 
 from setfit import SetFitModel
-from setfit.exporters.openvino import export_to_openvino
+
+
+ov = pytest.importorskip("openvino")
+export_to_openvino = pytest.importorskip("setfit.exporters.openvino").export_to_openvino
 
 
 @pytest.mark.skip(

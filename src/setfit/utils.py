@@ -5,9 +5,9 @@ from time import monotonic_ns
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
-from sentence_transformers import losses
 from transformers.utils import copy_func
 
+from .compat import losses
 from .data import create_fewshot_splits, create_fewshot_splits_multilabel
 from .losses import SupConLoss
 

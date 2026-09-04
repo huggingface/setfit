@@ -21,9 +21,24 @@ jobs:
     name: Run unit tests
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
         os: [ubuntu-latest, windows-latest]
-        requirements: ['.[tests]', '.[compat_tests]']
+        requirements: ['.[tests]']
+        include:
+          # The oldest supported dependency versions, pinned in setup.py
+          - python-version: '3.9'
+            os: ubuntu-latest
+            requirements: '.[compat_tests]'
+          - python-version: '3.9'
+            os: windows-latest
+            requirements: '.[compat_tests]'
+          # The last dependency generation before transformers v5
+          - python-version: '3.11'
+            os: ubuntu-latest
+            requirements: '.[compat_tests_v4]'
+          - python-version: '3.11'
+            os: windows-latest
+            requirements: '.[compat_tests_v4]'
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:

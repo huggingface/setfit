@@ -517,19 +517,24 @@ class SetFitModelCardData(CardData):
         ).replace("-:|", "--|")
         super_dict["metrics_table"] = make_markdown_table(self.metric_lines).replace("-:|", "--|")
         if self.code_carbon_callback and self.code_carbon_callback.tracker:
-            emissions_data = self.code_carbon_callback.tracker._prepare_emissions_data()
-            super_dict["co2_eq_emissions"] = {
-                # * 1000 to convert kg to g
-                "emissions": float(emissions_data.emissions) * 1000,
-                "source": "codecarbon",
-                "training_type": "fine-tuning",
-                "on_cloud": emissions_data.on_cloud == "Y",
-                "cpu_model": emissions_data.cpu_model,
-                "ram_total_size": emissions_data.ram_total_size,
-                "hours_used": round(emissions_data.duration / 3600, 3),
-            }
-            if emissions_data.gpu_model:
-                super_dict["co2_eq_emissions"]["hardware_used"] = emissions_data.gpu_model
+            try:
+                emissions_data = self.code_carbon_callback.tracker._prepare_emissions_data()
+            except Exception:
+                # codecarbon v3 cannot report emissions before the tracker has been started
+                emissions_data = None
+            if emissions_data is not None:
+                super_dict["co2_eq_emissions"] = {
+                    # * 1000 to convert kg to g
+                    "emissions": float(emissions_data.emissions) * 1000,
+                    "source": "codecarbon",
+                    "training_type": "fine-tuning",
+                    "on_cloud": emissions_data.on_cloud == "Y",
+                    "cpu_model": emissions_data.cpu_model,
+                    "ram_total_size": emissions_data.ram_total_size,
+                    "hours_used": round(emissions_data.duration / 3600, 3),
+                }
+                if emissions_data.gpu_model:
+                    super_dict["co2_eq_emissions"]["hardware_used"] = emissions_data.gpu_model
         if self.dataset_id:
             super_dict["datasets"] = [self.dataset_id]
         if self.st_id:

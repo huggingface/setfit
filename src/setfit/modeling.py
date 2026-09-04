@@ -7,14 +7,12 @@ from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
 import joblib
 import numpy as np
-import requests
 import torch
 from huggingface_hub import ModelHubMixin, hf_hub_download
-from huggingface_hub.utils import validate_hf_hub_args
+from huggingface_hub.utils import EntryNotFoundError, HfHubHTTPError, validate_hf_hub_args
 from packaging.version import Version, parse
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import __version__ as sentence_transformers_version
-from sentence_transformers import models
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
@@ -24,6 +22,7 @@ from tqdm.auto import tqdm, trange
 from transformers.utils import copy_func
 
 from . import logging
+from .compat import Dense
 from .data import SetFitDataset
 from .model_card import SetFitModelCardData, generate_model_card
 from .utils import set_docstring
@@ -36,7 +35,7 @@ MODEL_HEAD_NAME = "model_head.pkl"
 CONFIG_NAME = "config_setfit.json"
 
 
-class SetFitHead(models.Dense):
+class SetFitHead(Dense):
     """
     A SetFit head that supports multi-class classification for end-to-end training.
     Binary classification is treated as 2-class classification.
@@ -73,7 +72,7 @@ class SetFitHead(models.Dense):
         device: Optional[Union[torch.device, str]] = None,
         multitarget: bool = False,
     ) -> None:
-        super(models.Dense, self).__init__()  # init on models.Dense's parent: nn.Module
+        super(Dense, self).__init__()  # skip Dense.__init__, the linear layer is set up below
 
         if out_features == 1:
             logger.warning(
@@ -756,6 +755,21 @@ class SetFitModel(ModelHubMixin):
             device = model_body._target_device
         model_body.to(device)  # put `model_body` on the target device
 
+        # huggingface_hub v1.0 removed the proxies and resume_download arguments, and its offline cache miss
+        # is an EntryNotFoundError that no longer inherits from HfHubHTTPError
+        download_kwargs = {
+            "repo_id": model_id,
+            "revision": revision,
+            "cache_dir": cache_dir,
+            "force_download": force_download,
+            "token": token,
+            "local_files_only": local_files_only,
+        }
+        if proxies is not None:
+            download_kwargs["proxies"] = proxies
+        if resume_download is not None:
+            download_kwargs["resume_download"] = resume_download
+
         # Try to load a SetFit config file
         config_file: Optional[str] = None
         if os.path.isdir(model_id):
@@ -763,18 +777,8 @@ class SetFitModel(ModelHubMixin):
                 config_file = os.path.join(model_id, CONFIG_NAME)
         else:
             try:
-                config_file = hf_hub_download(
-                    repo_id=model_id,
-                    filename=CONFIG_NAME,
-                    revision=revision,
-                    cache_dir=cache_dir,
-                    force_download=force_download,
-                    proxies=proxies,
-                    resume_download=resume_download,
-                    token=token,
-                    local_files_only=local_files_only,
-                )
-            except requests.exceptions.RequestException:
+                config_file = hf_hub_download(filename=CONFIG_NAME, **download_kwargs)
+            except (HfHubHTTPError, EntryNotFoundError):
                 pass
 
         model_kwargs = {key: value for key, value in model_kwargs.items() if value is not None}
@@ -805,18 +809,8 @@ class SetFitModel(ModelHubMixin):
                 model_head_file = None
         else:
             try:
-                model_head_file = hf_hub_download(
-                    repo_id=model_id,
-                    filename=MODEL_HEAD_NAME,
-                    revision=revision,
-                    cache_dir=cache_dir,
-                    force_download=force_download,
-                    proxies=proxies,
-                    resume_download=resume_download,
-                    token=token,
-                    local_files_only=local_files_only,
-                )
-            except requests.exceptions.RequestException:
+                model_head_file = hf_hub_download(filename=MODEL_HEAD_NAME, **download_kwargs)
+            except (HfHubHTTPError, EntryNotFoundError):
                 logger.info(
                     f"{MODEL_HEAD_NAME} not found on HuggingFace Hub, initialising classification head with random weights."
                     " You should TRAIN this model on a downstream task to use it for predictions and inference."
@@ -881,7 +875,7 @@ class SetFitModel(ModelHubMixin):
         )
 
 
-docstring = SetFitModel.from_pretrained.__doc__
+docstring = SetFitModel.from_pretrained.__doc__ or ""
 cut_index = docstring.find("model_kwargs")
 if cut_index != -1:
     docstring = (
@@ -918,6 +912,7 @@ if cut_index != -1:
     SetFitModel.from_pretrained = set_docstring(SetFitModel.from_pretrained, docstring)
 
 SetFitModel.save_pretrained = copy_func(SetFitModel.save_pretrained)
-SetFitModel.save_pretrained.__doc__ = SetFitModel.save_pretrained.__doc__.replace(
-    "~ModelHubMixin._from_pretrained", "SetFitModel.push_to_hub"
-)
+if SetFitModel.save_pretrained.__doc__:
+    SetFitModel.save_pretrained.__doc__ = SetFitModel.save_pretrained.__doc__.replace(
+        "~ModelHubMixin._from_pretrained", "SetFitModel.push_to_hub"
+    )

@@ -1,14 +1,15 @@
 import copy
+import inspect
 import warnings
 from typing import Callable, Optional, Union
 
-import numpy as np
 import onnx
 import torch
-from sentence_transformers import SentenceTransformer, models
+from sentence_transformers import SentenceTransformer
 from sklearn.linear_model import LogisticRegression
 from transformers.modeling_utils import PreTrainedModel
 
+from setfit.compat import Dense
 from setfit.exporters.utils import mean_pooling
 
 
@@ -91,6 +92,11 @@ def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path,
     target = setfit_model.model_body.device
     args = tuple(value.to(target) for value in inputs.values())
 
+    # torch v2.9 made the dynamo based exporter the default, which does not support the opsets used here
+    export_kwargs = {}
+    if "dynamo" in inspect.signature(torch.onnx.export).parameters:
+        export_kwargs["dynamo"] = False
+
     setfit_model.eval()
     with torch.no_grad():
         torch.onnx.export(
@@ -101,6 +107,7 @@ def export_onnx_setfit_model(setfit_model: OnnxSetFitModel, inputs, output_path,
             input_names=["input_ids", "attention_mask", "token_type_ids"],
             output_names=output_names,
             dynamic_axes={**dynamic_axes_input, **dynamic_axes_output},
+            **export_kwargs,
         )
 
 
@@ -123,11 +130,8 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
 
     # Check if skl2onnx is installed
     try:
-        import onnxconverter_common
         from skl2onnx import convert_sklearn
-        from skl2onnx.common.data_types import guess_data_type
-        from skl2onnx.sklapi import CastTransformer
-        from sklearn.pipeline import Pipeline
+        from skl2onnx.common.data_types import FloatTensorType
     except ImportError:
         msg = """
         `skl2onnx` must be installed in order to convert a model with an sklearn head.
@@ -135,35 +139,25 @@ def export_sklearn_head_to_onnx(model_head: LogisticRegression, opset: int) -> o
         """
         raise ImportError(msg)
 
-    # Determine the initial type and the shape of the output.
-    input_shape = (None, model_head.n_features_in_)
-    if hasattr(model_head, "coef_"):
-        dtype = guess_data_type(model_head.coef_, shape=input_shape)[0][1]
-    elif not hasattr(model_head, "coef_") and hasattr(model_head, "estimators_"):
-        if any([not hasattr(e, "coef_") for e in model_head.estimators_]):
+    # Verify that the head is a linear model, which is all that this conversion supports
+    if not hasattr(model_head, "coef_"):
+        if not hasattr(model_head, "estimators_"):
+            raise ValueError(
+                "The model_head either does not have a coef_ attribute or some estimators in model_head.estimators_ do not have a coef_ attribute. Conversion to ONNX only supports these cases."
+            )
+        if any(not hasattr(e, "coef_") for e in model_head.estimators_):
             raise ValueError(
                 "The model_head is a meta-estimator but not all of the estimators have a coef_ attribute."
             )
-        dtype = guess_data_type(model_head.estimators_[0].coef_, shape=input_shape)[0][1]
-    else:
-        raise ValueError(
-            "The model_head either does not have a coef_ attribute or some estimators in model_head.estimators_ do not have a coef_ attribute. Conversion to ONNX only supports these cases."
-        )
-    dtype.shape = input_shape
 
-    # If the datatype of the model is double we need to cast the outputs
-    # from the setfit model to doubles for compatibility inside of ONNX.
-    if isinstance(dtype, onnxconverter_common.data_types.DoubleTensorType):
-        sklearn_model = Pipeline([("castdouble", CastTransformer(dtype=np.double)), ("head", model_head)])
-    else:
-        sklearn_model = model_head
-
-    # Convert sklearn head into ONNX format
+    # The model body always produces float32 embeddings, so the head is converted to accept those.
+    # skl2onnx casts double coefficients to float32 accordingly.
+    input_shape = (None, model_head.n_features_in_)
     onnx_model = convert_sklearn(
-        sklearn_model,
-        initial_types=[("model_head", dtype)],
+        model_head,
+        initial_types=[("model_head", FloatTensorType(input_shape))],
         target_opset=opset,
-        options={id(sklearn_model): {"zipmap": False}},
+        options={id(model_head): {"zipmap": False}},
     )
 
     return onnx_model
@@ -226,7 +220,7 @@ def export_onnx(
     dummy_inputs = tokenizer(dummy_sample, **tokenizer_kwargs)
 
     # Check to see if the model uses a sklearn head or a torch dense layer.
-    if issubclass(type(model_head), models.Dense):
+    if isinstance(model_head, Dense):
         setfit_model = OnnxSetFitModel(transformer, lambda x: model_pooler(x)["sentence_embedding"], model_head).cpu()
         export_onnx_setfit_model(setfit_model, dummy_inputs, output_path, opset)
 

@@ -6,11 +6,11 @@ import evaluate
 import pytest
 import torch
 from datasets import Dataset, load_dataset
-from sentence_transformers import losses
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
+from setfit.compat import losses
 from setfit.losses import SupConLoss
 from setfit.modeling import SetFitModel
 from setfit.trainer import SetFitTrainer
@@ -404,20 +404,20 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
 
     def test_hyperparameter_search(self):
         class MyTrialShortNamer(TrialShortNamer):
-            DEFAULTS = {"max_iter": 100, "solver": "liblinear"}
+            DEFAULTS = {"max_iter": 100, "solver": "lbfgs"}
 
         def hp_space(trial):
             return {
                 "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
                 "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
                 "max_iter": trial.suggest_int("max_iter", 50, 300),
-                "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),
+                "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs"]),
             }
 
         def model_init(params):
             params = params or {}
             max_iter = params.get("max_iter", 100)
-            solver = params.get("solver", "liblinear")
+            solver = params.get("solver", "lbfgs")
             params = {
                 "head_params": {
                     "max_iter": max_iter,

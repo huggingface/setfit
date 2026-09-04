@@ -1,9 +1,14 @@
 import os
 
-import openvino.runtime as ov
+import openvino as ov
 
 from setfit import SetFitModel
 from setfit.exporters.onnx import export_onnx
+
+
+# openvino.runtime was removed in openvino 2026, but older versions only expose the runtime API there
+if not hasattr(ov, "Core"):
+    import openvino.runtime as ov
 
 
 def export_to_openvino(

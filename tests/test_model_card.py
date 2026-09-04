@@ -87,3 +87,9 @@ def test_cant_infer_dataset_id():
     # This triggers inferring the dataset_id from train_dataset
     Trainer(model=model, train_dataset=train_dataset)
     assert model.model_card_data.dataset_id is None
+
+
+def test_model_card_before_training(model: SetFitModel) -> None:
+    pytest.importorskip("codecarbon")
+    Trainer(model, args=TrainingArguments(report_to="codecarbon"))
+    assert "SetFit" in model.generate_model_card()

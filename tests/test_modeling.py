@@ -148,7 +148,7 @@ class SetFitModelDifferentiableHeadTest(TestCase):
 
         # check the model body's gradients
         for name, param in self.model.model_body.named_parameters():
-            if "0.auto_model.pooler" in name:  # ignore pooler
+            if ".pooler." in name:  # ignore pooler, mean pooling does not use it
                 continue
 
             assert param.grad is not None, f"Gradients of {name} in the model body is None."
@@ -187,6 +187,13 @@ def test_setfit_from_pretrained_local_model_with_head(tmp_path):
     model = SetFitModel.from_pretrained(str(tmp_path.absolute()))
 
     assert isinstance(model, SetFitModel)
+
+
+def test_from_pretrained_local_files_only_without_setfit_files() -> None:
+    model_id = "sentence-transformers/paraphrase-albert-small-v2"
+    SetFitModel.from_pretrained(model_id)  # warm the cache
+    model = SetFitModel.from_pretrained(model_id, local_files_only=True)
+    assert isinstance(model.model_head, LogisticRegression)
 
 
 def test_setfithead_multitarget_from_pretrained():

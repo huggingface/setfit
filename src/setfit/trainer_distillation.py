@@ -3,11 +3,12 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Tupl
 
 import torch
 from datasets import Dataset
-from sentence_transformers import losses, util
+from sentence_transformers import util
 from torch import nn
 from torch.utils.data import DataLoader
 
 from . import logging
+from .compat import losses
 from .sampler import ContrastiveDistillationDataset
 from .trainer import Trainer
 from .training_args import TrainingArguments
@@ -75,7 +76,7 @@ class DistillationTrainer(Trainer):
         self.student_model = self.model
 
     def dataset_to_parameters(self, dataset: Dataset) -> List[Iterable]:
-        return [dataset["text"]]
+        return [list(dataset["text"])]
 
     def get_dataset(
         self,
