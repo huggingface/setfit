@@ -9,14 +9,14 @@ This guide will show you how to proceed with knowledge distillation.
 
 ## Data preparation
 
-Let's consider a scenario with a little bit of labeled training data (e.g. 64 sentences). We will simulate this scenario using the [ag_news](https://huggingface.co/datasets/ag_news) dataset for this guide.
+Let's consider a scenario with a little bit of labeled training data (e.g. 64 sentences). We will simulate this scenario using the [ag_news](https://huggingface.co/datasets/fancyzhx/ag_news) dataset for this guide.
 
 ```py
 from datasets import load_dataset
 from setfit import sample_dataset
 
 # Load a dataset from the Hugging Face Hub
-dataset = load_dataset("ag_news")
+dataset = load_dataset("fancyzhx/ag_news")
 
 # Create a sample few-shot dataset to train with
 train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=16)
@@ -205,7 +205,7 @@ from datasets import load_dataset
 from setfit import sample_dataset
 
 # Load a dataset from the Hugging Face Hub
-dataset = load_dataset("ag_news")
+dataset = load_dataset("fancyzhx/ag_news")
 
 # Create a sample few-shot dataset to train with
 train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=16)
