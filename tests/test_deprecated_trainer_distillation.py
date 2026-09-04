@@ -2,9 +2,9 @@ from unittest import TestCase
 
 import pytest
 from datasets import Dataset
-from sentence_transformers.losses import CosineSimilarityLoss
 
 from setfit import DistillationSetFitTrainer, SetFitTrainer
+from setfit.compat import losses
 from setfit.modeling import SetFitModel
 
 
@@ -21,7 +21,7 @@ class DistillationSetFitTrainerTest(TestCase):
             model=self.teacher_model,
             train_dataset=dataset,
             eval_dataset=dataset,
-            loss_class=CosineSimilarityLoss,
+            loss_class=losses.CosineSimilarityLoss,
             metric="accuracy",
         )
         # Teacher Train and evaluate
@@ -33,7 +33,7 @@ class DistillationSetFitTrainerTest(TestCase):
             train_dataset=dataset,
             student_model=self.student_model,
             eval_dataset=dataset,
-            loss_class=CosineSimilarityLoss,
+            loss_class=losses.CosineSimilarityLoss,
             metric="accuracy",
         )
 

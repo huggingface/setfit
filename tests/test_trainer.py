@@ -7,12 +7,13 @@ import evaluate
 import pytest
 import torch
 from datasets import Dataset, load_dataset
-from sentence_transformers import losses
 from transformers import TrainerCallback
+from transformers.integrations import CodeCarbonCallback
 from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
+from setfit.compat import losses
 from setfit.losses import SupConLoss
 from setfit.modeling import SetFitModel
 from setfit.trainer import Trainer
@@ -398,20 +399,20 @@ class TrainerHyperParameterOptunaIntegrationTest(TestCase):
 
     def test_hyperparameter_search(self):
         class MyTrialShortNamer(TrialShortNamer):
-            DEFAULTS = {"max_iter": 100, "solver": "liblinear"}
+            DEFAULTS = {"max_iter": 100, "solver": "lbfgs"}
 
         def hp_space(trial):
             return {
                 "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
                 "batch_size": trial.suggest_categorical("batch_size", [4, 8, 16, 32, 64]),
                 "max_iter": trial.suggest_int("max_iter", 50, 300),
-                "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear"]),
+                "solver": trial.suggest_categorical("solver", ["newton-cg", "lbfgs"]),
             }
 
         def model_init(params):
             params = params or {}
             max_iter = params.get("max_iter", 100)
-            solver = params.get("solver", "liblinear")
+            solver = params.get("solver", "lbfgs")
             params = {
                 "head_params": {
                     "max_iter": max_iter,
@@ -603,3 +604,21 @@ def test_trainer_wrong_args(model: SetFitModel) -> None:
     expected = "`args` must be a `TrainingArguments` instance imported from `setfit`."
     with pytest.raises(ValueError, match=expected):
         Trainer(model, dataset)
+
+
+def test_trainer_report_to(model: SetFitModel) -> None:
+    trainer = Trainer(model, args=TrainingArguments(report_to="none"))
+    callbacks = trainer.st_trainer.callback_handler.callbacks
+    assert not any(type(callback).__module__.startswith("transformers.integrations") for callback in callbacks)
+    assert {"DefaultFlowCallback", "ModelCardCallback"} <= {type(callback).__name__ for callback in callbacks}
+
+    pytest.importorskip("codecarbon")
+    trainer = Trainer(model, args=TrainingArguments(report_to="codecarbon"))
+    callbacks = trainer.st_trainer.callback_handler.callbacks
+    assert any(isinstance(callback, CodeCarbonCallback) for callback in callbacks)
+    assert model.model_card_data.code_carbon_callback in callbacks
+
+
+def test_trainer_warmup_proportion(model: SetFitModel) -> None:
+    trainer = Trainer(model, args=TrainingArguments(warmup_proportion=0.25))
+    assert trainer.st_trainer.args.get_warmup_steps(100) == 25

@@ -13,7 +13,7 @@ from .model_card_pattern import MODEL_CARD_PATTERN
 
 
 def test_model_card(tmp_path: Path) -> None:
-    dataset = load_dataset("sst2")
+    dataset = load_dataset("stanfordnlp/sst2")
     train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
     eval_dataset = dataset["validation"].select(range(10))
     model = SetFitModel.from_pretrained(
@@ -87,3 +87,9 @@ def test_cant_infer_dataset_id():
     # This triggers inferring the dataset_id from train_dataset
     Trainer(model=model, train_dataset=train_dataset)
     assert model.model_card_data.dataset_id is None
+
+
+def test_model_card_before_training(model: SetFitModel) -> None:
+    pytest.importorskip("codecarbon")
+    Trainer(model, args=TrainingArguments(report_to="codecarbon"))
+    assert "SetFit" in model.generate_model_card()

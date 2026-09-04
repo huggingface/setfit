@@ -7,13 +7,12 @@ from dataclasses import dataclass, field, fields
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import torch
-from sentence_transformers import losses
 from transformers import IntervalStrategy
 from transformers.integrations import get_available_reporting_integrations
-from transformers.training_args import default_logdir
 from transformers.utils import is_torch_available
 
 from . import logging
+from .compat import TRANSFORMERS_VERSION, Version, default_logdir, losses
 
 
 logger = logging.get_logger(__name__)
@@ -112,7 +111,8 @@ class TrainingArguments:
             [mlflow](https://www.mlflow.org/) logging.
         logging_dir (`str`, *optional*):
             [TensorBoard](https://www.tensorflow.org/tensorboard) log directory. Will default to
-            *runs/**CURRENT_DATETIME_HOSTNAME***.
+            *runs/**CURRENT_DATETIME_HOSTNAME***. Only used with `transformers` < 5.0.0, newer versions ignore
+            this argument and use the `TENSORBOARD_LOGGING_DIR` environment variable instead.
         logging_strategy (`str` or [`~transformers.trainer_utils.IntervalStrategy`], *optional*, defaults to `"steps"`):
             The logging strategy to adopt during training. Possible values are:
 
@@ -247,7 +247,13 @@ class TrainingArguments:
             self.report_to = [self.report_to]
 
         if self.logging_dir is None:
-            self.logging_dir = default_logdir()
+            if TRANSFORMERS_VERSION < Version("5.0.0"):
+                self.logging_dir = default_logdir()
+        elif TRANSFORMERS_VERSION >= Version("5.0.0"):
+            logger.warning(
+                "`logging_dir` is ignored with transformers >= 5.0.0. "
+                "Set the `TENSORBOARD_LOGGING_DIR` environment variable instead."
+            )
 
         self.logging_strategy = IntervalStrategy(self.logging_strategy)
         if self.evaluation_strategy is not None:
@@ -291,6 +297,14 @@ class TrainingArguments:
 
         if self.samples_per_label != 2:
             logger.warning("The `samples_per_label` argument is deprecated and will be removed in a future version.")
+
+    def __getattr__(self, name: str) -> Any:
+        # Only reached when the regular lookup fails. Callbacks from transformers may read arguments that
+        # only exist on transformers' TrainingArguments, so defer to those of the underlying Trainer if known
+        transformers_args = self.__dict__.get("_transformers_args")
+        if name.startswith("_") or transformers_args is None:
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return getattr(transformers_args, name)
 
     @property
     def embedding_batch_size(self) -> int:
