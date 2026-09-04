@@ -9,7 +9,8 @@ concurrency:
 
 jobs:
   build:
-    uses: huggingface/doc-builder/.github/workflows/build_pr_documentation.yml@c2d27f6f231df3d1b07f3a7ea54fe3d0f8bc3e27  # main
+    # Pinned before the doc-builder light install (huggingface/doc-builder#801), which skips the real dependencies of setfit
+    uses: huggingface/doc-builder/.github/workflows/build_pr_documentation.yml@90b4ee2c10b81b5c1a6367c4e6fc9e2fb510a7e3  # main
     with:
       commit_sha: ${{ github.event.pull_request.head.sha }}
       pr_number: ${{ github.event.number }}
