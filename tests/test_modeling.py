@@ -76,7 +76,7 @@ def test_setfit_multilabel_classifier_chain_classifier_model_head():
 class SetFitModelDifferentiableHeadTest(TestCase):
     @classmethod
     def setUpClass(cls):
-        dataset = load_dataset("sst2")
+        dataset = load_dataset("stanfordnlp/sst2")
         num_classes = 2
         train_dataset = dataset["train"].shuffle(seed=42).select(range(2 * num_classes))
         x_train, y_train = train_dataset["sentence"], train_dataset["label"]

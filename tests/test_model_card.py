@@ -13,7 +13,7 @@ from .model_card_pattern import MODEL_CARD_PATTERN
 
 
 def test_model_card(tmp_path: Path) -> None:
-    dataset = load_dataset("sst2")
+    dataset = load_dataset("stanfordnlp/sst2")
     train_dataset = sample_dataset(dataset["train"], label_column="label", num_samples=8)
     eval_dataset = dataset["validation"].select(range(10))
     model = SetFitModel.from_pretrained(
