@@ -87,8 +87,16 @@ class ContrastiveDataset(IterableDataset):
         else:
             raise ValueError("Invalid sampling strategy. Must be one of 'unique', 'oversampling', or 'undersampling'.")
 
+        # A dataset with just one sentence per label cannot produce positive pairs, and a dataset with
+        # just one label cannot produce negative pairs. We cannot sample from those empty pair lists.
+        if not self.pos_pairs:
+            self.len_pos_pairs = 0
+        if not self.neg_pairs:
+            self.len_neg_pairs = 0
+
     def generate_pairs(self) -> None:
-        for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
+        # Identity pairs are excluded: a sentence paired with itself carries no training signal
+        for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels, replacement=False):
             is_positive = _label == label
             is_positive_full = self.max_pos_or_neg != -1 and len(self.pos_pairs) >= self.max_pos_or_neg
             is_negative_full = self.max_pos_or_neg != -1 and len(self.neg_pairs) >= self.max_pos_or_neg
@@ -103,7 +111,7 @@ class ContrastiveDataset(IterableDataset):
                 break
 
     def generate_multilabel_pairs(self) -> None:
-        for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels):
+        for (_text, _label), (text, label) in shuffle_combinations(self.sentence_labels, replacement=False):
             # logical_and checks if labels are both set for each class
             is_positive = any(np.logical_and(_label, label))
             is_positive_full = self.max_pos_or_neg != -1 and len(self.pos_pairs) >= self.max_pos_or_neg
