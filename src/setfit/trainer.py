@@ -52,12 +52,18 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.logs_prefix = "embedding"
         # The Trainer creates the integration callbacks (TensorBoard, CodeCarbon, ...) during initialization,
         # so report_to has to be known already
+        st_args_kwargs = {}
+        # Bodies with a Router module require the routing before the data collator is created
+        router_mapping = self._task_router_mapping(setfit_model)
+        if router_mapping is not None:
+            st_args_kwargs["router_mapping"] = router_mapping
         super().__init__(
             model=setfit_model.model_body,
             args=SentenceTransformerTrainingArguments(
                 output_dir=setfit_args.output_dir,
                 report_to=setfit_args.report_to,
                 seed=setfit_args.seed,
+                **st_args_kwargs,
             ),
             **kwargs,
         )
@@ -175,19 +181,25 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
 
         self._apply_task_routing()
 
-    def _apply_task_routing(self) -> None:
+    @staticmethod
+    def _task_router_mapping(setfit_model: "SetFitModel") -> Optional[Dict[str, str]]:
         """
-        Route every pair column through `SetFitModel.task` during embedding training.
+        The `router_mapping` that routes every pair column through `SetFitModel.task`, or None without a task.
 
         Sentence Transformers resolves the per-column task from `router_mapping`; SetFit's contrastive datasets
         use the `sentence_1`/`sentence_2` (pair losses) or `sentence` (batch losses) columns.
         """
-        task = self.setfit_model.task
+        task = setfit_model.task
         if task is None or SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            return None
+        return {"sentence_1": task, "sentence_2": task, "sentence": task}
+
+    def _apply_task_routing(self) -> None:
+        """Propagate the current model's task routing to the arguments and the already created data collator."""
+        if SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
             return
-        router_mapping = {"sentence_1": task, "sentence_2": task, "sentence": task}
+        router_mapping = self._task_router_mapping(self.setfit_model) or {}
         self.args.router_mapping = router_mapping
-        # The data collator was created from the arguments during initialization, so update it as well
         if hasattr(self.data_collator, "router_mapping"):
             self.data_collator.router_mapping = router_mapping
 

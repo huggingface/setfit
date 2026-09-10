@@ -231,6 +231,7 @@ class SetFitModelCardData(CardData):
     metric_lines: List[Dict[str, float]] = field(default_factory=list, init=False)
     widget: List[Dict[str, str]] = field(default_factory=list, init=False)
     predict_example: Optional[str] = field(default=None, init=False)
+    text_inputs: bool = field(default=True, init=False)
     label_example_list: List[Dict[str, str]] = field(default_factory=list, init=False)
     tokenizer_warning: bool = field(default=False, init=False)
     train_set_metrics_list: List[Dict[str, str]] = field(default_factory=list, init=False)
@@ -294,19 +295,27 @@ class SetFitModelCardData(CardData):
     def set_best_model_step(self, step: int) -> None:
         self.best_model_step = step
 
+    @staticmethod
+    def _has_text_inputs(dataset: Dataset) -> bool:
+        """Whether the `text` column holds strings, rather than e.g. images, judged from the dataset features."""
+        feature = dataset.features.get("text")
+        return isinstance(feature, datasets.Value) and feature.dtype in ("string", "large_string")
+
     def set_widget_examples(self, dataset: Dataset) -> None:
-        samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
+        self.text_inputs = self._has_text_inputs(dataset)
         # Non-text inputs, e.g. images, cannot be shown in the Hub widget or the usage snippet
-        samples = [sample for sample in samples if isinstance(sample, str)]
+        if not self.text_inputs:
+            return
+        samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
         self.widget = [{"text": sample} for sample in samples]
 
-        samples = sorted(samples, key=len)
+        samples = sorted(list(samples), key=len)
         if samples:
             self.predict_example = samples[0]
 
     def set_train_set_metrics(self, dataset: Dataset) -> None:
         # Word counts only make sense for text inputs; images and other modalities skip this table
-        if isinstance(dataset[0]["text"], str):
+        if self._has_text_inputs(dataset):
 
             def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
                 sample["word_count"] = len(sample["text"].split(" "))

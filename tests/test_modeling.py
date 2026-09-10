@@ -405,3 +405,14 @@ def test_task_rejects_differentiable_head() -> None:
 def test_task_requires_sentence_transformers_v5() -> None:
     with pytest.raises(ValueError, match="sentence-transformers v5.0.0"):
         SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", task="document")
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_task_persists_for_span_model() -> None:
+    from setfit.span.modeling import SpanSetFitModel
+
+    model = SpanSetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", task="document")
+    with SafeTemporaryDirectory() as tmp_dir:
+        model.save_pretrained(tmp_dir)
+        fresh_model = SpanSetFitModel.from_pretrained(tmp_dir)
+    assert fresh_model.task == "document"
