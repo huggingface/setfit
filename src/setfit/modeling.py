@@ -238,7 +238,7 @@ class SetFitModel(ModelHubMixin):
         return isinstance(self.model_head, nn.Module)
 
     @property
-    def encode_kwargs(self) -> Dict[str, Any]:
+    def _encode_kwargs(self) -> Dict[str, Any]:
         """Keyword arguments forwarded to every `SentenceTransformer.encode` call made by this model.
 
         Only `task` is forwarded, and only when it is set, so models on older Sentence Transformers
@@ -335,7 +335,7 @@ class SetFitModel(ModelHubMixin):
                 self.unfreeze("body")
         else:  # train with sklearn
             embeddings = self.model_body.encode(
-                list(x_train), normalize_embeddings=self.normalize_embeddings, **self.encode_kwargs
+                list(x_train), normalize_embeddings=self.normalize_embeddings, **self._encode_kwargs
             )
             self.model_head.fit(embeddings, list(y_train))
             if self.labels is None and self.multi_target_strategy is None:
@@ -476,7 +476,7 @@ class SetFitModel(ModelHubMixin):
             normalize_embeddings=self.normalize_embeddings,
             convert_to_tensor=self.has_differentiable_head,
             show_progress_bar=show_progress_bar,
-            **self.encode_kwargs,
+            **self._encode_kwargs,
         )
 
     def _output_type_conversion(

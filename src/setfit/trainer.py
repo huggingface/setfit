@@ -200,8 +200,7 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
             return
         router_mapping = self._task_router_mapping(self.setfit_model) or {}
         self.args.router_mapping = router_mapping
-        if hasattr(self.data_collator, "router_mapping"):
-            self.data_collator.router_mapping = router_mapping
+        self.data_collator.router_mapping = router_mapping
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.
