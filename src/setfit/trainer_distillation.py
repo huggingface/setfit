@@ -86,7 +86,9 @@ class DistillationTrainer(Trainer):
         max_pairs: int = -1,
     ) -> Tuple[DataLoader, nn.Module, int, int]:
         x_embd_student = self.teacher_model.model_body.encode(
-            list(x), convert_to_tensor=self.teacher_model.has_differentiable_head
+            list(x),
+            convert_to_tensor=self.teacher_model.has_differentiable_head,
+            **self.teacher_model.encode_kwargs,
         )
         cos_sim_matrix = util.cos_sim(x_embd_student, x_embd_student)
 

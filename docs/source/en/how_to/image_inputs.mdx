@@ -1,0 +1,59 @@
+
+# Image Classification
+
+SetFit can train few-shot classifiers on images, not only text, by using a multimodal Sentence Transformer body.
+Sentence Transformers v6 embeds images through the same `encode` API as text, and SetFit's contrastive training and
+classification head sit on top of that API unchanged.
+
+<Tip>
+
+This requires `sentence-transformers[image]>=6.0.0` and a body whose processor accepts images, for example a CLIP
+checkpoint or a multimodal document encoder such as `Hcompany/NeoMME-260M-Retriever-ST-dense`. `model.modalities`
+reports what a loaded body accepts.
+
+</Tip>
+
+## Passing images
+
+The `"text"` column of the training dataset holds the inputs, whatever their modality. `PIL.Image` objects, local
+paths and URLs are all accepted by Sentence Transformers; a 🤗 Datasets `Image` feature decodes to `PIL.Image` rows
+automatically.
+
+```py
+from datasets import Dataset
+from PIL import Image
+
+from setfit import SetFitModel, Trainer, TrainingArguments
+
+train_dataset = Dataset.from_dict({
+    "text": [Image.open("invoice_1.png"), Image.open("contract_1.png"), ...],
+    "label": ["invoice", "contract", ...],
+})
+
+model = SetFitModel.from_pretrained("sentence-transformers/clip-ViT-B-32")
+trainer = Trainer(model=model, args=TrainingArguments(num_iterations=10), train_dataset=train_dataset)
+trainer.train()
+
+model.predict([Image.open("invoice_7.png")])
+# ['invoice']
+```
+
+## Bodies that require a task
+
+Some multimodal encoders, such as document retrievers, require every input to be embedded under a task like
+`"query"` or `"document"`. Pass that task to `SetFitModel.from_pretrained`; SetFit then forwards it to every `encode`
+call and routes both sides of each contrastive pair through it during training. The task is stored in
+`config_setfit.json`, so a saved model keeps it.
+
+```py
+model = SetFitModel.from_pretrained("Hcompany/NeoMME-260M-Retriever-ST-dense", task="document")
+```
+
+`task` requires sentence-transformers v5.0.0 or newer and is only supported with the default scikit-learn
+classification head: the differentiable head tokenizes its inputs as text.
+
+## Limitations
+
+- The automatically generated model card omits the Hub widget, the usage example and the word-count statistics
+  when the training inputs are not strings.
+- Knowledge distillation and ABSA remain text-only.

@@ -15,7 +15,14 @@ from transformers.utils.import_utils import is_in_notebook
 from setfit.model_card import ModelCardCallback
 
 from . import logging
-from .compat import TRANSFORMERS_VERSION, BatchSamplers, SentenceTransformerModelCardCallback, Version, losses
+from .compat import (
+    SENTENCE_TRANSFORMERS_VERSION,
+    TRANSFORMERS_VERSION,
+    BatchSamplers,
+    SentenceTransformerModelCardCallback,
+    Version,
+    losses,
+)
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
 from .sampler import ContrastiveDataset
@@ -165,6 +172,24 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.args.load_best_model_at_end = args.load_best_model_at_end
         self.args.metric_for_best_model = args.metric_for_best_model
         self.args.greater_is_better = args.greater_is_better
+
+        self._apply_task_routing()
+
+    def _apply_task_routing(self) -> None:
+        """
+        Route every pair column through `SetFitModel.task` during embedding training.
+
+        Sentence Transformers resolves the per-column task from `router_mapping`; SetFit's contrastive datasets
+        use the `sentence_1`/`sentence_2` (pair losses) or `sentence` (batch losses) columns.
+        """
+        task = self.setfit_model.task
+        if task is None or SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            return
+        router_mapping = {"sentence_1": task, "sentence_2": task, "sentence": task}
+        self.args.router_mapping = router_mapping
+        # The data collator was created from the arguments during initialization, so update it as well
+        if hasattr(self.data_collator, "router_mapping"):
+            self.data_collator.router_mapping = router_mapping
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.

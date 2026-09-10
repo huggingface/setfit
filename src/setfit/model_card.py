@@ -296,26 +296,31 @@ class SetFitModelCardData(CardData):
 
     def set_widget_examples(self, dataset: Dataset) -> None:
         samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
+        # Non-text inputs, e.g. images, cannot be shown in the Hub widget or the usage snippet
+        samples = [sample for sample in samples if isinstance(sample, str)]
         self.widget = [{"text": sample} for sample in samples]
 
-        samples = sorted(list(samples), key=len)
+        samples = sorted(samples, key=len)
         if samples:
             self.predict_example = samples[0]
 
     def set_train_set_metrics(self, dataset: Dataset) -> None:
-        def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
-            sample["word_count"] = len(sample["text"].split(" "))
-            return sample
+        # Word counts only make sense for text inputs; images and other modalities skip this table
+        if isinstance(dataset[0]["text"], str):
 
-        dataset = dataset.map(add_naive_word_count)
-        self.train_set_metrics_list = [
-            {
-                "Training set": "Word count",
-                "Min": min(dataset["word_count"]),
-                "Median": sum(dataset["word_count"]) / len(dataset),
-                "Max": max(dataset["word_count"]),
-            },
-        ]
+            def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
+                sample["word_count"] = len(sample["text"].split(" "))
+                return sample
+
+            word_counts = dataset.map(add_naive_word_count)["word_count"]
+            self.train_set_metrics_list = [
+                {
+                    "Training set": "Word count",
+                    "Min": min(word_counts),
+                    "Median": sum(word_counts) / len(word_counts),
+                    "Max": max(word_counts),
+                },
+            ]
         # E.g. if unlabeled via DistillationTrainer
         if "label" not in dataset.column_names:
             return

@@ -13,7 +13,7 @@ from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
-from setfit.compat import losses
+from setfit.compat import SENTENCE_TRANSFORMERS_VERSION, Version, losses
 from setfit.losses import SupConLoss
 from setfit.modeling import SetFitModel
 from setfit.trainer import Trainer
@@ -622,3 +622,49 @@ def test_trainer_report_to(model: SetFitModel) -> None:
 def test_trainer_warmup_proportion(model: SetFitModel) -> None:
     trainer = Trainer(model, args=TrainingArguments(warmup_proportion=0.25))
     assert trainer.st_trainer.args.get_warmup_steps(100) == 25
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_trainer_routes_pair_columns_through_task() -> None:
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", task="document")
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1), train_dataset=dataset)
+    expected = {"sentence_1": "document", "sentence_2": "document", "sentence": "document"}
+    assert trainer.st_trainer.args.router_mapping == expected
+    assert trainer.st_trainer.data_collator.router_mapping == expected
+
+    # Without a task, SetFit leaves the routing untouched
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1), train_dataset=dataset)
+    assert not trainer.st_trainer.args.router_mapping
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("6.0.0"), reason="Image inputs require sentence-transformers v6+")
+def test_trainer_image_inputs() -> None:
+    pytest.importorskip("PIL")
+    from PIL.Image import new as new_image
+
+    def solid(color):
+        return new_image("RGB", (32, 32), color)
+
+    reds = [solid((220, 20 + 10 * i, 20)) for i in range(4)]
+    blues = [solid((20, 20 + 10 * i, 220)) for i in range(4)]
+    dataset = Dataset.from_dict({"text": reds + blues, "label": [0] * 4 + [1] * 4})
+    assert not isinstance(dataset[0]["text"], str)
+
+    model = SetFitModel.from_pretrained("hf-internal-testing/tiny-random-CLIPModel", task="document")
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1, num_epochs=1), train_dataset=dataset)
+    trainer.train()
+
+    predictions = model.predict([solid((230, 40, 40)), solid((40, 40, 230))])
+    assert list(predictions) == [0, 1]
+    # Model cards cannot show image examples or word counts
+    assert model.model_card_data.widget == []
+    assert model.model_card_data.predict_example is None
+    assert model.model_card_data.train_set_metrics_list == []
+
+    with SafeTemporaryDirectory() as tmp_dir:
+        model.save_pretrained(tmp_dir)
+        fresh_model = SetFitModel.from_pretrained(tmp_dir)
+    assert fresh_model.task == "document"
+    assert list(fresh_model.predict([solid((230, 40, 40)), solid((40, 40, 230))])) == [0, 1]
