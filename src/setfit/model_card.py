@@ -231,6 +231,7 @@ class SetFitModelCardData(CardData):
     metric_lines: List[Dict[str, float]] = field(default_factory=list, init=False)
     widget: List[Dict[str, str]] = field(default_factory=list, init=False)
     predict_example: Optional[str] = field(default=None, init=False)
+    text_inputs: bool = field(default=True, init=False)
     label_example_list: List[Dict[str, str]] = field(default_factory=list, init=False)
     tokenizer_warning: bool = field(default=False, init=False)
     train_set_metrics_list: List[Dict[str, str]] = field(default_factory=list, init=False)
@@ -294,7 +295,17 @@ class SetFitModelCardData(CardData):
     def set_best_model_step(self, step: int) -> None:
         self.best_model_step = step
 
+    @staticmethod
+    def _has_text_inputs(dataset: Dataset) -> bool:
+        """Whether the `text` column holds strings, rather than e.g. images, judged from the dataset features."""
+        feature = dataset.features.get("text")
+        return isinstance(feature, datasets.Value) and feature.dtype in ("string", "large_string")
+
     def set_widget_examples(self, dataset: Dataset) -> None:
+        self.text_inputs = self._has_text_inputs(dataset)
+        # Non-text inputs, e.g. images, cannot be shown in the Hub widget or the usage snippet
+        if not self.text_inputs:
+            return
         samples = dataset.select(random.sample(range(len(dataset)), k=min(len(dataset), 5)))["text"]
         self.widget = [{"text": sample} for sample in samples]
 
@@ -303,19 +314,22 @@ class SetFitModelCardData(CardData):
             self.predict_example = samples[0]
 
     def set_train_set_metrics(self, dataset: Dataset) -> None:
-        def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
-            sample["word_count"] = len(sample["text"].split(" "))
-            return sample
+        # Word counts only make sense for text inputs; images and other modalities skip this table
+        if self._has_text_inputs(dataset):
 
-        dataset = dataset.map(add_naive_word_count)
-        self.train_set_metrics_list = [
-            {
-                "Training set": "Word count",
-                "Min": min(dataset["word_count"]),
-                "Median": sum(dataset["word_count"]) / len(dataset),
-                "Max": max(dataset["word_count"]),
-            },
-        ]
+            def add_naive_word_count(sample: Dict[str, Any]) -> Dict[str, Any]:
+                sample["word_count"] = len(sample["text"].split(" "))
+                return sample
+
+            word_counts = dataset.map(add_naive_word_count)["word_count"]
+            self.train_set_metrics_list = [
+                {
+                    "Training set": "Word count",
+                    "Min": min(word_counts),
+                    "Median": sum(word_counts) / len(word_counts),
+                    "Max": max(word_counts),
+                },
+            ]
         # E.g. if unlabeled via DistillationTrainer
         if "label" not in dataset.column_names:
             return

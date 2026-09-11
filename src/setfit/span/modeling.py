@@ -35,7 +35,7 @@ class SpanSetFitModel(SetFitModel):
         super().__init__(**kwargs)
         self.spacy_model = spacy_model
         self.span_context = span_context
-        self.attributes_to_save = {"normalize_embeddings", "labels", "span_context", "spacy_model"}
+        self.attributes_to_save = {"normalize_embeddings", "labels", "task", "span_context", "spacy_model"}
 
     def prepend_aspects(self, docs: List["Doc"], aspects_list: List[List[slice]]) -> Iterable[str]:
         for doc, aspects in zip(docs, aspects_list):

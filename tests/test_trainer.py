@@ -13,8 +13,9 @@ from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
-from setfit.compat import losses
+from setfit.compat import SENTENCE_TRANSFORMERS_VERSION, Version, losses
 from setfit.losses import SupConLoss
+from setfit.model_card import generate_model_card
 from setfit.modeling import SetFitModel
 from setfit.trainer import Trainer
 from setfit.training_args import TrainingArguments
@@ -622,3 +623,82 @@ def test_trainer_report_to(model: SetFitModel) -> None:
 def test_trainer_warmup_proportion(model: SetFitModel) -> None:
     trainer = Trainer(model, args=TrainingArguments(warmup_proportion=0.25))
     assert trainer.st_trainer.args.get_warmup_steps(100) == 25
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_trainer_routes_pair_columns_through_task() -> None:
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", task="document")
+    dataset = Dataset.from_dict({"text": ["a", "b", "c"], "label": [0, 1, 2]})
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1), train_dataset=dataset)
+    expected = {"sentence_1": "document", "sentence_2": "document", "sentence": "document"}
+    assert trainer.st_trainer.args.router_mapping == expected
+    assert trainer.st_trainer.data_collator.router_mapping == expected
+
+    # Without a task, SetFit leaves the routing untouched
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1), train_dataset=dataset)
+    assert not trainer.st_trainer.args.router_mapping
+
+    # Swapping in a model without a task (e.g. via model_init) clears the routing again
+    trainer.st_trainer.setfit_model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", task="query"
+    )
+    trainer.st_trainer.setfit_args = trainer.args
+    assert trainer.st_trainer.data_collator.router_mapping["sentence_1"] == "query"
+    trainer.st_trainer.setfit_model = model
+    trainer.st_trainer.setfit_args = trainer.args
+    assert not trainer.st_trainer.args.router_mapping
+    assert not trainer.st_trainer.data_collator.router_mapping
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`Router` requires sentence-transformers v5+")
+def test_trainer_with_router_body() -> None:
+    from sentence_transformers import SentenceTransformer
+    from sentence_transformers.models import Pooling, Router, Transformer
+    from sklearn.linear_model import LogisticRegression
+
+    transformer = Transformer("sentence-transformers-testing/stsb-bert-tiny-safetensors")
+    router = Router.for_query_document(query_modules=[transformer], document_modules=[transformer])
+    body = SentenceTransformer(modules=[router, Pooling(transformer.get_word_embedding_dimension())])
+    dataset = Dataset.from_dict({"text": ["a", "b", "c", "d"], "label": [0, 1, 0, 1]})
+
+    # Sentence Transformers refuses to train a Router body without a routing, so the task must reach it
+    # before the trainer creates its data collator
+    model = SetFitModel(model_body=body, model_head=LogisticRegression(), task="document")
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1, num_epochs=1), train_dataset=dataset)
+    trainer.train()
+    assert len(model.predict(["a", "b"])) == 2
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("6.0.0"), reason="Image inputs require sentence-transformers v6+")
+def test_trainer_image_inputs() -> None:
+    pytest.importorskip("PIL")
+    from PIL.Image import new as new_image
+
+    def solid(color):
+        return new_image("RGB", (32, 32), color)
+
+    reds = [solid((220, 20 + 10 * i, 20)) for i in range(4)]
+    blues = [solid((20, 20 + 10 * i, 220)) for i in range(4)]
+    dataset = Dataset.from_dict({"text": reds + blues, "label": [0] * 4 + [1] * 4})
+    assert not isinstance(dataset[0]["text"], str)
+
+    model = SetFitModel.from_pretrained("hf-internal-testing/tiny-random-CLIPModel", task="document")
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1, num_epochs=1), train_dataset=dataset)
+    trainer.train()
+
+    predictions = model.predict([solid((230, 40, 40)), solid((40, 40, 230))])
+    assert list(predictions) == [0, 1]
+    # Model cards cannot show image examples or word counts, and the usage snippet shows an image call
+    assert model.model_card_data.widget == []
+    assert model.model_card_data.predict_example is None
+    assert model.model_card_data.train_set_metrics_list == []
+    model_card = generate_model_card(model)
+    assert 'model([Image.open("example.png")])' in model_card
+    assert "spiderman" not in model_card
+
+    with SafeTemporaryDirectory() as tmp_dir:
+        model.save_pretrained(tmp_dir)
+        fresh_model = SetFitModel.from_pretrained(tmp_dir)
+    assert fresh_model.task == "document"
+    assert list(fresh_model.predict([solid((230, 40, 40)), solid((40, 40, 230))])) == [0, 1]

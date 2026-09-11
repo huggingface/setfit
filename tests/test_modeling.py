@@ -12,6 +12,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.multioutput import ClassifierChain, MultiOutputClassifier
 
 from setfit import SetFitHead, SetFitModel, Trainer
+from setfit.compat import SENTENCE_TRANSFORMERS_VERSION, Version
 from setfit.modeling import MODEL_HEAD_NAME
 from tests.utils import SafeTemporaryDirectory
 
@@ -276,7 +277,7 @@ def test_save_load_config(model: SetFitModel) -> None:
         assert config_path.exists()
         with open(config_path, "r") as f:
             config = json.load(f)
-        assert config == {"normalize_embeddings": False, "labels": None}
+        assert config == {"normalize_embeddings": False, "labels": None, "task": None}
 
     with SafeTemporaryDirectory() as tmp_dir:
         tmp_dir = str(Path(tmp_dir) / "model")
@@ -287,7 +288,7 @@ def test_save_load_config(model: SetFitModel) -> None:
         assert config_path.exists()
         with open(config_path, "r") as f:
             config = json.load(f)
-        assert config == {"normalize_embeddings": True, "labels": ["negative", "positive"]}
+        assert config == {"normalize_embeddings": True, "labels": ["negative", "positive"], "task": None}
 
         fresh_model = model.from_pretrained(tmp_dir)
         assert fresh_model.normalize_embeddings is True
@@ -359,3 +360,59 @@ def test_predict_proba_multi_output(use_differentiable_head: bool) -> None:
     outputs = model.predict_proba(["That was cool!"] * 3, as_numpy=True)
     assert isinstance(outputs, np.ndarray)
     assert outputs.shape == (3, 2, 2)
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_task_forwarded_to_encode(model: SetFitModel) -> None:
+    calls = []
+
+    def fake_encode(inputs, **kwargs):
+        calls.append(kwargs)
+        return np.zeros((len(inputs), 8))
+
+    model.model_body.encode = fake_encode
+    model.encode(["a", "b"])
+    assert calls[-1].get("task") is None
+
+    model.task = "document"
+    model.encode(["a", "b"])
+    assert calls[-1]["task"] == "document"
+    model.fit(["a", "b"], [0, 1], num_epochs=1)
+    assert calls[-1]["task"] == "document"
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_task_persists_across_save_load(model: SetFitModel) -> None:
+    model.task = "document"
+    with SafeTemporaryDirectory() as tmp_dir:
+        model.save_pretrained(tmp_dir)
+        with open(Path(tmp_dir) / "config_setfit.json") as f:
+            assert json.load(f)["task"] == "document"
+        fresh_model = SetFitModel.from_pretrained(tmp_dir)
+    assert fresh_model.task == "document"
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_task_rejects_differentiable_head() -> None:
+    model = SetFitModel.from_pretrained(
+        "sentence-transformers/paraphrase-albert-small-v2", use_differentiable_head=True, task="document"
+    )
+    with pytest.raises(NotImplementedError, match="scikit-learn head"):
+        model.fit(["a", "b"], [0, 1], num_epochs=1)
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION >= Version("5.0.0"), reason="Only older sentence-transformers reject `task`")
+def test_task_requires_sentence_transformers_v5() -> None:
+    with pytest.raises(ValueError, match="sentence-transformers v5.0.0"):
+        SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", task="document")
+
+
+@pytest.mark.skipif(SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"), reason="`task` requires sentence-transformers v5+")
+def test_task_persists_for_span_model() -> None:
+    from setfit.span.modeling import SpanSetFitModel
+
+    model = SpanSetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2", task="document")
+    with SafeTemporaryDirectory() as tmp_dir:
+        model.save_pretrained(tmp_dir)
+        fresh_model = SpanSetFitModel.from_pretrained(tmp_dir)
+    assert fresh_model.task == "document"

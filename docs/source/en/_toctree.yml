@@ -27,6 +27,8 @@
     title: Classification Heads
   - local: how_to/multilabel
     title: Multilabel Text Classification
+  - local: how_to/image_inputs
+    title: Image Classification
   - local: how_to/zero_shot
     title: Zero-shot Text Classification
   - local: how_to/hyperparameter_optimization

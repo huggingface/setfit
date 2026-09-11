@@ -15,7 +15,14 @@ from transformers.utils.import_utils import is_in_notebook
 from setfit.model_card import ModelCardCallback
 
 from . import logging
-from .compat import TRANSFORMERS_VERSION, BatchSamplers, SentenceTransformerModelCardCallback, Version, losses
+from .compat import (
+    SENTENCE_TRANSFORMERS_VERSION,
+    TRANSFORMERS_VERSION,
+    BatchSamplers,
+    SentenceTransformerModelCardCallback,
+    Version,
+    losses,
+)
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
 from .sampler import ContrastiveDataset
@@ -45,12 +52,18 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.logs_prefix = "embedding"
         # The Trainer creates the integration callbacks (TensorBoard, CodeCarbon, ...) during initialization,
         # so report_to has to be known already
+        st_args_kwargs = {}
+        # Bodies with a Router module require the routing before the data collator is created
+        router_mapping = self._task_router_mapping(setfit_model)
+        if router_mapping is not None:
+            st_args_kwargs["router_mapping"] = router_mapping
         super().__init__(
             model=setfit_model.model_body,
             args=SentenceTransformerTrainingArguments(
                 output_dir=setfit_args.output_dir,
                 report_to=setfit_args.report_to,
                 seed=setfit_args.seed,
+                **st_args_kwargs,
             ),
             **kwargs,
         )
@@ -165,6 +178,29 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.args.load_best_model_at_end = args.load_best_model_at_end
         self.args.metric_for_best_model = args.metric_for_best_model
         self.args.greater_is_better = args.greater_is_better
+
+        self._apply_task_routing()
+
+    @staticmethod
+    def _task_router_mapping(setfit_model: "SetFitModel") -> Optional[Dict[str, str]]:
+        """
+        The `router_mapping` that routes every pair column through `SetFitModel.task`, or None without a task.
+
+        Sentence Transformers resolves the per-column task from `router_mapping`; SetFit's contrastive datasets
+        use the `sentence_1`/`sentence_2` (pair losses) or `sentence` (batch losses) columns.
+        """
+        task = setfit_model.task
+        if task is None or SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            return None
+        return {"sentence_1": task, "sentence_2": task, "sentence": task}
+
+    def _apply_task_routing(self) -> None:
+        """Propagate the current model's task routing to the arguments and the already created data collator."""
+        if SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            return
+        router_mapping = self._task_router_mapping(self.setfit_model) or {}
+        self.args.router_mapping = router_mapping
+        self.data_collator.router_mapping = router_mapping
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.
