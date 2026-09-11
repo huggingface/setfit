@@ -377,6 +377,8 @@ class Trainer(ColumnMappingMixin):
 
         self._model = model
         self.hp_search_backend = None
+        # Non-text inputs (e.g. PIL images) referenced by the contrastive pair datasets; see ``get_dataset``.
+        self._pair_inputs: List[Any] = []
 
         callbacks = callbacks + [ModelCardCallback(self)] if callbacks else [ModelCardCallback(self)]
         self.st_trainer = BCSentenceTransformersTrainer(
@@ -596,6 +598,7 @@ class Trainer(ColumnMappingMixin):
             self.st_trainer.setfit_args = args
         args = args or self.args or TrainingArguments()
 
+        self._pair_inputs.clear()
         train_max_pairs = -1 if args.max_steps == -1 else args.max_steps * args.embedding_batch_size
         train_dataset, loss = self.get_dataset(x_train, y_train, args=args, max_pairs=train_max_pairs)
         if x_eval is not None and args.eval_strategy != IntervalStrategy.NO:
@@ -648,8 +651,18 @@ class Trainer(ColumnMappingMixin):
                     margin=args.margin,
                 )
         else:
+            if x and not isinstance(x[0], str):
+                # Pair rows hold indices into ``self._pair_inputs`` rather than the inputs themselves: with images,
+                # a few thousand inputs become tens of thousands of pair rows, and storing an image per row
+                # overflows the Arrow table (2 GB offsets) before training starts. The collator resolves them.
+                offset = len(self._pair_inputs)
+                self._pair_inputs.extend(x)
+                pair_inputs = list(range(offset, offset + len(x)))
+                self._resolve_pair_inputs_in_collator()
+            else:
+                pair_inputs = x
             data_sampler = ContrastiveDataset(
-                x,
+                pair_inputs,
                 y,
                 self.model.multi_target_strategy,
                 args.num_iterations,
@@ -660,6 +673,21 @@ class Trainer(ColumnMappingMixin):
             loss = args.loss(self.model.model_body)
 
         return dataset, loss
+
+    def _resolve_pair_inputs_in_collator(self) -> None:
+        """Make the Sentence Transformers collator map pair-row indices back to the inputs before preprocessing."""
+        collator = self.st_trainer.data_collator
+        if getattr(collator, "_setfit_resolves_pair_inputs", False):
+            return
+        fn_name = "preprocess_fn" if hasattr(collator, "preprocess_fn") else "tokenize_fn"
+        preprocess = getattr(collator, fn_name)
+        pair_inputs = self._pair_inputs
+
+        def resolve_then_preprocess(inputs, *fn_args, **fn_kwargs):
+            return preprocess([pair_inputs[index] for index in inputs], *fn_args, **fn_kwargs)
+
+        setattr(collator, fn_name, resolve_then_preprocess)
+        collator._setfit_resolves_pair_inputs = True
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.

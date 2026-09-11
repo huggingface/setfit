@@ -686,6 +686,8 @@ def test_trainer_image_inputs() -> None:
     model = SetFitModel.from_pretrained("hf-internal-testing/tiny-random-CLIPModel", task="document")
     trainer = Trainer(model=model, args=TrainingArguments(num_iterations=1, num_epochs=1), train_dataset=dataset)
     trainer.train()
+    # Pair rows reference the images by index instead of embedding them in the Arrow table
+    assert trainer.st_trainer.train_dataset.features["sentence_1"].dtype.startswith("int")
 
     predictions = model.predict([solid((230, 40, 40)), solid((40, 40, 230))])
     assert list(predictions) == [0, 1]
@@ -702,3 +704,24 @@ def test_trainer_image_inputs() -> None:
         fresh_model = SetFitModel.from_pretrained(tmp_dir)
     assert fresh_model.task == "document"
     assert list(fresh_model.predict([solid((230, 40, 40)), solid((40, 40, 230))])) == [0, 1]
+
+
+def test_get_dataset_keeps_images_out_of_pair_table() -> None:
+    """Thousands of images must yield an index-only pair dataset that the collator resolves to pixel batches;
+    embedding an image per pair row overflowed Arrow's 2 GB offsets on a 3.9K-image run."""
+    pytest.importorskip("PIL")
+    from PIL.Image import new as new_image
+
+    images = [new_image("RGB", (8, 8), (i % 256, 0, 0)) for i in range(1200)]
+    labels = [i % 3 for i in range(1200)]
+    model = SetFitModel.from_pretrained("hf-internal-testing/tiny-random-CLIPModel", task="document")
+    trainer = Trainer(model=model, args=TrainingArguments(num_iterations=2, batch_size=8))
+
+    dataset, _ = trainer.get_dataset(images, labels, args=trainer.args)
+    assert len(dataset) == 2 * 2 * 1200
+    assert dataset.features["sentence_1"].dtype.startswith("int")
+    assert dataset.features["sentence_2"].dtype.startswith("int")
+
+    batch = trainer.st_trainer.data_collator([dataset[0], dataset[1]])
+    assert batch["sentence_1_pixel_values"].shape[0] == 2
+    assert batch["sentence_2_pixel_values"].shape[0] == 2
