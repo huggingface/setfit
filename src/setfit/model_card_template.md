@@ -105,6 +105,17 @@ model = AbsaModel.from_pretrained(
 # Run inference
 preds = model("The food was great, but the venue is just way too busy.")
 ```
+{%- elif not text_inputs %}
+```python
+from PIL import Image
+
+from setfit import SetFitModel
+
+# Download from the {{ hf_emoji }} Hub
+model = SetFitModel.from_pretrained("{{ model_id | default('setfit_model_id', true) }}")
+# Run inference on images
+preds = model([Image.open("example.png")])
+```
 {%- else %}
 ```python
 from setfit import SetFitModel

@@ -3,7 +3,7 @@ import os
 import tempfile
 import warnings
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 
 import joblib
 import numpy as np
@@ -22,7 +22,7 @@ from tqdm.auto import tqdm, trange
 from transformers.utils import copy_func
 
 from . import logging
-from .compat import Dense
+from .compat import SENTENCE_TRANSFORMERS_VERSION, Dense
 from .data import SetFitDataset
 from .model_card import SetFitModelCardData, generate_model_card
 from .utils import set_docstring
@@ -211,6 +211,7 @@ class SetFitModel(ModelHubMixin):
         labels: Optional[List[str]] = None,
         model_card_data: Optional[SetFitModelCardData] = None,
         sentence_transformers_kwargs: Optional[Dict] = None,
+        task: Optional[str] = None,
         **kwargs,
     ) -> None:
         super(SetFitModel, self).__init__()
@@ -221,14 +222,29 @@ class SetFitModel(ModelHubMixin):
         self.labels = labels
         self.model_card_data = model_card_data or SetFitModelCardData()
         self.sentence_transformers_kwargs = sentence_transformers_kwargs or {}
+        if task is not None and SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            raise ValueError(
+                f"`task={task!r}` requires sentence-transformers v5.0.0 or newer, "
+                f"but v{SENTENCE_TRANSFORMERS_VERSION} is installed."
+            )
+        self.task = task
 
-        self.attributes_to_save: Set[str] = {"normalize_embeddings", "labels"}
+        self.attributes_to_save: Set[str] = {"normalize_embeddings", "labels", "task"}
         self.model_card_data.register_model(self)
 
     @property
     def has_differentiable_head(self) -> bool:
         # if False, sklearn is assumed to be used instead
         return isinstance(self.model_head, nn.Module)
+
+    @property
+    def _encode_kwargs(self) -> Dict[str, Any]:
+        """Keyword arguments forwarded to every `SentenceTransformer.encode` call made by this model.
+
+        Only `task` is forwarded, and only when it is set, so models on older Sentence Transformers
+        versions never receive unknown keyword arguments.
+        """
+        return {"task": self.task} if self.task is not None else {}
 
     @property
     def id2label(self) -> Dict[int, str]:
@@ -278,6 +294,11 @@ class SetFitModel(ModelHubMixin):
                 epochs and iterations.
         """
         if self.has_differentiable_head:  # train with pyTorch
+            if self.task is not None:
+                raise NotImplementedError(
+                    "`task` is only supported with the default scikit-learn head: the differentiable head "
+                    "tokenizes inputs as text and cannot route them through a task."
+                )
             self.model_body.train()
             self.model_head.train()
             if not end_to_end:
@@ -313,7 +334,9 @@ class SetFitModel(ModelHubMixin):
             if not end_to_end:
                 self.unfreeze("body")
         else:  # train with sklearn
-            embeddings = self.model_body.encode(list(x_train), normalize_embeddings=self.normalize_embeddings)
+            embeddings = self.model_body.encode(
+                list(x_train), normalize_embeddings=self.normalize_embeddings, **self._encode_kwargs
+            )
             self.model_head.fit(embeddings, list(y_train))
             if self.labels is None and self.multi_target_strategy is None:
                 # Try to set the labels based on the head classes, if they exist
@@ -453,6 +476,7 @@ class SetFitModel(ModelHubMixin):
             normalize_embeddings=self.normalize_embeddings,
             convert_to_tensor=self.has_differentiable_head,
             show_progress_bar=show_progress_bar,
+            **self._encode_kwargs,
         )
 
     def _output_type_conversion(
@@ -893,6 +917,10 @@ if cut_index != -1:
                 Whether to load SetFit using a differentiable (i.e., Torch) head instead of Logistic Regression.
             normalize_embeddings (`bool`, *optional*):
                 Whether to apply normalization on the embeddings produced by the Sentence Transformer body.
+            task (`str`, *optional*):
+                The task passed to every `SentenceTransformer.encode` call and to the embedding training, e.g.
+                    `"document"` for multimodal encoders whose processor requires it to embed page images.
+                    Requires sentence-transformers v5.0.0 or newer and the default (scikit-learn) head.
             device (`Union[torch.device, str]`, *optional*):
                 The device on which to load the SetFit model, e.g. `"cuda:0"`, `"mps"` or `torch.device("cuda")`.
             trust_remote_code (`bool`, defaults to `False`): Whether or not to allow for custom Sentence Transformers

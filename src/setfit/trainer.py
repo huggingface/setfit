@@ -15,7 +15,14 @@ from transformers.utils.import_utils import is_in_notebook
 from setfit.model_card import ModelCardCallback
 
 from . import logging
-from .compat import TRANSFORMERS_VERSION, BatchSamplers, SentenceTransformerModelCardCallback, Version, losses
+from .compat import (
+    SENTENCE_TRANSFORMERS_VERSION,
+    TRANSFORMERS_VERSION,
+    BatchSamplers,
+    SentenceTransformerModelCardCallback,
+    Version,
+    losses,
+)
 from .integrations import default_hp_search_backend, is_optuna_available, run_hp_search_optuna
 from .losses import SupConLoss
 from .sampler import ContrastiveDataset
@@ -45,12 +52,18 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.logs_prefix = "embedding"
         # The Trainer creates the integration callbacks (TensorBoard, CodeCarbon, ...) during initialization,
         # so report_to has to be known already
+        st_args_kwargs = {}
+        # Bodies with a Router module require the routing before the data collator is created
+        router_mapping = self._task_router_mapping(setfit_model)
+        if router_mapping is not None:
+            st_args_kwargs["router_mapping"] = router_mapping
         super().__init__(
             model=setfit_model.model_body,
             args=SentenceTransformerTrainingArguments(
                 output_dir=setfit_args.output_dir,
                 report_to=setfit_args.report_to,
                 seed=setfit_args.seed,
+                **st_args_kwargs,
             ),
             **kwargs,
         )
@@ -165,6 +178,29 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
         self.args.load_best_model_at_end = args.load_best_model_at_end
         self.args.metric_for_best_model = args.metric_for_best_model
         self.args.greater_is_better = args.greater_is_better
+
+        self._apply_task_routing()
+
+    @staticmethod
+    def _task_router_mapping(setfit_model: "SetFitModel") -> Optional[Dict[str, str]]:
+        """
+        The `router_mapping` that routes every pair column through `SetFitModel.task`, or None without a task.
+
+        Sentence Transformers resolves the per-column task from `router_mapping`; SetFit's contrastive datasets
+        use the `sentence_1`/`sentence_2` (pair losses) or `sentence` (batch losses) columns.
+        """
+        task = setfit_model.task
+        if task is None or SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            return None
+        return {"sentence_1": task, "sentence_2": task, "sentence": task}
+
+    def _apply_task_routing(self) -> None:
+        """Propagate the current model's task routing to the arguments and the already created data collator."""
+        if SENTENCE_TRANSFORMERS_VERSION < Version("5.0.0"):
+            return
+        router_mapping = self._task_router_mapping(self.setfit_model) or {}
+        self.args.router_mapping = router_mapping
+        self.data_collator.router_mapping = router_mapping
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.
@@ -341,6 +377,8 @@ class Trainer(ColumnMappingMixin):
 
         self._model = model
         self.hp_search_backend = None
+        # Non-text inputs (e.g. PIL images) referenced by the contrastive pair datasets; see ``get_dataset``.
+        self._pair_inputs: List[Any] = []
 
         callbacks = callbacks + [ModelCardCallback(self)] if callbacks else [ModelCardCallback(self)]
         self.st_trainer = BCSentenceTransformersTrainer(
@@ -560,6 +598,7 @@ class Trainer(ColumnMappingMixin):
             self.st_trainer.setfit_args = args
         args = args or self.args or TrainingArguments()
 
+        self._pair_inputs.clear()
         train_max_pairs = -1 if args.max_steps == -1 else args.max_steps * args.embedding_batch_size
         train_dataset, loss = self.get_dataset(x_train, y_train, args=args, max_pairs=train_max_pairs)
         if x_eval is not None and args.eval_strategy != IntervalStrategy.NO:
@@ -612,8 +651,18 @@ class Trainer(ColumnMappingMixin):
                     margin=args.margin,
                 )
         else:
+            if x and not isinstance(x[0], str):
+                # Pair rows hold indices into ``self._pair_inputs`` rather than the inputs themselves: with images,
+                # a few thousand inputs become tens of thousands of pair rows, and storing an image per row
+                # overflows the Arrow table (2 GB offsets) before training starts. The collator resolves them.
+                offset = len(self._pair_inputs)
+                self._pair_inputs.extend(x)
+                pair_inputs = list(range(offset, offset + len(x)))
+                self._resolve_pair_inputs_in_collator()
+            else:
+                pair_inputs = x
             data_sampler = ContrastiveDataset(
-                x,
+                pair_inputs,
                 y,
                 self.model.multi_target_strategy,
                 args.num_iterations,
@@ -624,6 +673,21 @@ class Trainer(ColumnMappingMixin):
             loss = args.loss(self.model.model_body)
 
         return dataset, loss
+
+    def _resolve_pair_inputs_in_collator(self) -> None:
+        """Make the Sentence Transformers collator map pair-row indices back to the inputs before preprocessing."""
+        collator = self.st_trainer.data_collator
+        if getattr(collator, "_setfit_resolves_pair_inputs", False):
+            return
+        fn_name = "preprocess_fn" if hasattr(collator, "preprocess_fn") else "tokenize_fn"
+        preprocess = getattr(collator, fn_name)
+        pair_inputs = self._pair_inputs
+
+        def resolve_then_preprocess(inputs, *fn_args, **fn_kwargs):
+            return preprocess([pair_inputs[index] for index in inputs], *fn_args, **fn_kwargs)
+
+        setattr(collator, fn_name, resolve_then_preprocess)
+        collator._setfit_resolves_pair_inputs = True
 
     def _set_logs_prefix(self, logs_prefix: str) -> None:
         """Set the logging prefix.
