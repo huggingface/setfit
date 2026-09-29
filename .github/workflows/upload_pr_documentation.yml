@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    uses: huggingface/doc-builder/.github/workflows/upload_pr_documentation.yml@cf20b09f274383f0d91a7055c5e43f0a2ab3d1a3  # main
+    uses: huggingface/doc-builder/.github/workflows/upload_pr_documentation.yml@61704e23fa97c0502ce5355c489c6bec4194bff1  # main
     with:
       package_name: setfit
     secrets:
