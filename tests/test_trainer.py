@@ -13,7 +13,7 @@ from transformers.testing_utils import require_optuna
 from transformers.utils.hp_naming import TrialShortNamer
 
 from setfit import logging
-from setfit.compat import losses
+from setfit.compat import BatchSamplers, losses
 from setfit.losses import SupConLoss
 from setfit.modeling import SetFitModel
 from setfit.trainer import Trainer
@@ -459,6 +459,27 @@ def test_trainer_works_with_non_default_loss_class(loss_class):
     )
     trainer.train()
     # no asserts here because this is a regression test - we only test if an exception is raised
+
+
+@pytest.mark.parametrize(
+    "loss_class",
+    [
+        losses.BatchAllTripletLoss,
+        losses.BatchHardTripletLoss,
+        losses.BatchSemiHardTripletLoss,
+        losses.BatchHardSoftMarginTripletLoss,
+        SupConLoss,
+    ],
+)
+def test_trainer_groups_batches_by_label_for_in_batch_losses(loss_class):
+    # These losses mine positives inside each batch, so every label in a batch needs a second sample.
+    # With many classes and random batches, some samples have none and SupConLoss returns NaN.
+    labels = [label for label in range(6) for _ in range(4)]
+    dataset = Dataset.from_dict({"text": [f"text {i}" for i in range(len(labels))], "label": labels})
+    model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
+    trainer = Trainer(model=model, args=TrainingArguments(loss=loss_class, batch_size=8), train_dataset=dataset)
+    trainer.train()
+    assert trainer.st_trainer.args.batch_sampler == BatchSamplers.GROUP_BY_LABEL
 
 
 def test_trainer_evaluate_with_strings(model: SetFitModel):
