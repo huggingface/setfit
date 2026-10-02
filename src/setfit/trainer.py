@@ -576,7 +576,7 @@ class Trainer(ColumnMappingMixin):
         self.st_trainer.train_dataset = train_dataset
         self.st_trainer.eval_dataset = eval_dataset
         self.st_trainer.loss = loss
-        if loss in (
+        if args.loss in (
             losses.BatchAllTripletLoss,
             losses.BatchHardTripletLoss,
             losses.BatchSemiHardTripletLoss,
