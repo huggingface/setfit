@@ -7,6 +7,6 @@ on:
 
 jobs:
   delete:
-    uses: huggingface/doc-builder/.github/workflows/delete_doc_comment_trigger.yml@cf20b09f274383f0d91a7055c5e43f0a2ab3d1a3  # main
+    uses: huggingface/doc-builder/.github/workflows/delete_doc_comment_trigger.yml@c69e96c087165ba49b1788e0c3464654dd60253c  # main
     with:
       pr_number: ${{ github.event.number }}
