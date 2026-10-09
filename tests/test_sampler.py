@@ -43,3 +43,18 @@ def test_sentence_pairs_generation_multilabel(
 
     pairs = [i for i in data_sampler]
     assert len(pairs) == expected_pos_pairs + expected_neg_pairs
+
+
+def test_num_iterations_bounds_pair_generation() -> None:
+    """With ``num_iterations`` only the first ``num_iterations * n`` pairs per bucket are served, so the sampler must
+    not enumerate all n^2 candidates: 3,000 inputs would otherwise mean 4.5M pair dicts before training starts."""
+    import time
+
+    n, num_iterations = 3000, 5
+    started = time.perf_counter()
+    dataset = ContrastiveDataset([f"text {i}" for i in range(n)], [i % 6 for i in range(n)], False, num_iterations)
+    assert len(dataset) == 2 * num_iterations * n
+    assert len(dataset.pos_pairs) <= num_iterations * n
+    assert len(dataset.neg_pairs) <= num_iterations * n
+    assert len(list(dataset)) == 2 * num_iterations * n
+    assert time.perf_counter() - started < 10

@@ -62,6 +62,11 @@ class ContrastiveDataset(IterableDataset):
         self.labels = labels
         self.sentence_labels = list(zip(self.sentences, self.labels))
         self.max_pos_or_neg = -1 if max_pairs == -1 else max_pairs // 2
+        if max_pairs == -1 and num_iterations is not None and num_iterations > 0:
+            # Only the first ``num_iterations * n`` positive and negative pairs are ever served (see
+            # ``get_positive_pairs``), so stop enumerating once both buckets hold that many instead of
+            # materialising all n^2 candidate pairs.
+            self.max_pos_or_neg = num_iterations * len(self.sentences)
 
         if multilabel:
             self.generate_multilabel_pairs()
