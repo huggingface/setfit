@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -23,6 +24,14 @@ def test_setfit_model_body():
     model = SetFitModel.from_pretrained("sentence-transformers/paraphrase-albert-small-v2")
 
     assert type(model.model_body) is SentenceTransformer
+
+
+def test_setfit_from_pretrained_revision():
+    # Stop at the encoder boundary so this test needs no model files or Hub access.
+    with patch("setfit.modeling.SentenceTransformer", side_effect=RuntimeError("stop at encoder")) as encoder:
+        with pytest.raises(RuntimeError, match="stop at encoder"):
+            SetFitModel._from_pretrained("test/model", revision="test-revision")
+    assert encoder.call_args.kwargs.get("revision") == "test-revision"
 
 
 def test_setfit_default_model_head():
