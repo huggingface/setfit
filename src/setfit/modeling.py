@@ -748,7 +748,7 @@ class SetFitModel(ModelHubMixin):
                 "use_auth_token": token,
                 "device": device,
             }
-        model_body = SentenceTransformer(model_id, **sentence_transformers_kwargs)
+        model_body = SentenceTransformer(model_id, revision=revision, **sentence_transformers_kwargs)
         if parse(sentence_transformers_version) >= Version("2.3.0"):
             device = model_body.device
         else:
