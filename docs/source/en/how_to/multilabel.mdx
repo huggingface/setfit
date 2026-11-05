@@ -1,48 +1,232 @@
-
 # Multilabel Text Classification
 
-SetFit supports multilabel classification, allowing multiple labels to be assigned to each instance. 
+Multilabel classification assigns zero, one, or several labels to each text. For example, a support message can concern both billing and delivery. This differs from multiclass classification, where each text has exactly one label. Use a multilabel strategy when labels can occur together, even if some training examples have only one label.
 
-<Tip>
+This guide trains a model on a small, self-contained support-message dataset, evaluates it, decodes its predictions, and saves it for reuse. The examples run in order after [installing SetFit](../installation).
 
-Unless each instance must be assigned multiple outputs, you frequently do not need to specify a multi target strategy.
+## Prepare the data
 
-</Tip>
+Use a `text` column and a `label` column. Each value in `label` is a **binary indicator vector**, not a list of class IDs or names. With the label order `["billing", "delivery", "returns"]`, `[1, 1, 0]` means billing and delivery, while `[0, 0, 1]` means returns only. All vectors must have the same length and column order in every split.
 
-This guide will show you how to train and use multilabel SetFit models.
+```py
+from datasets import Dataset
+
+label_names = ["billing", "delivery", "returns"]
+
+train_dataset = Dataset.from_dict(
+    {
+        "text": [
+            "I was charged twice for my order.",
+            "Please send me a copy of my invoice.",
+            "My package has not arrived yet.",
+            "Can I change the delivery address?",
+            "How do I return an unwanted item?",
+            "Where can I find a return shipping label?",
+            "I paid for express shipping but the parcel is late.",
+            "The delivery fee on my bill is incorrect.",
+            "I returned my order but have not received a refund.",
+            "Will you refund the charge for this returned item?",
+            "The wrong item arrived; I need to send it back.",
+            "Can the courier collect my return when delivering the replacement?",
+        ],
+        "label": [
+            [1, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [0, 0, 1],
+            [1, 1, 0],
+            [1, 1, 0],
+            [1, 0, 1],
+            [1, 0, 1],
+            [0, 1, 1],
+            [0, 1, 1],
+        ],
+    }
+)
+
+eval_dataset = Dataset.from_dict(
+    {
+        "text": [
+            "There are two payments for the same purchase.",
+            "When will my parcel reach me?",
+            "I want to send this product back.",
+            "My returned product still appears as a charge on my bill.",
+        ],
+        "label": [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1]],
+    }
+)
+```
+
+If your data has a separate binary column for each label, combine those columns into a single `label` vector in the chosen order. If you start with lists of label names, scikit-learn's [`MultiLabelBinarizer`](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MultiLabelBinarizer.html) can create these vectors; fit it once and reuse the same class order for validation and inference.
+
+Ensure that every label has both positive and negative training examples. In a real task, use representative held-out data and check per-label coverage when splitting: a random split of a small dataset can omit a rare label. This tiny dataset demonstrates the API, not expected production quality.
 
 ## Multilabel strategies
 
-SetFit will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:
+For the default scikit-learn logistic regression head, `multi_target_strategy` accepts:
 
-* `"one-vs-rest"`: uses a [`OneVsRestClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsRestClassifier.html) head.
-* `"multi-output"`: uses a [`MultiOutputClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.MultiOutputClassifier.html) head.
-* `"classifier-chain"`: uses a [`ClassifierChain`](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.ClassifierChain.html) head.
+* `"one-vs-rest"`: a [`OneVsRestClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsRestClassifier.html), which fits a binary classifier for each label.
+* `"multi-output"`: a [`MultiOutputClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.MultiOutputClassifier.html), which fits a classifier for each output.
+* `"classifier-chain"`: a [`ClassifierChain`](https://scikit-learn.org/stable/modules/generated/sklearn.multioutput.ClassifierChain.html), which uses earlier labels in the chain as features for later classifiers.
 
-See the [scikit-learn documentation for multiclass and multioutput classification](https://scikit-learn.org/stable/modules/multiclass.html#multiclass-classification) for more details.
+See the [scikit-learn guide](https://scikit-learn.org/stable/modules/multiclass.html) for their differences. The following workflow uses `"one-vs-rest"` throughout.
 
 ## Initializing SetFit models with multilabel strategies
 
-Using the default LogisticRegression head, we can apply multi target strategies like so:
+Pass the strategy when loading a pretrained sentence encoder. Store the label names in the same order as the indicator vectors so that they remain available after saving and loading the model.
 
 ```py
-from setfit import SetFitModel
+from setfit import SetFitModel, Trainer, TrainingArguments
 
+model_id = "sentence-transformers/paraphrase-MiniLM-L3-v2"
 model = SetFitModel.from_pretrained(
-    model_id, # e.g. "BAAI/bge-small-en-v1.5"
-    multi_target_strategy="multi-output",
+    model_id,
+    multi_target_strategy="one-vs-rest",
+    labels=label_names,
 )
 ```
 
-With a differentiable head it looks like so:
+## Train and evaluate
+
+Choose metrics explicitly for multilabel evaluation. Micro F1 pools decisions across all labels; macro F1 averages each label's F1 equally, making rare labels more visible. Exact-match accuracy requires the *entire* predicted label set to match, so it answers a different question.
+
+A callable metric receives predictions first and references second. It avoids downloading a metric implementation and lets you compute several scores together. `zero_division=0` defines F1 as zero when its denominator is zero.
 
 ```py
-from setfit import SetFitModel
+import numpy as np
+from sklearn.metrics import f1_score
 
-model = SetFitModel.from_pretrained(
-    model_id, # e.g. "BAAI/bge-small-en-v1.5"
-    multi_target_strategy="one-vs-rest"
+
+def multilabel_metrics(predictions, references):
+    # Differentiable heads may return tensors; scikit-learn needs CPU arrays.
+    if hasattr(predictions, "detach"):
+        predictions = predictions.detach().cpu().numpy()
+    predictions = np.asarray(predictions)
+    references = np.asarray(references)
+    return {
+        "micro_f1": f1_score(references, predictions, average="micro", zero_division=0),
+        "macro_f1": f1_score(references, predictions, average="macro", zero_division=0),
+    }
+
+
+args = TrainingArguments(
+    output_dir="setfit-multilabel-checkpoints",
+    batch_size=4,
+    num_epochs=1,
+    num_iterations=2,
+    report_to="none",
+)
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    metric=multilabel_metrics,
+)
+trainer.train()
+print(trainer.evaluate())  # Contains micro_f1 and macro_f1.
+```
+
+Training first adapts the sentence encoder using pairs of texts, then fits the classification head. For multilabel pair generation, texts sharing at least one positive label form a positive pair; their full label vectors do not need to match. The small number of iterations and single epoch above keep the example short. Tune training settings on validation data for your own task, and reserve a separate test set for final evaluation.
+
+## Interpret predictions and probabilities
+
+For a list of texts, `predict` returns a binary matrix with one row per text and one column per label. Multilabel predictions are not automatically converted to names, even when `labels` is set. Decode each row using the stored label order:
+
+```py
+texts = [
+    "My parcel is late and the shipping charge is wrong.",
+    "How can I send this item back?",
+]
+predictions = model.predict(texts, as_numpy=True)
+probabilities = model.predict_proba(texts, as_numpy=True)
+
+assert predictions.shape == (len(texts), len(label_names))
+assert probabilities.shape == (len(texts), len(label_names))
+
+predicted_labels = [
+    [name for name, present in zip(model.labels, row) if present]
+    for row in predictions
+]
+print(predicted_labels)
+```
+
+With this one-vs-rest model, each probability is the positive-class probability for that label. The probabilities in a row need not sum to one, and a prediction can contain no labels or several labels. Passing a single string rather than a list removes the batch dimension.
+
+<Tip warning={true}>
+
+Probability shapes depend on the head. The two-dimensional probability example above applies to the one-vs-rest head and the differentiable multilabel head below. A scikit-learn `"multi-output"` head instead returns a class-probability axis for each output, normally `(num_texts, num_labels, 2)` when every output has both binary classes. Do not apply the same slicing to every strategy; inspect the head's classes and output shape.
+
+</Tip>
+
+For a custom decision threshold, apply it to the probabilities yourself:
+
+```py
+threshold = 0.4  # Illustrative only: choose using validation data.
+custom_predictions = (probabilities >= threshold).astype(int)
+print(custom_predictions)
+```
+
+Changing the threshold trades precision against recall; it does not change `model.predict` or `trainer.evaluate`, which still use the head's built-in decisions. Evaluate custom thresholds on probabilities for the validation texts and their matching reference vectors. Do not choose thresholds on the final test set. The differentiable head uses `>= 0.5`; scikit-learn heads use their estimator's decision rule.
+
+## Save and reload
+
+Save the trained encoder, classification head, and label metadata together. Reload only model artifacts you trust, because the saved classification head uses pickle-based serialization.
+
+```py
+model.save_pretrained("setfit-multilabel")
+reloaded_model = SetFitModel.from_pretrained(
+    "setfit-multilabel",
+    multi_target_strategy="one-vs-rest",
+)
+
+assert reloaded_model.labels == label_names
+np.testing.assert_array_equal(
+    predictions, reloaded_model.predict(texts, as_numpy=True)
+)
+np.testing.assert_allclose(
+    probabilities, reloaded_model.predict_proba(texts, as_numpy=True), atol=1e-6
+)
+```
+
+Pass the strategy again when reloading so that subsequent training and evaluation retain the multilabel configuration. If you use custom thresholds, save those separately along with their label order and apply them again during inference.
+
+## Use a differentiable head
+
+Alternatively, enable a differentiable [`SetFitHead`]. Its output dimension must equal the number of labels, not the number of distinct label combinations. Both `"one-vs-rest"` and `"multi-output"` enable the same multilabel behavior for this head: independent sigmoid outputs trained with binary cross-entropy. `"classifier-chain"` is not supported for a differentiable head.
+
+The dataset format and metric above stay the same. Start from a fresh encoder to train this alternative:
+
+```py
+differentiable_model = SetFitModel.from_pretrained(
+    model_id,
+    multi_target_strategy="one-vs-rest",
     use_differentiable_head=True,
-    head_params={"out_features": num_classes},
+    head_params={"out_features": len(label_names)},
+    labels=label_names,
+)
+differentiable_trainer = Trainer(
+    model=differentiable_model,
+    args=TrainingArguments(
+        output_dir="setfit-multilabel-differentiable-checkpoints",
+        batch_size=(4, 4),
+        num_epochs=(1, 2),
+        num_iterations=2,
+        report_to="none",
+    ),
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    metric=multilabel_metrics,
+)
+differentiable_trainer.train()
+print(differentiable_trainer.evaluate())
+
+scores = differentiable_model.predict_proba(texts, as_numpy=True)
+np.testing.assert_array_equal(
+    differentiable_model.predict(texts, as_numpy=True), (scores >= 0.5).astype(int)
 )
 ```
+
+The tuples configure the embedding-training and classifier-training phases respectively. See [classification heads](classification_heads) for more on differentiable-head training. Compare heads on your own validation data rather than assuming either will perform better.
