@@ -114,6 +114,8 @@ class BCSentenceTransformersTrainer(SentenceTransformerTrainer):
     def setfit_model(self, setfit_model: "SetFitModel") -> None:
         self._setfit_model = setfit_model
         self.model = setfit_model.model_body
+        self.model_wrapped = self.model
+        self.optimizer, self.lr_scheduler = None, None
         self.callback_handler.setfit_model = setfit_model
 
     @property
