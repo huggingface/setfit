@@ -371,8 +371,8 @@ class SetFitModel(ModelHubMixin):
         body_learning_rate: Optional[float],
         l2_weight: float,
     ) -> torch.optim.Optimizer:
-        body_learning_rate = body_learning_rate or head_learning_rate
-        l2_weight = l2_weight or 1e-2
+        body_learning_rate = head_learning_rate if body_learning_rate is None else body_learning_rate
+        l2_weight = 1e-2 if l2_weight is None else l2_weight
         optimizer = torch.optim.AdamW(
             [
                 {
