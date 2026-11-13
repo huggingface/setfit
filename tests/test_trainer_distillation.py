@@ -1,10 +1,16 @@
+from copy import deepcopy
 from unittest import TestCase
 
 import pytest
+import torch
 from datasets import Dataset
+from sentence_transformers import SentenceTransformer
+from sentence_transformers.models import Pooling, Transformer
+from sklearn.linear_model import LogisticRegression
+from transformers import BertConfig, BertModel, BertTokenizerFast
 
 from setfit import DistillationTrainer, Trainer
-from setfit.modeling import SetFitModel
+from setfit.modeling import SetFitHead, SetFitModel
 from setfit.training_args import TrainingArguments
 
 
@@ -160,3 +166,34 @@ def test_differentiable_models(teacher_diff: bool, student_diff: bool) -> None:
     metrics = student_trainer.evaluate()
     print("Student results: ", metrics)
     assert metrics["accuracy"] == 1.0
+
+
+def test_distillation_ignores_teacher_display_labels(tmp_path):
+    torch.manual_seed(42)
+    # Build a tiny encoder locally so no model download is needed.
+    vocab = tmp_path / "vocab.txt"
+    vocab.write_text("[PAD]\n[UNK]\n[CLS]\n[SEP]\n[MASK]\nbad\ngreat\n")
+    BertTokenizerFast(vocab=str(vocab), vocab_file=str(vocab)).save_pretrained(tmp_path)
+    BertModel(
+        BertConfig(vocab_size=7, hidden_size=8, num_hidden_layers=1, num_attention_heads=2, intermediate_size=16)
+    ).save_pretrained(tmp_path)
+    body = SentenceTransformer(modules=[Transformer(str(tmp_path), max_seq_length=16), Pooling(8)], device="cpu")
+    texts = ["bad", "bad bad", "great", "great great"]
+    teacher = SetFitModel(body, LogisticRegression(C=1e6), labels=["negative", "positive"])
+    teacher.fit(texts, [0, 0, 1, 1], num_epochs=1, show_progress_bar=False)
+    assert teacher.predict(texts) == ["negative", "negative", "positive", "positive"]
+    student = SetFitModel(deepcopy(body), SetFitHead(in_features=8, out_features=2, device="cpu"))
+    trainer = DistillationTrainer(
+        teacher_model=teacher,
+        student_model=student,
+        args=TrainingArguments(
+            output_dir=str(tmp_path / "checkpoints"),
+            num_epochs=1,
+            batch_size=4,
+            report_to="none",
+            show_progress_bar=False,
+        ),
+    )
+    before = student.model_head.linear.weight.detach().clone()
+    trainer.train_classifier(texts)
+    assert not torch.equal(before, student.model_head.linear.weight)

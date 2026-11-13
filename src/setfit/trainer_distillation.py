@@ -107,7 +107,9 @@ class DistillationTrainer(Trainer):
                 Temporarily change the training arguments for this training call.
         """
         with torch.no_grad():
-            y_train = self.teacher_model.predict(x_train, as_numpy=not self.student_model.has_differentiable_head)
+            y_train = self.teacher_model.predict(
+                x_train, as_numpy=not self.student_model.has_differentiable_head, use_labels=False
+            )
         return super().train_classifier(x_train, y_train, args)
 
 
