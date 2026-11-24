@@ -205,7 +205,17 @@ class AbsaModel:
         polarity_list = sum(self.polarity_model(docs, aspects_list), [])
         for index in skipped_indices:
             polarity_list.insert(index, None)
-        return inputs.add_column("pred_polarity", polarity_list)
+
+        # Restore input order after grouping the aspect spans by text.
+        grouped_indices = defaultdict(list)
+        for index, text in enumerate(inputs["text"]):
+            grouped_indices[text].append(index)
+        input_order = [0] * len(inputs)
+        for grouped_index, input_index in enumerate(
+            index for indices in grouped_indices.values() for index in indices
+        ):
+            input_order[input_index] = grouped_index
+        return inputs.add_column("pred_polarity", [polarity_list[index] for index in input_order])
 
     def predict(self, inputs: Union[str, List[str], Dataset]) -> Union[List[Dict[str, Any]], Dataset]:
         """Predicts aspects & their polarities of the given inputs.
