@@ -184,6 +184,21 @@ def test_predict_dataset(trained_absa_model: AbsaModel):
     assert "pred_polarity" in outputs.column_names
 
 
+def test_predict_dataset_preserves_row_order(trained_absa_model: AbsaModel):
+    text = "The food was delicious but the service was terrible."
+    other = "The price was reasonable."
+    inputs = Dataset.from_dict({"text": [text, other, other, text], "span": ["food", "pric", "price", "service"]})
+    expected = [trained_absa_model.predict(inputs.select([index]))["pred_polarity"][0] for index in [0, 2, 3]]
+    assert expected[1] != expected[2]
+    expected.insert(1, None)  # "pric" does not align with a spaCy token.
+
+    for dataset in [inputs, inputs.add_column("ordinal", [0] * len(inputs))]:
+        outputs = trained_absa_model.predict(dataset)
+        assert list(outputs["pred_polarity"]) == expected
+        assert list(outputs["text"]) == list(inputs["text"])
+        assert list(outputs["span"]) == list(inputs["span"])
+
+
 def test_predict_dataset_errors(trained_absa_model: AbsaModel):
     inputs = Dataset.from_dict(
         {
